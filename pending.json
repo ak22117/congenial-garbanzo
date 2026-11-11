@@ -1,0 +1,755 @@
+[
+  {
+    "sourceFormat": "native",
+    "version": 1,
+    "name": "小六番茄",
+    "url": "https://fq.neeao.dpdns.org",
+    "group": "渡",
+    "comment": "【2026-11-10 检测：TLS 层被拒】DNS 正常（fq.neeao.dpdns.org → 104.21.31.178，Cloudflare），但 TLS 握手阶段被 RST，浏览器打开返回 -101。三次尝试结果一致。可能是站点风控或本机 IP 被拦截，需换网络环境复测。\n\n—— 原 comment ——\n由 Legado 兼容格式按《公共书源规则开发文档》迁移而来的原生书源：全部声明式规则，无 JavaScript。模式/频道是发现页顶部筛选项（也可在书源设置修改），听书音色在听书页选择，登录在书源设置里用内置浏览器登录番茄（也可手动填 sessionid）。依赖 fqapi 中转服务，服务器可在书源设置里更换。段评气泡由应用绘制，正文插图保留在行内。短剧/漫剧的视频载荷在 CDN 上是加密的，播放地址优先取接口返回的 video_url_decrypt 解密中转（video_url_proxy 次之，直链 content 仅作兜底）。目录与正文按书籍类型请求对应的内容接口（tab=小说/听书/漫画/短剧/漫剧）。",
+    "type": "text",
+    "enabled": false,
+    "enabledExplore": true,
+    "vars": [
+      {
+        "key": "server",
+        "label": "服务器",
+        "default": "https://fq.neeao.dpdns.org"
+      },
+      {
+        "key": "mode",
+        "label": "模式",
+        "options": [
+          "小说模式",
+          "听书模式",
+          "漫画模式",
+          "短剧模式",
+          "短篇模式",
+          "漫剧模式"
+        ],
+        "default": "小说模式",
+        "filter": true
+      },
+      {
+        "key": "channel",
+        "label": "频道",
+        "options": [
+          "男频",
+          "女频",
+          "出版"
+        ],
+        "default": "男频",
+        "filter": true
+      },
+      {
+        "key": "token",
+        "label": "手动登录Token(填sessionid值)",
+        "default": ""
+      },
+      {
+        "key": "dp",
+        "label": "段评开关(1开/0关)",
+        "default": "1"
+      },
+      {
+        "key": "cp",
+        "label": "章评开关(1开/0关)",
+        "default": "1"
+      },
+      {
+        "key": "bk",
+        "label": "书评开关(1开/0关)",
+        "default": "1"
+      }
+    ],
+    "lib": "fn tagList(value) {\n  if (typeOf(value) == 'list') { return value }\n  let s = str(value)\n  if (startsWith(s, '[')) {\n    let parsed = json(s)\n    if (typeOf(parsed) == 'list') { return parsed }\n    return []\n  }\n  let out = []\n  for part in split(s, '、') {\n    for piece in split(part, ',') {\n      push(out, piece)\n    }\n  }\n  return out\n}\n\nfn cleanText(s) {\n  let t = replace(s, '<br\\\\s*/?>', '\\n', 'gi')\n  t = replace(t, '</p>', '\\n', 'gi')\n  t = replace(t, '<p[^>]*>', '', 'gi')\n  t = replace(t, '<h[1-6][^>]*>', '\\n', 'gi')\n  t = replace(t, '</h[1-6]>', '\\n', 'gi')\n  t = replace(t, '<div[^>]*>', '\\n', 'gi')\n  t = replace(t, '</div>', '', 'gi')\n  t = replace(t, '<li[^>]*>', '\\n', 'gi')\n  t = replace(t, '</li>', '', 'gi')\n  t = replace(t, '<(?!img\\\\b)[^>]+>', '', 'gi')\n  t = htmlDecode(t)\n  t = replace(t, '\\\\n{3,}', '\\n\\n', 'g')\n  return trim(t)\n}\n\nfn paraCounts(text, paras) {\n  let lines = split(text, '\\n')\n  let out = []\n  let k = 0\n  for line in lines {\n    if (test(line, '<img')) {\n      push(out, 0)\n    } else {\n      push(out, default(paras[str(k)], paras[int(k)], 0))\n      k = k + 1\n    }\n  }\n  return out\n}",
+    "login": {
+      "url": "https://fanqienovel.com/",
+      "cookies": [
+        "sessionid"
+      ],
+      "check": {
+        "url": "https://fanqienovel.com/api/user/info/v2",
+        "headers": {
+          "Cookie": "sessionid={{default(cookie('https://fanqienovel.com/', 'sessionid'), vars.token)}}"
+        },
+        "ok": "= data.code == 0",
+        "name": "= data.data.name"
+      }
+    },
+    "voices": [
+      {
+        "id": "1",
+        "name": "甜美少女"
+      },
+      {
+        "id": "2",
+        "name": "清亮青叔"
+      },
+      {
+        "id": "4",
+        "name": "成熟大叔"
+      },
+      {
+        "id": "5",
+        "name": "开朗青年"
+      },
+      {
+        "id": "6",
+        "name": "温柔淑女"
+      },
+      {
+        "id": "8",
+        "name": "风雅青叔"
+      },
+      {
+        "id": "12",
+        "name": "清纯少女"
+      },
+      {
+        "id": "17",
+        "name": "磁性青叔"
+      },
+      {
+        "id": "27",
+        "name": "推文女声"
+      },
+      {
+        "id": "28",
+        "name": "亲切姐姐"
+      },
+      {
+        "id": "29",
+        "name": "儒雅大叔"
+      },
+      {
+        "id": "30",
+        "name": "优雅御姐"
+      },
+      {
+        "id": "31",
+        "name": "斯文青叔"
+      },
+      {
+        "id": "32",
+        "name": "知性主播"
+      },
+      {
+        "id": "51",
+        "name": "多人对话"
+      },
+      {
+        "id": "74",
+        "name": "成熟升级"
+      },
+      {
+        "id": "90",
+        "name": "多人配乐"
+      },
+      {
+        "id": "100",
+        "name": "俏皮御姐"
+      },
+      {
+        "id": "103",
+        "name": "双音灵动"
+      },
+      {
+        "id": "105",
+        "name": "王明军音"
+      },
+      {
+        "id": "110",
+        "name": "双角对话"
+      },
+      {
+        "id": "115",
+        "name": "从容淑女"
+      }
+    ],
+    "let": {
+      "sessionCookie": "= default(cookie('https://fanqienovel.com/', 'sessionid'), vars.token)",
+      "tab": "= vars.mode == '小说模式' && vars.channel == '出版' ? '出版' : replaceText(vars.mode, '模式', '')",
+      "sourceType": "= vars.channel == '男频' ? '男频' : '女频'",
+      "tabType": "= lookup({'小说模式': '3', '听书模式': '2', '漫画模式': '8', '短剧模式': '11', '短篇模式': '3', '漫剧模式': '19'}, vars.mode, '3')",
+      "shortParam": "= vars.mode == '短篇模式' ? '&short=1' : ''"
+    },
+    "actions": [
+      {
+        "label": "🎚 服务器检查",
+        "url": "{{vars.server}}/api/search?key=%E7%95%AA%E8%8C%84&offset=0&tab_type=3",
+        "message": "= (data.code == 200 || data.code == 0) ? '✅ 服务器连接正常\\n' + vars.server : '❌ 服务器异常（code=' + str(data.code) + '）'"
+      }
+    ],
+    "search": {
+      "url": "= test(key, '^\\d{19}$') ? '' : vars.server + '/api/search?key=' + urlencode(key) + '&offset=' + str((page - 1) * 10) + '&tab_type=' + tabType + shortParam",
+      "list": "= test(key, '^\\d{19}$') ? [{book_id: key, name: '番茄书籍 ' + key}] : $.data.list[*]",
+      "fields": {
+        "name": "= $.name",
+        "author": "= $.author",
+        "coverUrl": "= $.cover",
+        "intro": "= replaceText(default($.intro, ''), '\\n', '')",
+        "kind": "= join(compact([$.category, $.status, $.score ? $.score + '分' : '', ($.tab == '短剧' || $.tab == '漫剧') ? ($.episode_cnt || $.word_count ? default($.episode_cnt, $.word_count) + '集' : '') : '']), '\\n')",
+        "wordCount": "= ($.tab == '短剧' || $.tab == '漫剧') ? (($.episode_cnt || $.word_count) ? default($.episode_cnt, $.word_count) + '集' : '') : (($.word_count || $.word_number) ? default($.word_count, $.word_number) + '字' : '')",
+        "bookUrl": "{{vars.server}}/api/detail?book_id={{$.book_id}}",
+        "type": "= $.book_type == 2 ? 'audio' : $.book_type == 8 ? 'comic' : ($.book_type == 11 || $.book_type == 19) ? 'video' : ''"
+      }
+    },
+    "explore": {
+      "menus": [
+        {
+          "title": "👤 个人中心",
+          "when": "= sessionCookie"
+        },
+        {
+          "title": "📚 我的书架",
+          "url": "{{vars.server}}/api/user/bookshelf",
+          "headers": {
+            "Cookie": "sessionid={{sessionCookie}}"
+          },
+          "when": "= sessionCookie"
+        },
+        {
+          "title": "🏠 首页推荐",
+          "url": "{{vars.server}}/api/discover/home",
+          "headers": {
+            "Cookie": "sessionid={{sessionCookie}}"
+          },
+          "when": "= sessionCookie"
+        },
+        {
+          "title": "💝 猜你喜欢",
+          "url": "{{vars.server}}/api/user/recommend",
+          "headers": {
+            "Cookie": "sessionid={{sessionCookie}}"
+          },
+          "when": "= sessionCookie"
+        },
+        {
+          "title": "🕘 阅读历史",
+          "url": "{{vars.server}}/api/user/history",
+          "headers": {
+            "Cookie": "sessionid={{sessionCookie}}"
+          },
+          "when": "= sessionCookie"
+        }
+      ],
+      "dynamicMenus": {
+        "url": "{{vars.server}}/api/discover/style?tab={{urlencode(tab)}}&source_type={{urlencode(sourceType)}}",
+        "list": "$.data[*]",
+        "title": "$.title",
+        "target": "= $.url ? replaceText(startsWith($.url, 'http') ? $.url : vars.server + $.url, '{{page}}', str(page)) : ''"
+      },
+      "list": "= $.data.books || $.data.items || (typeOf($.data) == 'list' ? $.data : [])",
+      "fields": {
+        "name": "$.book_name||$.name||$.title",
+        "author": "$.author",
+        "bookUrl": "{{vars.server}}/api/detail?book_id={{$.book_id}}",
+        "coverUrl": "$.cover||$.thumb_url",
+        "intro": "= replaceText(default($.abstract, $.intro, ''), '\\n', '')",
+        "kind": "= $.status",
+        "wordCount": "= ($.tab == '短剧' || $.tab == '漫剧') ? (($.episode_cnt || $.word_count || $.word_number) ? default($.episode_cnt, $.word_count, $.word_number) + '集' : '') : (($.word_count || $.word_number) ? default($.word_count, $.word_number) + '字' : '')",
+        "type": "= $.tab == '听书' ? 'audio' : $.tab == '漫画' ? 'comic' : ($.tab == '短剧' || $.tab == '漫剧') ? 'video' : ''"
+      }
+    },
+    "detail": {
+      "let": {
+        "d": "= data.data ?? data",
+        "tags": "= join(compact(concat(tagList(d.category), tagList(d.tags), tagList(d.pure_category_tags))), '、')",
+        "updated": "= (d.last_chapter_update_time ?? d.last_publish_time) ? formatDate(d.last_chapter_update_time ?? d.last_publish_time, 'yyyy-MM-dd HH:mm') : ''"
+      },
+      "fields": {
+        "name": "= d.name",
+        "author": "= d.author",
+        "coverUrl": "= d.cover",
+        "tocUrl": "{{vars.server}}/api/book?book_id={{d.book_id}}",
+        "type": "= d.book_type == 2 ? 'audio' : d.book_type == 8 ? 'comic' : (d.book_type == 11 || d.book_type == 19) ? 'video' : 'text'",
+        "kind": "= join(compact([d.category, d.status, d.score ? d.score + '分' : '', (d.book_type == 11 || d.book_type == 19) ? ((d.chapter_number || d.serial_count) ? default(d.chapter_number, d.serial_count) + '集' : '') : ((d.word_count || d.word_number) ? default(d.word_count, d.word_number) + '字' : '')]), '\\n')",
+        "wordCount": "= (d.book_type == 11 || d.book_type == 19) ? ((d.chapter_number || d.serial_count) ? default(d.chapter_number, d.serial_count) + '集' : '') : ((d.word_count || d.word_number) ? default(d.word_count, d.word_number) + '字' : '')",
+        "intro": "= default(d.intro, d.abstract, d.book_abstract_v2, d.video_desc, '暂无作品简介') + '\\n\\n作品信息\\n' + join(compact(['状态：' + (d.creation_status == 1 ? '完结' : '连载'), (d.word_number || d.word_count) ? '字数：' + ((d.word_number || d.word_count) >= 10000 ? str(round((d.word_number || d.word_count) / 10000, 1)) + '万字' : str(d.word_number || d.word_count) + '字') : '', d.score ? '评分：' + str(d.score) + '分' : '', d.author ? '作者：' + d.author : '', d.last_chapter_title ? '最新章节：' + d.last_chapter_title : '', updated ? '更新时间：' + updated : '', tags ? '标签：' + tags : '']), '\\n')"
+      },
+      "keep": {
+        "bookId": "= d.book_id",
+        "contentTab": "= d.book_type == 2 ? '听书' : d.book_type == 8 ? '漫画' : (d.book_type == 11 || d.book_type == 19) ? (vars.mode == '漫剧模式' ? '漫剧' : '短剧') : vars.mode == '听书模式' ? '听书' : vars.mode == '漫画模式' ? '漫画' : vars.mode == '漫剧模式' ? '漫剧' : '小说'"
+      }
+    },
+    "toc": {
+      "let": {
+        "d": "= data.data ?? data"
+      },
+      "list": "= flatMap(default(d.volumes, []), v => concat([{volume: v.title}], v.chapters))",
+      "fields": {
+        "title": "= default($.volume, $.title)",
+        "url": "= $.item_id ? vars.server + '/api/content?tab=' + default(book.vars.contentTab, (vars.mode == '听书模式' ? '听书' : vars.mode == '漫画模式' ? '漫画' : vars.mode == '短剧模式' ? '短剧' : vars.mode == '漫剧模式' ? '漫剧' : '小说')) + '&item_id=' + $.item_id + '&book_id=' + default(book.vars.bookId, match(book.bookUrl, 'book_id=(\\d+)', 1)) : ''",
+        "isVolume": "= $.volume != null",
+        "tag": "= ($.word_count ? $.word_count + '字' : '') + ($.update_time ? ' · ' + formatDate($.update_time, 'yyyy-MM-dd') : '')"
+      }
+    },
+    "content": {
+      "let": {
+        "d": "= data.data ?? data",
+        "itemId": "= match(chapter.url, 'item_id=([^&]+)', 1)",
+        "bookId": "= default(book.vars.bookId, match(book.bookUrl, 'book_id=(\\d+)', 1))",
+        "text0": "= default(d.content, '')",
+        "text1": "= replace(text0, '\\[\\[IMG:(\\d+)\\]\\]', m => get(d.images, int(m[1])) ? '<img src=\"' + vars.server + '/api/media/stream?url=' + urlencode(replaceText(get(d.images, int(m[1])).url, '&amp;', '&')) + '\">' : '', 'g')",
+        "firstLine": "= replace(stripHtml(slice(text1, 0, indexOf(text1 + '\\n', '\\n'))), '\\s', '', 'g')",
+        "titleNorm": "= replace(stripHtml(chapter.title), '\\s', '', 'g')",
+        "text2": "= (firstLine && ((titleNorm && (firstLine == titleNorm || contains(firstLine, titleNorm))) || test(firstLine, '^第[0-9零一二三四五六七八九十百千万两]+[章节回卷集]') || test(firstLine, '^(序章|楔子|序幕|番外|尾声|后记|前言|引子)'))) ? slice(text1, indexOf(text1 + '\\n', '\\n') + 1) : text1",
+        "text3": "= cleanText(text2)"
+      },
+      "text": "= text3",
+      "images": "= len(d.images) > 0 ? map(d.images, x => vars.server + '/api/comic/image?url=' + urlencode(replaceText(default(x.url, ''), '&amp;', '&')) + '&key=' + urlencode(default(d.encrypt_key, '')) + '&md5=' + urlencode(default(x.md5, ''))) : matchAll(default(d.content, ''), '<img[^>]+src=\"([^\"]+)\"', 1)",
+      "fetch": {
+        "toned": {
+          "when": "= book.vars.custom",
+          "url": "{{vars.server}}/api/content?tab=听书&item_id={{itemId}}&book_id={{bookId}}&tone_id={{book.vars.custom}}"
+        }
+      },
+      "audio": "= toned ? (toned.data.content_proxy ? vars.server + toned.data.content_proxy : default(toned.data.content, '')) : (d.content_proxy ? vars.server + d.content_proxy : default(d.content, ''))",
+      "video": "= d.content_proxy ? vars.server + d.content_proxy : (d.video.video_url_decrypt ? vars.server + d.video.video_url_decrypt : (d.video.video_url_proxy ? vars.server + d.video.video_url_proxy : default(d.content, '')))",
+      "mediaError": "= '无法获取播放地址，请刷新重试；若始终失败，请更换服务器或到项目页面用网页播放器观看'",
+      "comments": {
+        "when": "= vars.dp != '0' || vars.cp != '0'",
+        "stats": {
+          "url": "{{vars.server}}/api/para_comment/stats?chapter_id={{itemId}}&book_id={{bookId}}"
+        },
+        "counts": "= vars.dp != '0' ? paraCounts(text3, stats.data.paras) : {}",
+        "paragraphUrl": "{{vars.server}}/paragraph-comment.html?book_id={{bookId}}&item_id={{itemId}}&para_index={{para.index}}&para_text={{urlencode(para.text)}}",
+        "chapterUrl": "= vars.cp != '0' ? vars.server + '/comment-viewer.html?book_id=' + bookId + '&item_id=' + itemId + '&chapter_tog=true&api_base=' + urlencode(vars.server) : ''",
+        "max": 60
+      }
+    }
+  },
+  {
+    "sourceFormat": "native",
+    "version": 1,
+    "name": "小六书旗",
+    "url": "https://shuqi.neeao.dpdns.org",
+    "group": "渡",
+    "comment": "【2026-11-10 检测：TLS 层被拒】DNS 正常（shuqi.neeao.dpdns.org → 104.21.31.178，Cloudflare），但 TLS 握手阶段被 RST，浏览器打开返回 -101。与小六番茄同一作者、同一 DNS 服务，疑为同一原因。\n\n—— 原 comment ——\n请勿用于下载。小说/听书/短剧/漫剧四合一，模式在书源设置或发现页顶部切换；段评与章评入口由应用绘制，可在书源设置里关闭评论。",
+    "type": "text",
+    "enabled": false,
+    "enabledExplore": true,
+    "rate": "3",
+    "vars": [
+      {
+        "key": "mode",
+        "label": "模式",
+        "options": [
+          "小说",
+          "听书",
+          "短剧",
+          "漫剧"
+        ],
+        "default": "小说",
+        "filter": true
+      },
+      {
+        "key": "comments",
+        "label": "评论",
+        "options": [
+          "开",
+          "关"
+        ],
+        "default": "开"
+      }
+    ],
+    "let": {
+      "m": "= lookup({'小说': 'novel', '听书': 'audio', '短剧': 'drama', '漫剧': 'animated'}, vars.mode, 'novel')"
+    },
+    "lib": "fn paraId(n) {\n  let digits = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'\n  let s = ''\n  while (n > 0) {\n    s = substring(digits, n % 36, n % 36 + 1) + s\n    n = int(n / 36)\n  }\n  return 'p' + padStart(s, 3, '0')\n}",
+    "search": {
+      "url": "{{source.url}}/api/aggregate/search?keyword={{urlencode(key)}}&page={{page}}&mode={{m}}",
+      "list": "$.data.items[*]",
+      "fields": {
+        "name": "$.title",
+        "author": "$.author",
+        "kind": "$.kind",
+        "intro": "$.intro",
+        "coverUrl": "$.cover",
+        "bookUrl": "$.url",
+        "type": "= match($.url, '[?&]t=([a-z]+)', 1)"
+      }
+    },
+    "explore": {
+      "menus": [
+        {
+          "title": "玄幻",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E7%8E%84%E5%B9%BB&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "武侠",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E6%AD%A6%E4%BE%A0&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "仙侠",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E4%BB%99%E4%BE%A0&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "都市",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E9%83%BD%E5%B8%82&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "军事",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E5%86%9B%E4%BA%8B&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "历史",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E5%8E%86%E5%8F%B2&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "游戏",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E6%B8%B8%E6%88%8F&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "科幻",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E7%A7%91%E5%B9%BB&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "悬疑",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E6%82%AC%E7%96%91&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "同人",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E5%90%8C%E4%BA%BA&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "现代言情",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E7%8E%B0%E4%BB%A3%E8%A8%80%E6%83%85&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "古代言情",
+          "url": "/api/aggregate/list?t=novel&kind=category&id=%E5%8F%A4%E4%BB%A3%E8%A8%80%E6%83%85&page={{page}}",
+          "when": "= vars.mode == '小说'"
+        },
+        {
+          "title": "多角色听书",
+          "url": "/api/aggregate/list?t=audio&id=174&page={{page}}",
+          "when": "= vars.mode == '听书'"
+        },
+        {
+          "title": "火爆完结",
+          "url": "/api/aggregate/list?t=audio&id=130&page={{page}}",
+          "when": "= vars.mode == '听书'"
+        },
+        {
+          "title": "为你推荐",
+          "url": "/api/aggregate/list?t=audio&id=53&page={{page}}",
+          "when": "= vars.mode == '听书'"
+        },
+        {
+          "title": "推荐",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=0&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "脑洞",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610873&tag_name=%E8%84%91%E6%B4%9E&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "重生",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610819&tag_name=%E9%87%8D%E7%94%9F&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "穿越",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610811&tag_name=%E7%A9%BF%E8%B6%8A&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "逆袭",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610807&tag_name=%E9%80%86%E8%A2%AD&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "爽文",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610810&tag_name=%E7%88%BD%E6%96%87&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "都市",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610812&tag_name=%E9%83%BD%E5%B8%82&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "大女主",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610842&tag_name=%E5%A4%A7%E5%A5%B3%E4%B8%BB&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "情感",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610818&tag_name=%E6%83%85%E6%84%9F&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "战神",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610809&tag_name=%E6%88%98%E7%A5%9E&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "普通人",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610822&tag_name=%E6%99%AE%E9%80%9A%E4%BA%BA&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "爱恨情仇",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610860&tag_name=%E7%88%B1%E6%81%A8%E6%83%85%E4%BB%87&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "大佬",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610823&tag_name=%E5%A4%A7%E4%BD%AC&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "强者归来",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610848&tag_name=%E5%BC%BA%E8%80%85%E5%BD%92%E6%9D%A5&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "虐渣打脸",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610858&tag_name=%E8%99%90%E6%B8%A3%E6%89%93%E8%84%B8&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "正剧",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610871&tag_name=%E6%AD%A3%E5%89%A7&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "甜宠",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610874&tag_name=%E7%94%9C%E5%AE%A0&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "虐恋",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610876&tag_name=%E8%99%90%E6%81%8B&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "豪门",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610847&tag_name=%E8%B1%AA%E9%97%A8&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "总裁",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610877&tag_name=%E6%80%BB%E8%A3%81&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "古装",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610813&tag_name=%E5%8F%A4%E8%A3%85&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "神豪",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610825&tag_name=%E7%A5%9E%E8%B1%AA&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "霸总",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610838&tag_name=%E9%9C%B8%E6%80%BB&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "高手下山",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610850&tag_name=%E9%AB%98%E6%89%8B%E4%B8%8B%E5%B1%B1&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "玄幻",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610815&tag_name=%E7%8E%84%E5%B9%BB&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "天才",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610833&tag_name=%E5%A4%A9%E6%89%8D&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "暧昧",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610875&tag_name=%E6%9A%A7%E6%98%A7&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "扮猪吃虎",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610851&tag_name=%E6%89%AE%E7%8C%AA%E5%90%83%E8%99%8E&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "异能",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610808&tag_name=%E5%BC%82%E8%83%BD&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "复仇",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=drama&id=610856&tag_name=%E5%A4%8D%E4%BB%87&page={{page}}",
+          "when": "= vars.mode == '短剧'"
+        },
+        {
+          "title": "推荐",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=0&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "脑洞",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611109&tag_name=%E8%84%91%E6%B4%9E&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "重生",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611035&tag_name=%E9%87%8D%E7%94%9F&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "穿越",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611034&tag_name=%E7%A9%BF%E8%B6%8A&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "逆袭",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611038&tag_name=%E9%80%86%E8%A2%AD&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "扮猪吃虎",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611073&tag_name=%E6%89%AE%E7%8C%AA%E5%90%83%E8%99%8E&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "异能",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611044&tag_name=%E5%BC%82%E8%83%BD&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "复仇",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611037&tag_name=%E5%A4%8D%E4%BB%87&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "全民",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611260&tag_name=%E5%85%A8%E6%B0%91&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "御兽",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611261&tag_name=%E5%BE%A1%E5%85%BD&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "进化变异",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611086&tag_name=%E8%BF%9B%E5%8C%96%E5%8F%98%E5%BC%82&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "东方玄幻",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611058&tag_name=%E4%B8%9C%E6%96%B9%E7%8E%84%E5%B9%BB&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "系统",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611060&tag_name=%E7%B3%BB%E7%BB%9F&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "热血",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611115&tag_name=%E7%83%AD%E8%A1%80&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "校花",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611025&tag_name=%E6%A0%A1%E8%8A%B1&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "升级",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611262&tag_name=%E5%8D%87%E7%BA%A7&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "娱乐圈",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=610993&tag_name=%E5%A8%B1%E4%B9%90%E5%9C%88&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "恋爱",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611057&tag_name=%E6%81%8B%E7%88%B1&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "非人",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611007&tag_name=%E9%9D%9E%E4%BA%BA&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        },
+        {
+          "title": "灾难",
+          "url": "/api/aggregate/list?t=video&kind=category&mode=animated&id=611062&tag_name=%E7%81%BE%E9%9A%BE&page={{page}}",
+          "when": "= vars.mode == '漫剧'"
+        }
+      ],
+      "list": "$.data.items[*]",
+      "fields": {
+        "name": "$.title",
+        "author": "$.author",
+        "kind": "$.kind",
+        "intro": "$.intro",
+        "coverUrl": "$.cover",
+        "bookUrl": "$.url",
+        "type": "= match($.url, '[?&]t=([a-z]+)', 1)"
+      }
+    },
+    "detail": {
+      "fields": {
+        "name": "$.data.title",
+        "author": "$.data.author",
+        "kind": "$.data.kind",
+        "intro": "$.data.intro",
+        "coverUrl": "$.data.cover",
+        "tocUrl": "$.data.tocUrl",
+        "type": "= match(book.bookUrl, '[?&]t=([a-z]+)', 1)"
+      }
+    },
+    "toc": {
+      "list": "$.data.chapters[*]",
+      "fields": {
+        "title": "$.name",
+        "url": "$.url"
+      }
+    },
+    "content": {
+      "let": {
+        "bookId": "= match(book.bookUrl, '[?&]id=(\\d+)', 1)",
+        "chapterId": "= match(urldecode(chapter.url), 'chapterId=(\\d+)', 1)"
+      },
+      "text": "$.data.content",
+      "audio": "$.data.content",
+      "video": "$.data.content",
+      "comments": {
+        "when": "= vars.comments != '关'",
+        "stats": {
+          "url": "{{source.url}}/api/reader/paragraphs?bookId={{bookId}}&chapterId={{chapterId}}"
+        },
+        "counts": "= map(stats.data.paragraphs, p => p.commentCount)",
+        "paragraphUrl": "{{source.url}}/comment.html?mode=paragraph&bookId={{bookId}}&chapterId={{chapterId}}&paragraphId={{paraId(para.index + 1)}}&paraText={{urlencode(para.text)}}&count={{para.count}}",
+        "chapterUrl": "{{source.url}}/comment.html?mode=chapter&bookId={{bookId}}&chapterId={{chapterId}}"
+      },
+      "links": [
+        {
+          "label": "本书评论",
+          "url": "{{source.url}}/comment.html?mode=book&bookId={{bookId}}"
+        }
+      ]
+    }
+  }
+]
