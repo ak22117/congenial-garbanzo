@@ -1,0 +1,660 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "书旗",
+ "url": "https://ocean.shuqireader.com",
+ "group": "渡",
+ "type": "text",
+ "enabled": true,
+ "enabledExplore": true,
+ "rate": "20/10000",
+ "comment": "书旗小说 · 轻页原生（段评版）· v3.5（+段评热评卡片）\n\n保留原书源的搜索、发现、目录和正文接口；简化段评作用域，改进列表错误及空态显示。\n需使用含“内联评论主文档加载修复”的宿主。旧宿主会拦截自身 data:text/html 文档，单独重导书源不能消除渲染超时。\n覆盖导入后请刷新当前章节，旧正文缓存中的评论入口不会自动重算。\n\n跨站段评按段落编号和偏移对应，不保证两个站点切段一致。当前内联页显示接口返回的首页，尚无交互式加载更多。\n· 【v3.3 修复】①dpNorm 去掉「第N卷」后没再去「第M章」，分卷书（如「第十一卷 真仙降临 第两千四百四十六章 飞升仙界」）与起点章名永远不等 → 整卷无段评气泡；已补一步「切到第一个第N章为止」。②comments.page 的 paragraphId 直接读 vars.dpOffset 未夹取，越界会请求不存在段落 → 外层加 min(max(…,-5),5)。\n· 【v3.4 发现页翻页】菜单 URL 原先没有 {{page}}，宿主不认为可翻页 → 下滑不加载。已给 122 条菜单加 ?p={{page}}（脚本本来就用 ctx.page），并把「翻到底无数据」改成返回空数组而不是抛错。\n· 【v3.5 段评热评】取正文时为段评最多的 6 段和本章说各取一条起点热评（精华或 3 赞以上），阅读页开着“热评卡片”时显示在段落下方；4 秒内没取到的段落只显示气泡。不想多发请求可在书源设置里把“段评热评卡片”关掉。需要支持 comments.hot 请求写法的宿主。",
+ "headers": {
+  "User-Agent": "okhttp/3.12.13"
+ },
+ "scriptLimits": {
+  "requests": 30
+ },
+ "vars": [
+  {
+   "key": "dpMode",
+   "label": "段评",
+   "options": [
+    "开",
+    "关"
+   ],
+   "default": "开"
+  },
+  {
+   "key": "dpHot",
+   "label": "段评热评卡片",
+   "options": [
+    "开",
+    "关"
+   ],
+   "default": "开"
+  },
+  {
+   "key": "dpOffset",
+   "label": "段评段落偏移",
+   "options": [
+    "-5",
+    "-4",
+    "-3",
+    "-2",
+    "-1",
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+   ],
+   "default": "0"
+  }
+ ],
+ "actions": [
+  {
+   "label": "段评匹配自检",
+   "script": "sqActDpCheck"
+  },
+  {
+   "label": "清除段评缓存",
+   "script": "sqActClearDp"
+  },
+  {
+   "label": "CDN 线路自检",
+   "script": "sqActCdnProbe"
+  },
+  {
+   "label": "恢复默认设置",
+   "script": "sqActReset"
+  }
+ ],
+ "js": "\n// ============================================================\n// 书旗 App 12.7.0.268 · 原生书源脚本库（v2 · 段评）\n// 书旗算法：ALG-1 明文签名 / ALG-2 keystream / ALG-5 正文解码\n// 段评数据：起点 m 站 chapterReview（游客态，_csrfToken 自造即可）\n// ============================================================\n\n// ---------- 常量 ----------\nvar SQ = {\n  host: 'https://ocean.shuqireader.com',\n  ua: 'okhttp/3.12.13',\n  skey: '467694bd8912441cae8498b3c7e4282c',\n  gatewayKey: 'sq_app_gateway',\n  sqSv: '1.0',\n  sv: '3.0',\n  sgAppKey: '23011413',\n  appUserId: '8158804976',\n  ciUid: '8000000'\n};\n\nvar QD = {\n  host: 'https://m.qidian.com',\n  ua: 'Mozilla/5.0 (Linux; U; Android 13; zh-cn; MI 11) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120 Mobile Safari/537.36'\n};\n\n// 设备画像：服务端不严格校验，抄死一份真机常量\nvar SQ_PUB = {\n  soft_id: '1', user_id: '8158804976', userId: '8158804976',\n  ver: '261013', subVer: 'sqrelease', appVer: '12.7.0.268', theme: 'day',\n  platform: 'an', placeid: '1069', sdk: '32', cpu: 'x86_64', pkg_cpu: 'arm64-v8a',\n  wh: '900x1600', msv: '3', vc: '5d73', mod: 'BVL-AN16', manufacturer: 'HONOR',\n  brand: 'HONOR', net_type: 'wifi', net_type_str: 'wifi', first_placeid: 'src1069',\n  aak: 'a3a840', utype: 'pre_vip', net: '4', net_env: '4', permissionType: '0',\n  personalized: '1', contentRecom: '1', scene_code: '', rom: '12',\n  sqUniqDeviceId: '', utdid: '', sn: '', umidtoken: '', otdd: ''\n};\n\nvar SQ_DEV_KEYS = ['sqUniqDeviceId', 'utdid', 'sn', 'umidtoken', 'otdd'];\n\nvar SQ_ORDER = ['soft_id','user_id','userId','ver','subVer','appVer','theme','platform','placeid',\n  'sdk','cpu','pkg_cpu','wh','msv','enc','vc','mod','manufacturer','brand','net_type',\n  'net_type_str','first_placeid','aak','utype','net','net_env','permissionType','personalized',\n  'contentRecom','scene_code','rom','sqUniqDeviceId','utdid','sn','umidtoken','otdd'];\n\nvar SQ_NOSIGN = { sign:1, key:1, _public:1, _reqid:1, _beta:1, _:1, X:1,\n  XNEBULAXMLHTTPREQUEST:1, callbackUrl:1 };\n\n// ---------- ALG-2：keystream（base64 内嵌，2048 字节） ----------\nvar SQ_KS_B64 = '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';\nvar SQ_KS = null;\n// 必须用 base64Bytes 而不是 unbase64：keystream 不是合法 UTF-8，unbase64 会被替换成 U+FFFD\nfunction sqKs() {\n  if (SQ_KS) return SQ_KS;\n  SQ_KS = native.base64Bytes(SQ_KS_B64);\n  return SQ_KS;\n}\nfunction sqEnc(plain) {\n  var ks = sqKs();\n  var pb = native.bytes(plain);\n  if (pb.length > ks.length) throw new Error('keystream too short');\n  var out = [];\n  for (var i = 0; i < pb.length; i++) out.push((pb[i] ^ ks[i]) & 255);\n  return native.bytesBase64(out);\n}\nfunction sqDec(b64) {\n  var ks = sqKs();\n  var cb = native.base64Bytes(b64);\n  var out = [];\n  for (var i = 0; i < cb.length; i++) out.push((cb[i] ^ ks[i]) & 255);\n  return native.fromBytes(out);\n}\n\n// ---------- ALG-1：明文签名 ----------\nfunction sqSign(pairs, skey) {\n  var keys = [];\n  for (var k in pairs) {\n    if (pairs.hasOwnProperty(k) && !SQ_NOSIGN[k]) keys.push(k);\n  }\n  var hasSqSv = false;\n  for (var j = 0; j < keys.length; j++) if (keys[j] === 'sqSv') hasSqSv = true;\n  if (!hasSqSv) keys.push('sqSv');\n  keys.sort();\n  var raw = '';\n  for (var i = 0; i < keys.length; i++) {\n    var kk = keys[i], vv = pairs[kk];\n    raw += kk + '=' + (vv === undefined || vv === null || vv === '' ? '' : native.urlencode(String(vv))) + '&';\n  }\n  return native.md5(raw + 'skey=' + (skey || SQ.skey));\n}\n\n// ---------- enc 参数 ----------\nfunction sqEnc18(uid, tsIn) {\n  var ts = String(tsIn === undefined || tsIn === null ? Date.now() : tsIn);\n  while (ts.length < 13) ts = '2' + ts;\n  if (ts.length > 13) ts = ts.substring(0, 13);\n  var u = Number(uid) || 0;\n  if (u === 0) u = 24697;\n  var key = Number((ts[1] + ts[3] + ts[5] + ts[8] + ts[6]) || '0') || 0;\n  var j = key !== 0 ? key * u : 12347 * u;\n  return String(j).slice(-5) + ts;\n}\n\n// ---------- 设备身份（每安装一份，存 vars 复用） ----------\nfunction sqHex(nBytes) {\n  var h = '';\n  for (var i = 0; i < nBytes; i++) {\n    var b = Math.floor(Math.random() * 256);\n    h += (b < 16 ? '0' : '') + b.toString(16);\n  }\n  return h;\n}\nfunction sqB64Rand(nBytes) {\n  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';\n  var out = '';\n  for (var i = 0; i < nBytes; i++) {\n    out += chars.charAt(Math.floor(Math.random() * chars.length));\n  }\n  return out;\n}\nfunction sqDevice() {\n  var raw = '';\n  try { raw = String(vars.get('sqDev') || ''); } catch (e0) { raw = ''; }\n  if (raw) {\n    try {\n      var o = JSON.parse(raw);\n      if (o && o.sqUniqDeviceId) return o;\n    } catch (e1) {}\n  }\n  var dev = {\n    sqUniqDeviceId: sqB64Rand(22),\n    utdid: sqB64Rand(28),\n    sn: sqHex(8),\n    umidtoken: sqHex(20),\n    otdd: sqB64Rand(22)\n  };\n  try { vars.set('sqDev', JSON.stringify(dev)); } catch (e2) {}\n  return dev;\n}\n\n// ---------- x-sq-public 明文串 ----------\nfunction sqPublicStr(uid, ts, enc, devIn) {\n  var dev = devIn || sqDevice();\n  var p = {};\n  for (var k in SQ_PUB) if (SQ_PUB.hasOwnProperty(k)) p[k] = String(SQ_PUB[k]);\n  for (var d = 0; d < SQ_DEV_KEYS.length; d++) p[SQ_DEV_KEYS[d]] = String(dev[SQ_DEV_KEYS[d]] || '');\n  p.user_id = String(uid);\n  p.userId = String(uid);\n  p.platform = '2';\n  p.enc = String(enc);\n  p.timestamp = String(ts);\n  var out = '';\n  for (var i = 0; i < SQ_ORDER.length; i++) {\n    var kk = SQ_ORDER[i];\n    if (!(kk in p)) continue;\n    out += kk + '=' + sqPubEnc(p[kk]) + '&';\n  }\n  return out;\n}\nfunction sqPubEnc(s) {\n  return native.urlencode(String(s)).replace(/\\+/g, '%20').replace(/\\*/g, '%2A').replace(/%7E/g, '~');\n}\n\n// ---------- 加密口请求体 ----------\nfunction sqAppBody(biz, uidIn, tsIn) {\n  var uid = String(uidIn || SQ.appUserId);\n  var ts = String(tsIn || Date.now());\n  var enc = sqEnc18(uid, ts);\n  var dev = sqDevice();\n  var p = {};\n  for (var k in SQ_PUB) if (SQ_PUB.hasOwnProperty(k)) p[k] = String(SQ_PUB[k]);\n  for (var d = 0; d < SQ_DEV_KEYS.length; d++) p[SQ_DEV_KEYS[d]] = String(dev[SQ_DEV_KEYS[d]] || '');\n  p.user_id = uid;\n  p.userId = uid;\n  p.platform = 'an';\n  p.enc = enc;\n  p.timestamp = ts;\n  for (var b in (biz || {})) if (biz.hasOwnProperty(b)) p[b] = String(biz[b]);\n  p.isTeenMode = '0';\n  p.sqSv = SQ.sqSv;\n  p.sign = sqSign(p, SQ.skey);\n  p.key = SQ.gatewayKey;\n  return {\n    body: 'data=' + encodeURIComponent(sqEnc(JSON.stringify(p))),\n    headers: {\n      'content-type': 'application/x-www-form-urlencoded',\n      'user-agent': SQ.ua,\n      'x-sq-req-platform': 'an',\n      'x-sq-s-key': SQ.sgAppKey,\n      'x-sq-sv': SQ.sv,\n      'x-sq-public': sqEnc(sqPublicStr(uid, ts, enc)),\n      'x-sq-req-encrypt': 'sdk',\n      'x-sq-req-encrypt-param': 'x-sq-public',\n      'x-sq-api-encrypt': '1'\n    }\n  };\n}\n\n// ---------- ALG-5：正文解码 ----------\nfunction sqRot(s) {\n  return String(s || '').replace(/[A-Za-z]/g, function (ch) {\n    var upper = ch === ch.toUpperCase();\n    var k = (ch.toLowerCase().charCodeAt(0) - 83) % 26 || 26;\n    var r = String.fromCharCode(k + 96);\n    return upper ? r.toUpperCase() : r;\n  });\n}\nfunction sqDecodeContent(s) {\n  var t = String(s || '');\n  if (!t) return '';\n  var plain;\n  try { plain = native.unbase64(sqRot(t)); }\n  catch (e) { plain = sqRot(t); }\n  return plain.replace(/<br\\s*\\/?>/gi, '\\n');\n}\n\n// ---------- 归一化 ----------\nfunction sqWan(n) {\n  var v = Number(n) || 0;\n  if (v >= 100000000) return Math.round(v / 1000000) / 100 + '亿字';\n  if (v >= 10000) return Math.round(v / 1000) / 10 + '万字';\n  return v ? v + '字' : '';\n}\nfunction sqStatus(st) {\n  if (st === undefined || st === null || st === '') return '';\n  return String(st) === '2' ? '完结' : '连载';\n}\nfunction sqStripTags(s) {\n  return String(s || '').replace(/<[^>]+>/g, '');\n}\nfunction sqPlain(s) {\n  return sqStripTags(String(s || '')).replace(/\\s+/g, ' ').trim();\n}\nfunction sqEnt(s) {\n  return String(s || '').replace(/&nbsp;/gi, ' ').replace(/&lt;/gi, '<')\n    .replace(/&gt;/gi, '>').replace(/&quot;/gi, '\"').replace(/&#39;/g, \"'\").replace(/&amp;/gi, '&');\n}\n\n// ---------- 内部地址 -> bookId ----------\nfunction sqBookId(u) {\n  var s = String(u || '');\n  var m = s.match(/\\/sq(?:book|toc)\\/(\\d+)/);\n  if (m) return m[1];\n  m = s.match(/[?&]bookId=(\\d+)/);\n  return m ? m[1] : '';\n}\n// 详情阶段 keep('bid') 后，目录/正文优先读书籍变量，省一次正则且不怕地址变形\nfunction sqBidOf(ctx) {\n  var b = (ctx && ctx.book) || {};\n  var id = sqBookId(b.tocUrl) || sqBookId(b.bookUrl);\n  if (id) return id;\n  try { id = String((b.vars || {}).bid || ''); } catch (e) { id = ''; }\n  return id;\n}\n\n// ============================================================\n// 正文净化：把原 content.replace 的四条规则搬进脚本\n// 目的：段评按行号对齐，行号必须在净化之后确定；引擎的 replace 在\n//       comments 之前执行且会合并空行，会把行号整体挪位。\n// 输出保证：一行一段，没有空行。\n// ============================================================\nfunction sqClean(text) {\n  var t = String(text || '').replace(/\\r\\n?/g, '\\n');\n  t = t.replace(/(?:请记住本站|请收藏本站|最新网址是|永久域名是|备用域名是|发布页是|最新章节请|本章未完，请点击|手机版阅读网址|一秒记住|免费阅读)[^\\n]{0,60}/g, '');\n  t = t.replace(/(?:书旗小说|书旗app|www\\.shuqi\\.com|m\\.shuqi\\.com)[^\\n]{0,40}/g, '');\n  t = t.replace(/[ \\t\\u3000]*[（(]本章完[）)][ \\t\\u3000]*/g, '');\n  t = sqEnt(t);\n  var parts = t.split('\\n');\n  var out = [];\n  for (var i = 0; i < parts.length; i++) {\n    var line = parts[i].replace(/^[\\s\\u3000\\u200b]+|[\\s\\u3000\\u200b]+$/g, '');\n    if (line) out.push(line);\n  }\n  return out.join('\\n');\n}\n\n// ---------- 缓存小工具（cache 无 delete，用 1 秒过期代替） ----------\nfunction sqCacheGet(k) {\n  try { var v = cache.get(k); return (v === undefined || v === null) ? '' : String(v); } catch (e) { return ''; }\n}\nfunction sqCachePut(k, v, ttl) {\n  try { cache.put(k, String(v), ttl || 600); } catch (e) {}\n}\nfunction sqCacheDrop(k) {\n  try { cache.put(k, '', 1); } catch (e) {}\n}\n\n// ============================================================\n// 阶段脚本：搜索\n// ============================================================\nfunction sqSearch(ctx) {\n  var key = String(ctx.key || '');\n  var ts = String(Date.now());\n  var req = sqAppBody({ page: 'searchResultV3', query: key, timestamp: ts }, null, ts);\n  var res = http.post(SQ.host + '/sqan/render/render/search/native_v3', req.body, { headers: req.headers });\n  if (!res.ok) throw new Error('搜索请求失败（HTTP ' + res.status + '）');\n  var j = res.json();\n  var out = [];\n  function walk(n, depth) {\n    if (!n || depth > 8) return;\n    if (Array.isArray(n)) { for (var i = 0; i < n.length; i++) walk(n[i], depth + 1); return; }\n    if (typeof n !== 'object') return;\n    var bid = n.bookId || n.id || n.bid;\n    var nm = n.bookName || n.title;\n    var bookish = n.authorName || n.author || n.imgUrl || n.cover || n.coverUrl\n      || n.wordCount || n.tags || n.tagList || n.desc !== undefined || n.briefIntro;\n    if (bid && nm && bookish) {\n      out.push({\n        name: sqPlain(nm),\n        author: sqPlain(n.authorName || n.author || ''),\n        bookUrl: '/sqbook/' + String(bid),\n        coverUrl: String(n.imgUrl || n.cover || n.coverUrl || ''),\n        intro: sqPlain(n.briefIntro || n.intro || n.desc || n.recommendReason || ''),\n        wordCount: sqWan(n.wordCount || n.words),\n        status: sqStatus(n.serialState !== undefined ? n.serialState : (n.state !== undefined ? n.state : n.bookStatus)),\n        lastChapter: sqPlain(n.latestChapterName || n.lastChapter || (n.latest_chapter && n.latest_chapter.cname) || ''),\n        kind: [sqPlain(n.categoryName || n.category || n.first_category_name || ''),\n               (n.tags || n.tagList || []).map(function (t) { return typeof t === 'string' ? t : (t && t.tagName) || ''; }).filter(function (x) { return !!x; }).join(',')]\n              .filter(function (x) { return !!x; }).join(',')\n      });\n    } else {\n      for (var k in n) if (n.hasOwnProperty(k)) walk(n[k], depth + 1);\n    }\n  }\n  walk(j.data || j, 0);\n  var seen = {}, uniq = [];\n  for (var u = 0; u < out.length; u++) {\n    var key2 = out[u].name + '|' + out[u].author;\n    if (seen[key2]) continue;\n    seen[key2] = 1;\n    uniq.push(out[u]);\n  }\n  if (!uniq.length) throw new Error('搜索无结果（服务端返回 ' + String((j && j.message) || j.status || '空') + '）');\n  return uniq;\n}\n\n// ============================================================\n// 阶段脚本：详情（顺带把 bookId 记进书籍变量）\n// ============================================================\nfunction sqDetail(ctx) {\n  var bid = sqBidOf(ctx);\n  if (!bid) throw new Error('无法从书籍地址取 bookId');\n  var tsD = String(Date.now());\n  var req = sqAppBody({ bookId: bid }, null, tsD);\n  var res = http.post(SQ.host + '/sqan/sqapi/bff/api/v1/reader/titlepage', req.body, { headers: req.headers });\n  if (!res.ok) throw new Error('详情请求失败（HTTP ' + res.status + '）');\n  var j = res.json();\n  var b = ((j.data || {}).bookInfo) || {};\n  if (!b.bookId) throw new Error('详情为空：' + String((j && j.message) || ''));\n  var kind = [];\n  if (b.className) kind.push(sqPlain(b.className));\n  var tags = b.tag || b.tagList || b.tags || [];\n  for (var i = 0; i < tags.length; i++) {\n    var t = tags[i];\n    kind.push(sqPlain(typeof t === 'string' ? t : (t && t.tagName) || ''));\n  }\n  var st = sqStatus(b.serialState !== undefined ? b.serialState : (b.state !== undefined ? b.state : b.bookStatus));\n  if (st) kind.push(st);\n  var sc = (b.scoreInfo && b.scoreInfo.bookScore) || b.score;\n  if (sc) kind.push(sc + '分');\n  var lc = b.lastChapter || b.latestChapter || b.firstChapter;\n  var bookId = String(b.bookId || bid);\n  try { keep('bid', bookId); } catch (e) {}\n  // 段评预热：详情阶段把起点书号与整本目录拉好（各带超时），之后每章只发 1 个统计请求。\n  // 放在这里而不是正文阶段，是为了不把 1.6 MB 目录塞进「打开章节」的等待路径。\n  try {\n    if (dpOn()) {\n      var qb0 = dpBookId({ book: { name: sqPlain(b.bookName || b.title || ''), author: sqPlain(b.authorName || b.author || '') } });\n      if (qb0) qdCatalog(qb0);\n    }\n  } catch (eDp) { try { log('段评预热跳过：' + (eDp && eDp.message || eDp)); } catch (eDp2) {} }\n  return {\n    name: sqPlain(b.bookName || b.title || ''),\n    author: sqPlain(b.authorName || b.author || ''),\n    intro: sqPlain(b.desc || b.briefIntro || b.intro || b.recIntro || ''),\n    kind: kind.filter(function (x) { return !!x; }).join(','),\n    coverUrl: String(b.imgUrl || b.coverUrl || b.cover || ''),\n    wordCount: sqWan(b.wordCount),\n    lastChapter: sqPlain((lc && lc.chapterName) ? lc.chapterName : (b.latestChapterName || b.finalChapterName || '')),\n    status: st,\n    bookUrl: '/sqbook/' + bookId,\n    tocUrl: '/sqtoc/' + bookId\n  };\n}\n\n// ============================================================\n// 阶段脚本：目录\n// 主路：H5 目录页一次返回整本（含真章名）；回退：chapterinfo 递推\n// ============================================================\nfunction sqToc(ctx) {\n  var bid = sqBidOf(ctx);\n  if (!bid) throw new Error('无法从目录地址取 bookId');\n  var rows = sqTocFromH5(bid);\n  if (rows && rows.length) return rows;\n  return sqTocByIndex(bid);\n}\n\nfunction sqTocFromH5(bid) {\n  var res = http.get('https://www.shuqi.com/chapter?bid=' + bid, { headers: { 'User-Agent': SQ.ua } });\n  if (!res.ok || !res.body) return null;\n  var html = res.body;\n  if (html.indexOf('cid=') < 0) return null;\n  // 实测（V8 / 1.19 MB / 2451 章）：while+exec 约 4.9 ms，replace 回调反而 5.7 ms —— 保留 while 写法\n  var re = /href=\"\\/reader\\?bid=(\\d+)&(?:amp;)?cid=(\\d+)\"[^>]*>([\\s\\S]*?)<\\/a>/gi;\n  var out = [], seen = {};\n  var m;\n  while ((m = re.exec(html)) !== null) {\n    var cid = m[2];\n    if (seen[cid]) continue;\n    seen[cid] = 1;\n    var raw = m[3].replace(/<i[^>]*>[\\s\\S]*?<\\/i>/gi, ' ').replace(/<[^>]*>/g, ' ');\n    raw = sqEnt(raw).replace(/\\s+/g, ' ').trim();\n    var title = raw.replace(/^\\d+[.、]\\s*/, '').trim();\n    if (!title) continue;\n    var isVip = /vip-tag|VIP/.test(m[0]);\n    out.push({ title: title, url: '/sqch/' + m[1] + '/' + cid, isVip: isVip, isPay: isVip });\n  }\n  if (!out.length) return null;\n  try { log('目录走 H5：' + out.length + ' 章'); } catch (e) {}\n  return out;\n}\n\nfunction sqTocByIndex(bid) {\n  var r1 = sqAppBody({ bookId: bid }, SQ.ciUid);\n  var res1 = http.post(SQ.host + '/sqan/sqapi/bff/api/v1/reader/chapterinfo', r1.body, { headers: r1.headers });\n  if (!res1.ok) throw new Error('目录探测失败（HTTP ' + res1.status + '）');\n  var ch1 = ((res1.json().data || {}).chapter) || {};\n  var base = Number(ch1.chapterId || 0);\n  if (!base) throw new Error('目录探测未取到首章');\n\n  var r2 = sqAppBody({ bookId: bid });\n  var res2 = http.post(SQ.host + '/sqan/sqapi/bff/api/v1/reader/titlepage', r2.body, { headers: r2.headers });\n  var total = 0;\n  if (res2.ok) total = Number((((res2.json().data || {}).bookInfo) || {}).chapterTotalNum || 0);\n  if (!(total > 0)) total = 1;\n\n  var out = [];\n  for (var i = 0; i < total; i++) {\n    out.push({\n      title: i === 0 ? sqPlain(ch1.name || '第1章') : ('第' + (i + 1) + '章'),\n      url: '/sqch/' + bid + '/' + (base + i),\n      isVip: false,\n      isPay: false\n    });\n  }\n  try { log('目录走递推回退：' + total + ' 章（章名为占位）'); } catch (e2) {}\n  return out;\n}\n\n// ============================================================\n// 阶段脚本：发现（榜单）\n// ============================================================\nfunction sqExplore(ctx) {\n  var url = String(ctx.url || '');\n  var m = url.match(/\\/sqrank\\/(male|female)\\/(\\d+)(?:\\/(\\d+))?/);\n  if (!m) throw new Error('发现分类地址异常：' + url);\n  var groupKey = m[1], ruleId = m[2], rankId = m[3] || '40';\n  var page = String(Number(ctx.page || 1) || 1);\n  var ts = String(Date.now());\n  var req = sqAppBody({ ruleId: ruleId, rankId: rankId, groupKey: groupKey, page: page }, null, ts);\n  var res = http.post(SQ.host + '/sqan/sqapi/bff/api/v2/bookrank/details', req.body, { headers: req.headers });\n  if (!res.ok) throw new Error('榜单请求失败（HTTP ' + res.status + '）');\n  var j = res.json();\n  var d = j.data || {};\n\n  function rows(list) {\n    var out = [];\n    for (var i = 0; i < (list || []).length; i++) {\n      var b = list[i];\n      var bid = b.bookId || b.id;\n      if (!bid) continue;\n      if (String(b.top_class || b.topClass || '') === '777') continue;\n      var tags = b.tagList || b.tags || [];\n      var tagStr = [];\n      for (var t = 0; t < tags.length; t++) {\n        var one = tags[t];\n        tagStr.push(typeof one === 'string' ? one : ((one && one.tagName) || ''));\n      }\n      var info = [];\n      if (b.attrs) info.push(sqPlain(b.attrs));\n      if (b.categoryName) info.push(sqPlain(b.categoryName));\n      if (b.wordCount) info.push(sqWan(b.wordCount));\n      var st = sqStatus(b.serialState !== undefined ? b.serialState : b.state);\n      if (st) info.push(st);\n      if (b.score) info.push(b.score + '分');\n      if (b.rankScoreSimple) info.push(String(b.rankScoreSimple));\n      out.push({\n        name: sqPlain(b.bookName || b.title || ''),\n        author: sqPlain(b.authorName || b.author || ''),\n        bookUrl: '/sqbook/' + String(bid),\n        coverUrl: String(b.imgUrl || b.cover || b.coverUrl || ''),\n        intro: sqPlain(b.briefIntro || b.intro || b.desc || b.recommendReason || ''),\n        wordCount: sqWan(b.wordCount || b.words),\n        status: st,\n        lastChapter: sqPlain(b.latestChapterName || b.lastChapter || ''),\n        kind: [tagStr.filter(function (x) { return !!x; }).join(','), info.join('·')]\n              .filter(function (x) { return !!x; }).join(',')\n      });\n    }\n    return out;\n  }\n\n  var all = [];\n  if (d.bookList && d.bookList.length) {\n    all = rows(d.bookList);\n  } else {\n    var cyc = d.cycleList || [];\n    for (var c = 0; c < cyc.length; c++) {\n      all = all.concat(rows((cyc[c] || {}).bookList));\n    }\n  }\n  if (!all.length) {\n    // 翻到底：第 2 页以后没数据就安静收尾，别弹错误\n    if (Number(ctx.page || 1) > 1) return [];\n    throw new Error('榜单无数据：' + String((j && j.message) || (j && j.status) || '空'));\n  }\n  return all;\n}\n\n// ============================================================\n// 段评 · 设置项\n// ============================================================\nfunction dpOn() {\n  var v = '';\n  try { v = String(vars.get('dpMode') || ''); } catch (e) { v = ''; }\n  return v !== '关';\n}\nfunction dpOffset() {\n  var n = 0;\n  try { n = Number(vars.get('dpOffset')); } catch (e) { n = 0; }\n  if (!isFinite(n)) n = 0;\n  if (n < -5) n = -5;\n  if (n > 5) n = 5;\n  return Math.trunc(n);\n}\n// 段评中间结果保留在 cache；页面规则直接读取本次正文返回的 data。\n\n// 面板里把「正文行号」换算成「起点段落号」：pid = 行号 + 1 + 偏移\nfunction dpParaId(lineIndex, offRaw) {\n  var off = Number(offRaw);\n  if (!isFinite(off)) off = 0;\n  if (off < -5) off = -5;\n  if (off > 5) off = 5;\n  return Number(lineIndex) + 1 + Math.trunc(off);\n}\n\n// ============================================================\n// 段评 · 起点数据链\n// 归一：去掉「第N章」「第N卷」前缀、空白、书名号内多余符号\n// ============================================================\nfunction dpNorm(s) {\n  var t = String(s == null ? '' : s).replace(/<[^>]+>/g, '');\n  t = t.replace(/^\\s*第\\s*[0-9零一二三四五六七八九十百千万两]+\\s*[卷部]\\s*/, '');\n  // 分卷书标题是「第十一卷 卷名 第两千四百四十六章 章名」：去掉卷号后章号还在中间，\n  // 这里把「到第一个第N章为止」的前缀一起切掉；标题里没有章号时该条不匹配，原样保留\n  t = t.replace(/^.*?第\\s*[0-9零一二三四五六七八九十百千万两]+\\s*[章回节]\\s*[：:、.．\\-—\\s]*/, '');\n  t = t.replace(/^\\s*第\\s*[0-9零一二三四五六七八九十百千万两]+\\s*[章回节]\\s*[：:、.．\\-—\\s]*/, '');\n  t = t.replace(/[（(][^）)]*[）)]\\s*$/, '');\n  return t.replace(/[\\s\\u3000]+/g, '').trim();\n}\n\nfunction qdHeaders(tk) {\n  var h = {\n    'User-Agent': QD.ua,\n    'Referer': QD.host + '/',\n    'Accept': 'application/json, text/plain, */*'\n  };\n  if (tk) h['Cookie'] = '_csrfToken=' + tk;\n  return h;\n}\n\n// 宽松键：去掉标点与「(上)(下)」标记，用来兜「书旗用逗号、起点用顿号」这类差异\nfunction dpLoose(s) {\n  var t = dpNorm(s);\n  t = t.replace(/[（(]\\s*[上下中]\\s*[）)]/g, '');\n  t = t.replace(/[，,。.、；;：:！!？?·—－_'\"“”‘’《》<>\\[\\]【】()（）～~]/g, '');\n  return t;\n}\n\n// 起点 SSR 页把整份数据塞在一个 JSON script 里，直接 JSON.parse 比正则快一个量级\nfunction qdPageData(html) {\n  var m = String(html || '').match(/id=\"vite-plugin-ssr_pageContext\"[^>]*>([\\s\\S]*?)<\\/script>/);\n  if (!m) return null;\n  var j = null;\n  try { j = JSON.parse(m[1]); } catch (e) { return null; }\n  var pc = (j && j.pageContext) || j;\n  return ((pc || {}).pageProps || {}).pageData || null;\n}\n\n// 书旗书 → 起点 bookId：缓存 → 搜书页 SSR JSON 精确匹配（书名 + 作者）\nfunction dpBookId(ctx) {\n  // 只有自动匹配（书名 + 作者）；匹配不到时该章没有气泡，正文不受影响\n  var b = (ctx && ctx.book) || {};\n  var nm = String(b.name || '').replace(/<[^>]+>/g, '').replace(/[\\s\\u3000]+/g, '');\n  var au = String(b.author || '').replace(/<[^>]+>/g, '').replace(/[\\s\\u3000]+/g, '');\n  if (!nm) return '';\n\n  var ck = 'dpb_' + nm + '|' + au;\n  var hit = sqCacheGet(ck);\n  if (hit) return hit;\n\n  var res = http.get(QD.host + '/soushu/' + encodeURIComponent(nm) + '.html', { headers: qdHeaders(''), timeout: 8000 });\n  if (!res.ok || !res.body) return '';\n  var pd = qdPageData(res.body);\n  var recs = (pd && pd.bookInfo && pd.bookInfo.records) || [];\n  var pick = '';\n  for (var i = 0; i < recs.length; i++) {\n    var r = recs[i] || {};\n    var rn = String(r.bName || '').replace(/[\\s\\u3000]+/g, '');\n    var ra = String(r.bAuth || '').replace(/[\\s\\u3000]+/g, '');\n    if (rn !== nm) continue;\n    if (au && ra && ra !== au) continue;\n    pick = String(r.bid || '');\n    if (pick) break;\n  }\n  if (!pick) {\n    for (var k = 0; k < recs.length; k++) {\n      var r2 = recs[k] || {};\n      if (String(r2.bName || '').replace(/[\\s\\u3000]+/g, '') === nm && r2.bid) { pick = String(r2.bid); break; }\n    }\n  }\n  if (pick) {\n    sqCachePut(ck, pick, 604800);\n    try { log('段评：书旗《' + nm + '》→ 起点 ' + pick); } catch (e1) {}\n  }\n  return pick;\n}\n\n// 起点整本目录：一次请求拿全（长书约 1.7 MB），解析后按归一化章名建表并缓存\nfunction qdCatalog(bid) {\n  var ck = 'dpc_' + bid;\n  var hit = sqCacheGet(ck);\n  if (hit) {\n    try { return JSON.parse(hit); } catch (e) {}\n  }\n  var res = http.get(QD.host + '/book/' + bid + '/catalog/', { headers: qdHeaders(''), timeout: 15000 });\n  if (!res.ok || !res.body) return null;\n  var pd = qdPageData(res.body);\n  if (!pd) return null;\n  var vs = pd.vs || [];\n  var map = {};\n  var n = 0;\n  for (var i = 0; i < vs.length; i++) {\n    var cs = (vs[i] || {}).cs || [];\n    for (var k = 0; k < cs.length; k++) {\n      var c = cs[k] || {};\n      if (!c.id) continue;\n      var nm = dpNorm(c.cN);\n      if (!nm) continue;\n      if (!map[nm]) { map[nm] = String(c.id); n++; }\n    }\n  }\n  if (!n) return null;\n  sqCachePut(ck, JSON.stringify(map), 259200);\n  try { log('段评：起点目录 ' + n + ' 章（bookId=' + bid + '）'); } catch (e2) {}\n  return map;\n}\n\n// 书旗章名 → 起点 chapterId：精确 → 包含（比例闸门）\nfunction dpChapterId(bid, title) {\n  var ck = 'dpch_' + bid + '|' + title;\n  var hit = sqCacheGet(ck);\n  if (hit) return hit;\n  var map = qdCatalog(bid);\n  if (!map) return '';\n  var want = dpNorm(title);\n  var cid = want ? (map[want] || '') : '';\n  // 书旗把一拆二的章写成「第230章(上)降服」，起点是「第230章 降服」——去掉开头的（上/下/中）再试一次\n  if (!cid && want) {\n    var w2 = want.replace(/^[（(]\\s*[上下中]\\s*[）)]/, '');\n    if (w2 && w2 !== want && map[w2]) cid = map[w2];\n  }\n  // 宽松键：去标点后完全相等才认；同一宽松键出现两次视为有歧义，放弃\n  if (!cid && want) {\n    var cw = dpLoose(want);\n    if (cw && cw.length >= 3) {\n      var found = '', dup = false;\n      for (var kk in map) {\n        if (!map.hasOwnProperty(kk)) continue;\n        if (dpLoose(kk) !== cw) continue;\n        if (found) { dup = true; break; }\n        found = map[kk];\n      }\n      if (!dup && found) cid = found;\n    }\n  }\n  // 书旗常在章名后面补半句（「旧地重游，秀水高风」↔ 起点「旧地重游」）：只用前半句再试一次\n  if (!cid && want) {\n    var head = want.split(/[，,]/)[0];\n    if (head && head.length >= 2 && head !== want) {\n      var found2 = '', dup2 = false;\n      for (var hk in map) {\n        if (!map.hasOwnProperty(hk)) continue;\n        if (String(hk).split(/[，,]/)[0] !== head) continue;\n        if (found2) { dup2 = true; break; }\n        found2 = map[hk];\n      }\n      if (!dup2 && found2) cid = found2;\n    }\n  }\n  // 包含：短的那个必须是长的开头（≥4 字），避免「剑」配到「剑气」\n  if (!cid && want && want.length >= 4) {\n    for (var k in map) {\n      if (!map.hasOwnProperty(k)) continue;\n      if (k.length < 4) continue;\n      var pre = (want.indexOf(k) === 0) || (k.indexOf(want) === 0);\n      if (!pre) continue;\n      cid = map[k]; break;\n    }\n  }\n  if (cid) sqCachePut(ck, cid, 259200);\n  return cid;\n}\n\n// 访客令牌：服务端只校验「Cookie 与参数里的 _csrfToken 相同」，随机 UUID 即可\nfunction dpToken() {\n  var t = sqCacheGet('dptk');\n  if (t) return t;\n  t = uuid();\n  sqCachePut('dptk', t, 604800);\n  return t;\n}\n\nfunction dpSummary(bid, cid, tk) {\n  var u = QD.host + '/majax/chapterReview/reviewSummary?bookId=' + encodeURIComponent(bid)\n    + '&chapterId=' + encodeURIComponent(cid) + '&_csrfToken=' + encodeURIComponent(tk);\n  var res = http.get(u, { headers: qdHeaders(tk), timeout: 8000 });\n  if (!res.ok) return null;\n  var j = null;\n  try { j = res.json(); } catch (e) { return null; }\n  if (!j || String(j.code) !== '0') return null;\n  var list = ((j.data || {}).list) || [];\n  var map = {}, chapterTotal = 0, hit = 0;\n  for (var i = 0; i < list.length; i++) {\n    var it = list[i] || {};\n    var pid = Number(it.paragraphId);\n    var n = Number(it.textCount || 0);\n    if (pid === -1) { chapterTotal = n; continue; }\n    if (!(pid > 0) || !(n > 0)) continue;\n    map[pid] = n;\n    hit++;\n  }\n  return { map: map, total: chapterTotal, hit: hit };\n}\n\n// ============================================================\n// 阶段脚本：正文（正文 + 净化 + 段评计数）\n// ============================================================\nfunction sqContent(ctx) {\n  var chUrl = String((ctx.chapter && ctx.chapter.url) || '');\n  var m = chUrl.match(/\\/sqch\\/(\\d+)\\/(\\d+)/);\n  if (!m) throw new Error('章节地址异常：' + chUrl);\n  var bid = m[1], cid = m[2];\n\n  var raw = sqCdn(bid, cid);\n  if (!raw) raw = sqChapterApi(bid, cid);\n  if (!raw) throw new Error('正文没取到（chapterId=' + cid + '）');\n\n  var text = sqClean(raw);\n  if (!text) throw new Error('正文为空（chapterId=' + cid + '）');\n\n  var out = { text: text };\n  if (!dpOn()) return out;\n\n  try {\n    var qb = dpBookId(ctx);\n    if (!qb) return out;\n    var qc = dpChapterId(qb, (ctx.chapter && ctx.chapter.title) || '');\n    if (!qc) return out;\n    var tk = dpToken();\n    try { if (String(cookie.get(QD.host + '/', '_csrfToken') || '') !== tk) cookie.set(QD.host + '/', '_csrfToken=' + tk); } catch (eCk) {}\n    var s = dpSummary(qb, qc, tk);\n    if (!s) {\n      try { log('段评：统计接口无数据（bookId=' + qb + ' chapterId=' + qc + '）'); } catch (e1) {}\n      return out;\n    }\n    var off = dpOffset();\n    var lines = text.split('\\n');\n    var counts = {};\n    var used = 0;\n    for (var pid in s.map) {\n      if (!s.map.hasOwnProperty(pid)) continue;\n      var line = Number(pid) - 1 - off;   // pid = line + 1 + off\n      if (line < 0 || line >= lines.length) continue;\n      counts[String(line)] = s.map[pid];\n      used++;\n    }\n    out.qdBid = String(qb);\n    out.qdCid = String(qc);\n    out.qdToken = tk;\n    out.counts = counts;\n    out.chapterTotal = s.total;\n    // 匹配记录保留在内存 cache，供设置页自检。\n    try { cache.put('dpLast', JSON.stringify({ b: String(qb), c: String(qc), t: tk }), 86400); } catch (eL) {}\n    try {\n      log('段评：' + used + '/' + s.hit + ' 段命中（偏移 ' + off + '，整章 ' + s.total + ' 条）');\n    } catch (e2) {}\n  } catch (e) {\n    try { log('段评跳过：' + (e && e.message || e)); } catch (e3) {}\n  }\n  return out;\n}\n\n// 免签 CDN 缓存口；命中组合记忆在 cache，稳态只发 1 个请求\nfunction sqCdn(bid, cid) {\n  var flags = ['3111111111', '2111111111'];\n  var hosts = ['c1.shuqireader.com', 'c2.shuqireader.com'];\n  var pref = sqCacheGet('sqCdnPref');\n  var order = [];\n  if (pref) order.push(pref);\n  for (var h = 0; h < hosts.length; h++) {\n    for (var f = 0; f < flags.length; f++) {\n      var k = hosts[h] + '|' + flags[f];\n      if (k !== pref) order.push(k);\n    }\n  }\n  for (var i = 0; i < order.length; i++) {\n    var seg = order[i].split('|');\n    var u = 'http://' + seg[0] + '/httpserver/filecache/get_book_content_'\n      + bid + '_' + cid + '_' + seg[1] + '_0_0.html';\n    var res = http.get(u);\n    if (!res.ok || !res.body) continue;\n    var body = res.body;\n    var a = body.indexOf('(');\n    if (a > 0) { body = body.substring(a + 1); var b = body.lastIndexOf(')'); if (b > 0) body = body.substring(0, b); }\n    var arr = null;\n    try { arr = JSON.parse(body); } catch (e) { arr = null; }\n    if (arr && arr.length && arr[0] && arr[0].content != null) {\n      var t = String(arr[0].content).replace(/<br\\s*\\/?>/gi, '\\n');\n      t = sqStripTags(t);\n      if (t.replace(/\\s/g, '').length > 0) {\n        if (pref !== order[i]) sqCachePut('sqCdnPref', order[i], 86400);\n        return t;\n      }\n    }\n  }\n  return '';\n}\n\n// 加密口兜底：chapterinfo 返回 base64，需 ALG-5 解码\nfunction sqChapterApi(bid, cid) {\n  var tsC = String(Date.now());\n  var r = sqAppBody({ bookId: bid, chapterId: cid }, SQ.ciUid, tsC);\n  var res = http.post(SQ.host + '/sqan/sqapi/bff/api/v1/reader/chapterinfo', r.body, { headers: r.headers });\n  if (!res.ok) return '';\n  var ch = ((res.json().data || {}).chapter) || {};\n  if (!ch.content) return '';\n  return sqDecodeContent(ch.content);\n}\n\n// ============================================================\n// 设置页动作\n// ============================================================\nfunction sqActClearDp(ctx) {\n  var last = null;\n  try { last = JSON.parse(String(cache.get('dpLast') || 'null')); } catch (e) {}\n  sqCacheDrop('dptk');\n  if (last && last.b) sqCacheDrop('dpc_' + String(last.b));\n  sqCacheDrop('dpLast');\n  sqCacheDrop('sqCdnPref');\n  return '已清除最近记录、令牌与该书起点目录缓存；刷新本章后重新取数。';\n}\n\nfunction sqActCdnProbe(ctx) {\n  var hosts = ['c1.shuqireader.com', 'c2.shuqireader.com'];\n  var flags = ['3111111111', '2111111111'];\n  var best = '', bestMs = 1e9;\n  var lines = [];\n  for (var h = 0; h < hosts.length; h++) {\n    var u = 'http://' + hosts[h] + '/httpserver/filecache/get_book_content_34078_2180322_3111111111_0_0.html';\n    var t0 = Date.now();\n    var res = http.get(u, { timeout: 8000 });\n    var ms = Date.now() - t0;\n    var ok = res.ok && res.body && res.body.length > 200;\n    lines.push(hosts[h] + ' ' + (ok ? ms + 'ms' : '失败'));\n    if (ok && ms < bestMs) { bestMs = ms; best = hosts[h] + '|' + flags[0]; }\n  }\n  if (best) sqCachePut('sqCdnPref', best, 86400);\n  return lines.join(' / ') + (best ? '，已选 ' + best.split('|')[0] : '，全部失败，保持自动');\n}\n\n// 一键自检：把面板要走的两个接口在脚本里跑一遍，告诉用户哪一段断了\nfunction sqActDpCheck(ctx) {\n  var last = null;\n  try { last = JSON.parse(String(cache.get('dpLast') || 'null')); } catch (e) { last = null; }\n  if (!last || !last.b || !last.c) return '还没有匹配记录：先打开一本书的章节（段评开着），再回来点这里';\n  var b = String(last.b), c = String(last.c), t = String(last.t || '');\n  if (!t) t = uuid();\n  var s = dpSummary(b, c, t);\n  var out = '起点 ' + b + ' / 章 ' + c;\n  out += s ? (' · 统计 OK：' + s.hit + ' 段有评论，整章 ' + s.total + ' 条') : ' · 统计失败';\n  var u = QD.host + '/majax/chapterReview/reviewList?bookId=' + b + '&chapterId=' + c\n    + '&paragraphId=1&page=1&pageSize=20&_csrfToken=' + encodeURIComponent(t);\n  var r = http.get(u, { headers: qdHeaders(t), timeout: 8000 });\n  if (!r.ok) return out + ' · 列表失败（HTTP ' + r.status + '）';\n  var n = -1;\n  try { n = (((r.json().data) || {}).list || []).length; } catch (e) { n = -1; }\n  return out + (n >= 0 ? (' · 列表 OK：首页 ' + n + ' 条') : ' · 列表返回非 JSON');\n}\n\nfunction sqActReset(ctx) {\n  vars.set('dpMode', '开');\n  vars.set('dpOffset', '0');\n  sqActClearDp(ctx);\n  return '段评开关、段落偏移已恢复默认；请刷新本章。';\n}\n",
+ "search": {
+  "script": "sqSearch"
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "男频·榜单"
+   },
+   {
+    "title": "热搜榜",
+    "url": "/sqrank/male/6/40?p={{page}}"
+   },
+   {
+    "title": "热搜·都市",
+    "url": "/sqrank/male/6/1?p={{page}}"
+   },
+   {
+    "title": "热搜·玄幻",
+    "url": "/sqrank/male/6/2?p={{page}}"
+   },
+   {
+    "title": "热搜·科幻",
+    "url": "/sqrank/male/6/3?p={{page}}"
+   },
+   {
+    "title": "热搜·悬疑",
+    "url": "/sqrank/male/6/4?p={{page}}"
+   },
+   {
+    "title": "热搜·历史",
+    "url": "/sqrank/male/6/5?p={{page}}"
+   },
+   {
+    "title": "热搜·武侠",
+    "url": "/sqrank/male/6/6?p={{page}}"
+   },
+   {
+    "title": "热搜·游戏",
+    "url": "/sqrank/male/6/7?p={{page}}"
+   },
+   {
+    "title": "热搜·仙侠",
+    "url": "/sqrank/male/6/8?p={{page}}"
+   },
+   {
+    "title": "热搜·同人",
+    "url": "/sqrank/male/6/9?p={{page}}"
+   },
+   {
+    "title": "热门榜",
+    "url": "/sqrank/male/1/40?p={{page}}"
+   },
+   {
+    "title": "热门·都市",
+    "url": "/sqrank/male/1/1?p={{page}}"
+   },
+   {
+    "title": "热门·玄幻",
+    "url": "/sqrank/male/1/2?p={{page}}"
+   },
+   {
+    "title": "热门·科幻",
+    "url": "/sqrank/male/1/3?p={{page}}"
+   },
+   {
+    "title": "热门·悬疑",
+    "url": "/sqrank/male/1/4?p={{page}}"
+   },
+   {
+    "title": "热门·历史",
+    "url": "/sqrank/male/1/5?p={{page}}"
+   },
+   {
+    "title": "热门·武侠",
+    "url": "/sqrank/male/1/6?p={{page}}"
+   },
+   {
+    "title": "热门·游戏",
+    "url": "/sqrank/male/1/7?p={{page}}"
+   },
+   {
+    "title": "热门·仙侠",
+    "url": "/sqrank/male/1/8?p={{page}}"
+   },
+   {
+    "title": "热门·同人",
+    "url": "/sqrank/male/1/9?p={{page}}"
+   },
+   {
+    "title": "推荐榜",
+    "url": "/sqrank/male/2/40?p={{page}}"
+   },
+   {
+    "title": "推荐·都市",
+    "url": "/sqrank/male/2/1?p={{page}}"
+   },
+   {
+    "title": "推荐·玄幻",
+    "url": "/sqrank/male/2/2?p={{page}}"
+   },
+   {
+    "title": "推荐·科幻",
+    "url": "/sqrank/male/2/3?p={{page}}"
+   },
+   {
+    "title": "推荐·悬疑",
+    "url": "/sqrank/male/2/4?p={{page}}"
+   },
+   {
+    "title": "推荐·历史",
+    "url": "/sqrank/male/2/5?p={{page}}"
+   },
+   {
+    "title": "推荐·武侠",
+    "url": "/sqrank/male/2/6?p={{page}}"
+   },
+   {
+    "title": "推荐·游戏",
+    "url": "/sqrank/male/2/7?p={{page}}"
+   },
+   {
+    "title": "推荐·仙侠",
+    "url": "/sqrank/male/2/8?p={{page}}"
+   },
+   {
+    "title": "推荐·同人",
+    "url": "/sqrank/male/2/9?p={{page}}"
+   },
+   {
+    "title": "完结榜",
+    "url": "/sqrank/male/4/40?p={{page}}"
+   },
+   {
+    "title": "完结·都市",
+    "url": "/sqrank/male/4/1?p={{page}}"
+   },
+   {
+    "title": "完结·玄幻",
+    "url": "/sqrank/male/4/2?p={{page}}"
+   },
+   {
+    "title": "完结·科幻",
+    "url": "/sqrank/male/4/3?p={{page}}"
+   },
+   {
+    "title": "完结·悬疑",
+    "url": "/sqrank/male/4/4?p={{page}}"
+   },
+   {
+    "title": "完结·历史",
+    "url": "/sqrank/male/4/5?p={{page}}"
+   },
+   {
+    "title": "完结·武侠",
+    "url": "/sqrank/male/4/6?p={{page}}"
+   },
+   {
+    "title": "完结·游戏",
+    "url": "/sqrank/male/4/7?p={{page}}"
+   },
+   {
+    "title": "完结·仙侠",
+    "url": "/sqrank/male/4/8?p={{page}}"
+   },
+   {
+    "title": "完结·同人",
+    "url": "/sqrank/male/4/9?p={{page}}"
+   },
+   {
+    "title": "高分榜",
+    "url": "/sqrank/male/5/40?p={{page}}"
+   },
+   {
+    "title": "高分·都市",
+    "url": "/sqrank/male/5/1?p={{page}}"
+   },
+   {
+    "title": "高分·玄幻",
+    "url": "/sqrank/male/5/2?p={{page}}"
+   },
+   {
+    "title": "高分·科幻",
+    "url": "/sqrank/male/5/3?p={{page}}"
+   },
+   {
+    "title": "高分·悬疑",
+    "url": "/sqrank/male/5/4?p={{page}}"
+   },
+   {
+    "title": "高分·历史",
+    "url": "/sqrank/male/5/5?p={{page}}"
+   },
+   {
+    "title": "高分·武侠",
+    "url": "/sqrank/male/5/6?p={{page}}"
+   },
+   {
+    "title": "高分·游戏",
+    "url": "/sqrank/male/5/7?p={{page}}"
+   },
+   {
+    "title": "高分·仙侠",
+    "url": "/sqrank/male/5/8?p={{page}}"
+   },
+   {
+    "title": "高分·同人",
+    "url": "/sqrank/male/5/9?p={{page}}"
+   },
+   {
+    "title": "新书榜",
+    "url": "/sqrank/male/48/40?p={{page}}"
+   },
+   {
+    "title": "新书·都市",
+    "url": "/sqrank/male/48/1?p={{page}}"
+   },
+   {
+    "title": "新书·玄幻",
+    "url": "/sqrank/male/48/2?p={{page}}"
+   },
+   {
+    "title": "新书·科幻",
+    "url": "/sqrank/male/48/3?p={{page}}"
+   },
+   {
+    "title": "新书·悬疑",
+    "url": "/sqrank/male/48/4?p={{page}}"
+   },
+   {
+    "title": "新书·历史",
+    "url": "/sqrank/male/48/5?p={{page}}"
+   },
+   {
+    "title": "新书·武侠",
+    "url": "/sqrank/male/48/6?p={{page}}"
+   },
+   {
+    "title": "新书·游戏",
+    "url": "/sqrank/male/48/7?p={{page}}"
+   },
+   {
+    "title": "新书·仙侠",
+    "url": "/sqrank/male/48/8?p={{page}}"
+   },
+   {
+    "title": "新书·同人",
+    "url": "/sqrank/male/48/9?p={{page}}"
+   },
+   {
+    "title": "女频·榜单"
+   },
+   {
+    "title": "热搜榜",
+    "url": "/sqrank/female/6/40?p={{page}}"
+   },
+   {
+    "title": "热搜·都市",
+    "url": "/sqrank/female/6/1?p={{page}}"
+   },
+   {
+    "title": "热搜·玄幻",
+    "url": "/sqrank/female/6/2?p={{page}}"
+   },
+   {
+    "title": "热搜·科幻",
+    "url": "/sqrank/female/6/3?p={{page}}"
+   },
+   {
+    "title": "热搜·悬疑",
+    "url": "/sqrank/female/6/4?p={{page}}"
+   },
+   {
+    "title": "热搜·历史",
+    "url": "/sqrank/female/6/5?p={{page}}"
+   },
+   {
+    "title": "热搜·武侠",
+    "url": "/sqrank/female/6/6?p={{page}}"
+   },
+   {
+    "title": "热搜·游戏",
+    "url": "/sqrank/female/6/7?p={{page}}"
+   },
+   {
+    "title": "热搜·仙侠",
+    "url": "/sqrank/female/6/8?p={{page}}"
+   },
+   {
+    "title": "热搜·同人",
+    "url": "/sqrank/female/6/9?p={{page}}"
+   },
+   {
+    "title": "热门榜",
+    "url": "/sqrank/female/1/40?p={{page}}"
+   },
+   {
+    "title": "热门·都市",
+    "url": "/sqrank/female/1/1?p={{page}}"
+   },
+   {
+    "title": "热门·玄幻",
+    "url": "/sqrank/female/1/2?p={{page}}"
+   },
+   {
+    "title": "热门·科幻",
+    "url": "/sqrank/female/1/3?p={{page}}"
+   },
+   {
+    "title": "热门·悬疑",
+    "url": "/sqrank/female/1/4?p={{page}}"
+   },
+   {
+    "title": "热门·历史",
+    "url": "/sqrank/female/1/5?p={{page}}"
+   },
+   {
+    "title": "热门·武侠",
+    "url": "/sqrank/female/1/6?p={{page}}"
+   },
+   {
+    "title": "热门·游戏",
+    "url": "/sqrank/female/1/7?p={{page}}"
+   },
+   {
+    "title": "热门·仙侠",
+    "url": "/sqrank/female/1/8?p={{page}}"
+   },
+   {
+    "title": "热门·同人",
+    "url": "/sqrank/female/1/9?p={{page}}"
+   },
+   {
+    "title": "推荐榜",
+    "url": "/sqrank/female/2/40?p={{page}}"
+   },
+   {
+    "title": "推荐·都市",
+    "url": "/sqrank/female/2/1?p={{page}}"
+   },
+   {
+    "title": "推荐·玄幻",
+    "url": "/sqrank/female/2/2?p={{page}}"
+   },
+   {
+    "title": "推荐·科幻",
+    "url": "/sqrank/female/2/3?p={{page}}"
+   },
+   {
+    "title": "推荐·悬疑",
+    "url": "/sqrank/female/2/4?p={{page}}"
+   },
+   {
+    "title": "推荐·历史",
+    "url": "/sqrank/female/2/5?p={{page}}"
+   },
+   {
+    "title": "推荐·武侠",
+    "url": "/sqrank/female/2/6?p={{page}}"
+   },
+   {
+    "title": "推荐·游戏",
+    "url": "/sqrank/female/2/7?p={{page}}"
+   },
+   {
+    "title": "推荐·仙侠",
+    "url": "/sqrank/female/2/8?p={{page}}"
+   },
+   {
+    "title": "推荐·同人",
+    "url": "/sqrank/female/2/9?p={{page}}"
+   },
+   {
+    "title": "完结榜",
+    "url": "/sqrank/female/4/40?p={{page}}"
+   },
+   {
+    "title": "完结·都市",
+    "url": "/sqrank/female/4/1?p={{page}}"
+   },
+   {
+    "title": "完结·玄幻",
+    "url": "/sqrank/female/4/2?p={{page}}"
+   },
+   {
+    "title": "完结·科幻",
+    "url": "/sqrank/female/4/3?p={{page}}"
+   },
+   {
+    "title": "完结·悬疑",
+    "url": "/sqrank/female/4/4?p={{page}}"
+   },
+   {
+    "title": "完结·历史",
+    "url": "/sqrank/female/4/5?p={{page}}"
+   },
+   {
+    "title": "完结·武侠",
+    "url": "/sqrank/female/4/6?p={{page}}"
+   },
+   {
+    "title": "完结·游戏",
+    "url": "/sqrank/female/4/7?p={{page}}"
+   },
+   {
+    "title": "完结·仙侠",
+    "url": "/sqrank/female/4/8?p={{page}}"
+   },
+   {
+    "title": "完结·同人",
+    "url": "/sqrank/female/4/9?p={{page}}"
+   },
+   {
+    "title": "高分榜",
+    "url": "/sqrank/female/5/40?p={{page}}"
+   },
+   {
+    "title": "高分·都市",
+    "url": "/sqrank/female/5/1?p={{page}}"
+   },
+   {
+    "title": "高分·玄幻",
+    "url": "/sqrank/female/5/2?p={{page}}"
+   },
+   {
+    "title": "高分·科幻",
+    "url": "/sqrank/female/5/3?p={{page}}"
+   },
+   {
+    "title": "高分·悬疑",
+    "url": "/sqrank/female/5/4?p={{page}}"
+   },
+   {
+    "title": "高分·历史",
+    "url": "/sqrank/female/5/5?p={{page}}"
+   },
+   {
+    "title": "高分·武侠",
+    "url": "/sqrank/female/5/6?p={{page}}"
+   },
+   {
+    "title": "高分·游戏",
+    "url": "/sqrank/female/5/7?p={{page}}"
+   },
+   {
+    "title": "高分·仙侠",
+    "url": "/sqrank/female/5/8?p={{page}}"
+   },
+   {
+    "title": "高分·同人",
+    "url": "/sqrank/female/5/9?p={{page}}"
+   },
+   {
+    "title": "新书榜",
+    "url": "/sqrank/female/48/40?p={{page}}"
+   },
+   {
+    "title": "新书·都市",
+    "url": "/sqrank/female/48/1?p={{page}}"
+   },
+   {
+    "title": "新书·玄幻",
+    "url": "/sqrank/female/48/2?p={{page}}"
+   },
+   {
+    "title": "新书·科幻",
+    "url": "/sqrank/female/48/3?p={{page}}"
+   },
+   {
+    "title": "新书·悬疑",
+    "url": "/sqrank/female/48/4?p={{page}}"
+   },
+   {
+    "title": "新书·历史",
+    "url": "/sqrank/female/48/5?p={{page}}"
+   },
+   {
+    "title": "新书·武侠",
+    "url": "/sqrank/female/48/6?p={{page}}"
+   },
+   {
+    "title": "新书·游戏",
+    "url": "/sqrank/female/48/7?p={{page}}"
+   },
+   {
+    "title": "新书·仙侠",
+    "url": "/sqrank/female/48/8?p={{page}}"
+   },
+   {
+    "title": "新书·同人",
+    "url": "/sqrank/female/48/9?p={{page}}"
+   }
+  ],
+  "script": "sqExplore"
+ },
+ "detail": {
+  "script": "sqDetail"
+ },
+ "toc": {
+  "script": "sqToc"
+ },
+ "content": {
+  "script": "sqContent",
+  "comments": {
+   "when": "= data.qdCid && vars.dpMode != '关'",
+   "counts": "= data.counts",
+   "paragraphUrl": "https://m.qidian.com/chapter/{{urlencode(data.qdBid)}}/{{urlencode(data.qdCid)}}/",
+   "chapterUrl": "https://m.qidian.com/chapter/{{urlencode(data.qdBid)}}/{{urlencode(data.qdCid)}}/",
+   "max": 200,
+   "page": {
+    "title": "第 {{para.index + 1}} 段 · 段评",
+    "height": 0.8,
+    "fetch": {
+     "reviews": {
+      "url": "https://m.qidian.com/majax/chapterReview/reviewList?bookId={{urlencode(data.qdBid)}}&chapterId={{urlencode(data.qdCid)}}&paragraphId={{para.index + 1 + min(max(num(vars.dpOffset), -5), 5)}}&page=1&pageSize=20&_csrfToken={{urlencode(data.qdToken)}}",
+      "headers": {
+       "User-Agent": "Mozilla/5.0 (Linux; U; Android 13; zh-cn; MI 11) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120 Mobile Safari/537.36",
+       "Referer": "https://m.qidian.com/",
+       "Cookie": "_csrfToken={{data.qdToken}}",
+       "Accept": "application/json, text/plain, */*"
+      }
+     }
+    },
+    "data": {
+     "title": "第 {{para.index + 1}} 段 · 段评",
+     "quote": "= para.text",
+     "count": "= para.count",
+     "error": "= reviews && str(reviews.code) != '0' ? default(reviews.msg, reviews.message, '评论接口返回异常') : ''",
+     "items": "= reviews && str(reviews.code) == '0' ? default(reviews.data.list, []) : []"
+    },
+    "html": "<style>\nbody{margin:0;background:#fff;color:#202124;font:15px/1.65 sans-serif}\n.head{padding:14px 16px;border-bottom:1px solid #eee;font-size:17px;font-weight:600}\n.meta,.foot{font-size:12px;color:#888}.meta{margin:4px 0}.quote{margin:12px 16px;padding:10px 12px;background:#f5f6f8;border-left:3px solid #c8512a;white-space:pre-wrap;overflow-wrap:anywhere}\n.item{padding:14px 16px;border-bottom:1px solid #eee}.name{font-weight:600;color:#9a4228}.text{margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere}\n.reply{margin-top:8px;padding:8px 10px;background:#f7f7f7;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}.empty{padding:36px 16px;text-align:center;color:#888}.foot{padding:12px 16px;text-align:center}\n@media(prefers-color-scheme:dark){body{background:#18191b;color:#ddd}.head,.item{border-color:#333}.quote,.reply{background:#242629}.name{color:#df9b7f}}\n</style>\n<div class=\"head\" id=\"heading\"></div><div class=\"quote\" id=\"quote\" hidden></div><div id=\"items\"></div><div class=\"empty\" id=\"empty\" hidden></div><div class=\"foot\" id=\"foot\"></div>\n<script>(function(){\nvar d=window.__NATIVE_PAGE_DATA__||window.__QM_DATA__||{};\nfunction text(v){return String(v==null?'':v).replace(/\\[fn=\\d+\\]/g,'');}\nfunction add(parent,tag,cls,value){var el=document.createElement(tag);el.className=cls;el.textContent=text(value);parent.appendChild(el);return el;}\nfunction date(v){if(v==null||v==='')return '';var n=Number(v);if(!isFinite(n))n=Date.parse(String(v));else if(Math.abs(n)<100000000000)n*=1000;if(!isFinite(n)||n<=0)return '';var t=new Date(n);return t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2);}\ntry{\ndocument.getElementById('heading').textContent=text(d.title||'评论')+' · 共 '+Math.max(0,Number(d.count)||0)+' 条';\nif(d.quote){var q=document.getElementById('quote');q.hidden=false;q.textContent=text(d.quote);}\nvar list=Array.isArray(d.items)?d.items:[],box=document.getElementById('items');\nfor(var i=0;i<list.length;i++){var c=list[i]||{},row=add(box,'div','item','');add(row,'div','name',(c.nickName||c.name||'书友')+(c.authorReview||c.author?' · 作者':'')+(c.essenceStatus||c.essence?' · 精华':''));\nvar meta=[date(c.createTime!=null?c.createTime:c.time),c.ipAddress||c.ip||''].filter(Boolean).join(' · ');if(meta)add(row,'div','meta',meta);\nadd(row,'div','text',c.content!=null?c.content:c.text);var replies=Array.isArray(c.replyList)?c.replyList:(Array.isArray(c.replies)?c.replies:[]);\nfor(var k=0;k<replies.length&&k<3;k++){var r=replies[k]||{};add(row,'div','reply',(r.nickName||r.name||'书友')+'：'+text(r.content!=null?r.content:r.text));}\nvar likes=Math.max(0,Number(c.likeCount!=null?c.likeCount:c.like)||0),rc=Math.max(0,Number(c.rootReviewReplyCount||c.replyCount)||0);add(row,'div','meta','赞 '+likes+(rc?' · '+rc+' 条回复':''));}\nif(!list.length){var em=document.getElementById('empty');em.hidden=false;em.textContent=d.error?'评论暂未加载：'+text(d.error):Number(d.count)>0?'本段已有评论，当前接口未返回列表。':'这里还没有评论。';}\ndocument.getElementById('foot').textContent='本次显示 '+list.length+' 条 · 评论来自起点同名章节；跨站段落可能有差异';\n}catch(e){var em=document.getElementById('empty');em.hidden=false;em.textContent='评论页面处理失败：'+text(e&&e.message||e);}\n})();</script>"
+   },
+   "chapterPage": {
+    "title": "本章说",
+    "height": 0.8,
+    "fetch": {
+     "reviews": {
+      "url": "https://m.qidian.com/majax/chapterReview/reviewList?bookId={{urlencode(data.qdBid)}}&chapterId={{urlencode(data.qdCid)}}&paragraphId=-1&page=1&pageSize=20&_csrfToken={{urlencode(data.qdToken)}}",
+      "headers": {
+       "User-Agent": "Mozilla/5.0 (Linux; U; Android 13; zh-cn; MI 11) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120 Mobile Safari/537.36",
+       "Referer": "https://m.qidian.com/",
+       "Cookie": "_csrfToken={{data.qdToken}}",
+       "Accept": "application/json, text/plain, */*"
+      }
+     }
+    },
+    "data": {
+     "title": "本章说",
+     "quote": "= chapter.title",
+     "count": "= reviews && reviews.data && reviews.data.total != null ? num(reviews.data.total) : default(data.chapterTotal, total)",
+     "error": "= reviews && str(reviews.code) != '0' ? default(reviews.msg, reviews.message, '评论接口返回异常') : ''",
+     "items": "= reviews && str(reviews.code) == '0' ? default(reviews.data.list, []) : []"
+    },
+    "html": "<style>\nbody{margin:0;background:#fff;color:#202124;font:15px/1.65 sans-serif}\n.head{padding:14px 16px;border-bottom:1px solid #eee;font-size:17px;font-weight:600}\n.meta,.foot{font-size:12px;color:#888}.meta{margin:4px 0}.quote{margin:12px 16px;padding:10px 12px;background:#f5f6f8;border-left:3px solid #c8512a;white-space:pre-wrap;overflow-wrap:anywhere}\n.item{padding:14px 16px;border-bottom:1px solid #eee}.name{font-weight:600;color:#9a4228}.text{margin-top:6px;white-space:pre-wrap;overflow-wrap:anywhere}\n.reply{margin-top:8px;padding:8px 10px;background:#f7f7f7;font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}.empty{padding:36px 16px;text-align:center;color:#888}.foot{padding:12px 16px;text-align:center}\n@media(prefers-color-scheme:dark){body{background:#18191b;color:#ddd}.head,.item{border-color:#333}.quote,.reply{background:#242629}.name{color:#df9b7f}}\n</style>\n<div class=\"head\" id=\"heading\"></div><div class=\"quote\" id=\"quote\" hidden></div><div id=\"items\"></div><div class=\"empty\" id=\"empty\" hidden></div><div class=\"foot\" id=\"foot\"></div>\n<script>(function(){\nvar d=window.__NATIVE_PAGE_DATA__||window.__QM_DATA__||{};\nfunction text(v){return String(v==null?'':v).replace(/\\[fn=\\d+\\]/g,'');}\nfunction add(parent,tag,cls,value){var el=document.createElement(tag);el.className=cls;el.textContent=text(value);parent.appendChild(el);return el;}\nfunction date(v){if(v==null||v==='')return '';var n=Number(v);if(!isFinite(n))n=Date.parse(String(v));else if(Math.abs(n)<100000000000)n*=1000;if(!isFinite(n)||n<=0)return '';var t=new Date(n);return t.getFullYear()+'-'+('0'+(t.getMonth()+1)).slice(-2)+'-'+('0'+t.getDate()).slice(-2);}\ntry{\ndocument.getElementById('heading').textContent=text(d.title||'评论')+' · 共 '+Math.max(0,Number(d.count)||0)+' 条';\nif(d.quote){var q=document.getElementById('quote');q.hidden=false;q.textContent=text(d.quote);}\nvar list=Array.isArray(d.items)?d.items:[],box=document.getElementById('items');\nfor(var i=0;i<list.length;i++){var c=list[i]||{},row=add(box,'div','item','');add(row,'div','name',(c.nickName||c.name||'书友')+(c.authorReview||c.author?' · 作者':'')+(c.essenceStatus||c.essence?' · 精华':''));\nvar meta=[date(c.createTime!=null?c.createTime:c.time),c.ipAddress||c.ip||''].filter(Boolean).join(' · ');if(meta)add(row,'div','meta',meta);\nadd(row,'div','text',c.content!=null?c.content:c.text);var replies=Array.isArray(c.replyList)?c.replyList:(Array.isArray(c.replies)?c.replies:[]);\nfor(var k=0;k<replies.length&&k<3;k++){var r=replies[k]||{};add(row,'div','reply',(r.nickName||r.name||'书友')+'：'+text(r.content!=null?r.content:r.text));}\nvar likes=Math.max(0,Number(c.likeCount!=null?c.likeCount:c.like)||0),rc=Math.max(0,Number(c.rootReviewReplyCount||c.replyCount)||0);add(row,'div','meta','赞 '+likes+(rc?' · '+rc+' 条回复':''));}\nif(!list.length){var em=document.getElementById('empty');em.hidden=false;em.textContent=d.error?'评论暂未加载：'+text(d.error):Number(d.count)>0?'本段已有评论，当前接口未返回列表。':'这里还没有评论。';}\ndocument.getElementById('foot').textContent='本次显示 '+list.length+' 条 · 评论来自起点同名章节；跨站段落可能有差异';\n}catch(e){var em=document.getElementById('empty');em.hidden=false;em.textContent='评论页面处理失败：'+text(e&&e.message||e);}\n})();</script>"
+   },
+   "hot": {
+    "when": "= vars.dpMode != '关' && vars.dpHot != '关'",
+    "top": 6,
+    "request": {
+     "url": "https://m.qidian.com/majax/chapterReview/reviewList?bookId={{urlencode(data.qdBid)}}&chapterId={{urlencode(data.qdCid)}}&paragraphId={{para.index + 1 + min(max(num(vars.dpOffset), -5), 5)}}&page=1&pageSize=1&_csrfToken={{urlencode(data.qdToken)}}",
+     "headers": {
+      "User-Agent": "Mozilla/5.0 (Linux; U; Android 13; zh-cn; MI 11) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120 Mobile Safari/537.36",
+      "Referer": "https://m.qidian.com/",
+      "Cookie": "_csrfToken={{data.qdTtoken}}",
+      "Accept": "application/json, text/plain, */*"
+     }
+    },
+    "text": "= trim(replace(default(find(default(res.data.list, []), c => len(trim(replace(str(c.content), '\\[fn=\\d+\\]', ''))) > 1 && (c.essenceStatus || num(c.likeCount) >= 3)).content, ''), '\\[fn=\\d+\\]', '''))",
+    "likes": "= find(default(res.data.list, []), c => len(trim(replace(str(c.content), '\\[fn=\\d+\\]', ''))) > 1 && (c.essenceStatus || num(c.likeCount) >= 3)) == null ? '' : (num(find(default(res.data.list, []), c => len(trim(replace(str(c.content), '\\[fn=\\d+\\]', ''))) > 1 && (c.essenceStatus || num(c.likeCount) >= 3)).likeCount) >= 10000 ? str(int(num(find(default(res.data.list, []), c => len(trim(replace(str(c.content), '\\[fn=\\d+\\]', ''))) > 1 && (c.essenceStatus || num(c.likeCount) >= 3)).likeCount) / 1000) / 10) + '万' : str(num(find(default(res.data.list, []), c => len(trim(replace(str(c.content), '\\[fn=\\d+\\]', ''))) > 1 && (c.essenceStatus || num(c.likeCount) >= 3)).likeCount)))"
+   },
+   "chapterHot": {
+    "when": "= vars.dpMode != '关' && vars.dpHot != '关'",
+    "request": {
+     "url": "https://m.qidian.com/majax/chapterReview/reviewList?bookId={{urlencode(data.qdBid)}}&chapterId={{urlencode(data.qdCid)}}&paragraphId=-1&page=1&pageSize=1&_csrfToken={{urlencode(data.qdToken)}}",
+     "headers": {
+      "User-Agent": "Mozilla/5.0 (Linux; U; Android 13; zh-cn; MI 11) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120 Mobile Safari/537.36",
+      "Referer": "https://m.qidian.com/",
+      "Cookie": "_csrfToken={{data.qdToken}}",
+      "Accept": "application/json, text/plain, */*"
+     }
+    },
+    "text": "= trim(replace(default(find(default(res.data.list, []), c => len(trim(replace(str(c.content), '\\[fn=\\d+\\]', ''))) > 1 && (c.essenceStatus || num(c.likeCount) >= 3)).content, ''), '\\[fn=\\d+\\]', '''))",
+    "likes": "= find(default(res.data.list, []), c => len(trim(replace(str(c.content), '\\[fn=\\d+\\]', ''))) > 1 && (c.essenceStatus || num(c.likeCount) >= 3)) == null ? '' : (num(find(default(res.data.list, []), c => len(trim(replace(str(c.content), '\\[fn=\\d+\\]', ''))) > 1 && (c.essenceStatus || num(c.likeCount) >= 3)).likeCount) >= 10000 ? str(int(num(find(default(res.data.list, []), c => len(trim(replace(str(c.content), '\\[fn=\\d+\\]', ''))) > 1 && (c.essenceStatus || num(c.likeCount) >= 3)).likeCount) / 1000) / 10) + '万' : str(num(find(default(res.data.list, []), c => len(trim(replace(str(c.content), '\\[fn=\\d+\\]', ''))) > 1 && (c.essenceStatus || num(c.likeCount) >= 3)).likeCount)))"
+   }
+  }
+ }
+}
