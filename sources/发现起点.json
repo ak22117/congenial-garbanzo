@@ -4,9 +4,9 @@
  "name": "发现起点",
  "url": "https://m.qidian.com",
  "group": "渡",
- "comment": "起点 · 轻页原生（发现/榜单）· v2（2026-11-14 修复 csrf）\n\n【本次修复】原版靠顶层 cache 抓 /category/ 的 Set-Cookie 取 _csrfToken；起点现已不再下发该 cookie，榜单接口在 token 缺失时返回 {\"code\":1,\"msg\":\"失败\"} → 宿主显示「发现接口返回失败：失败」。\n现改为 explore 脚本每次自造 uuid，同时放进 URL 参数与 Cookie 头。实测 2026-11-14：月票榜/畅销榜/阅读榜等 majax/rank/* 均 code:0、20 条/页、可翻页。\n【其它】搜索/详情/目录（wxapp categoryV2）/正文逻辑未改。未登录仍只能看试读，VIP 章节内容有限。",
+ "comment": "起点 · 轻页原生（发现/榜单 + 段评/本章说）· v3（2026-11-14）\n【本版新增】段评气泡 + 单段段评页 + 章末「本章说」。\n· 气泡只挂在**热门段落**上（用站点自己的 reviewsummary4m，一次请求取回，规则与起点 App 一致）；\n· 单段段评 reviewlist4m 支持翻页，页面取前 3 页（12+12+12）合并去重，约 34 条；\n· 章末「本章说」走 getchapterendcomments（DataList + TotalCount）；\n· 三个接口都要 _csrfToken，且**参数与 Cookie 必须是同一个值**（只放参数 403，实测），本版用固定 token。\n【沿用 v2】榜单 csrf 修复（自造 uuid 同时进参数与 Cookie）。\n【为什么不能下滑加载（三条路都试过，别再试）】\n1) 内联页结构上不行：评论必须在页面生成前由 page.fetch 一次取完（上限 3 个请求），页面里禁止联网、没有宿主脚本桥；\n2) 自建网页不行：起点接口不回 Access-Control-Allow-Origin，OPTIONS 预检直接 403（实测），浏览器读不到数据；\n3) 起点自己的独立评论页不存在：/review/chapter/<书号>/<章节号> 会被重定向回章节页（实测）。\n→ 所以本版固定取 3 页（约 32 条），标题显示「共 N 条，已显示 M 条」。\n【渲染（2026-11-14 优化滚动）】去 sticky 标题栏、条目 content-visibility:auto + contain、每批 6 条本地追加；注入数据只留渲染字段（瘦身后约减半）（滚到底再渲染下一批），避免一次性布局与每帧重绘。",
  "type": "text",
- "js": "function qdToc(ctx) {\n  var bid = native.match(ctx.book.bookUrl, 'book/(\\\\d+)', 1);\n  if (!bid) throw new Error('无法从书籍地址取得书号：' + ctx.book.bookUrl);\n  var url = 'https://wxapp.qidian.com/api/book/categoryV2?bookId=' + bid;\n  var res = http.get(url);\n  if (!res.ok) throw new Error('目录接口请求失败：HTTP ' + res.status);\n  var payload = res.json();\n  if (!payload || payload.code !== 0 || !payload.data || !payload.data.vs) throw new Error('目录接口返回异常');\n  var chapters = [];\n  payload.data.vs.forEach(function (volume) {\n    if (volume.vN) chapters.push({ title: volume.vN, isVolume: true });\n    (volume.cs || []).forEach(function (item) {\n      chapters.push({\n        title: item.cN,\n        url: 'https://m.qidian.com/chapter/' + bid + '/' + item.id + '/',\n        isVip: item.sS === 0,\n        tag: (item.uT || '') + (item.cnt ? ' · ' + item.cnt + '字' : '')\n      });\n    });\n  });\n  if (!chapters.length) throw new Error('目录为空，站点可能调整了目录接口');\n  return chapters;\n}\n\n// 榜单（2026-11-14 修复）：起点已不再通过 /category/ 下发 _csrfToken，\n// 而 majax/rank/* 要求「URL 参数与 Cookie 里的 _csrfToken 相同」——\n// 缺 token 时服务端直接回 {\"code\":1,\"msg\":\"失败\"}，宿主就显示「发现接口返回失败：失败」。\n// 做法：每次请求自造一个 uuid，同时放进参数与 Cookie 头（实测 code:0，20 条/页，可翻页）。\nfunction qdRank(ctx) {\n  var t = uuid();\n  var url = String(ctx.url || '');\n  if (url.indexOf('_csrfToken=') >= 0) {\n    url = url.replace(/_csrfToken=[^&]*/, '_csrfToken=' + t);\n  } else {\n    url += (url.indexOf('?') >= 0 ? '&' : '?') + '_csrfToken=' + t;\n  }\n  var res = http.get(url, { headers: {\n    'User-Agent': 'Mozilla/5.0 (Linux; U; Android 13; zh-cn; MI 11) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120 Mobile Safari/537.36',\n    'Referer': 'https://m.qidian.com/',\n    'Cookie': '_csrfToken=' + t,\n    'Accept': 'application/json, text/plain, */*'\n  } });\n  if (!res.ok) { throw new Error('榜单请求失败：HTTP ' + res.status); }\n  var j = res.json();\n  if (!j || Number(j.code) !== 0) { throw new Error('榜单接口返回：' + ((j && j.msg) || '空')); }\n  var list = ((j.data || {}).records) || [];\n  var out = [];\n  for (var i = 0; i < list.length; i++) {\n    var it = list[i] || {};\n    var kind = [];\n    if (it.cat) { kind.push(String(it.cat)); }\n    if (it.subCat) { kind.push(String(it.subCat)); }\n    out.push({\n      name: String(it.bName || ''),\n      author: String(it.bAuth || ''),\n      kind: kind.join(','),\n      intro: String(it.desc || ''),\n      wordCount: it.cnt == null ? '' : String(it.cnt),\n      lastChapter: it.lastVUCname == null ? '' : String(it.lastVUCname),\n      coverUrl: 'https://bookcover.yuewen.com/qdbimg/349573/' + it.bid,\n      bookUrl: 'https://m.qidian.com/book/' + it.bid + '/'\n    });\n  }\n  if (!out.length) {\n    if (Number(ctx.page || 1) > 1) { return []; }\n    throw new Error('榜单无数据');\n  }\n  return out;\n}\n",
+ "js": "function qdToc(ctx) {\n  var bid = native.match(ctx.book.bookUrl, 'book/(\\\\d+)', 1);\n  if (!bid) throw new Error('无法从书籍地址取得书号：' + ctx.book.bookUrl);\n  var url = 'https://wxapp.qidian.com/api/book/categoryV2?bookId=' + bid;\n  var res = http.get(url);\n  if (!res.ok) throw new Error('目录接口请求失败：HTTP ' + res.status);\n  var payload = res.json();\n  if (!payload || payload.code !== 0 || !payload.data || !payload.data.vs) throw new Error('目录接口返回异常');\n  var chapters = [];\n  payload.data.vs.forEach(function (volume) {\n    if (volume.vN) chapters.push({ title: volume.vN, isVolume: true });\n    (volume.cs || []).forEach(function (item) {\n      chapters.push({\n        title: item.cN,\n        url: 'https://m.qidian.com/chapter/' + bid + '/' + item.id + '/',\n        isVip: item.sS === 0,\n        tag: (item.uT || '') + (item.cnt ? ' · ' + item.cnt + '字' : '')\n      });\n    });\n  });\n  if (!chapters.length) throw new Error('目录为空，站点可能调整了目录接口');\n  return chapters;\n}\n\n// 榜单（2026-11-14 修复）：起点已不再通过 /category/ 下发 _csrfToken，\n// 而 majax/rank/* 要求「URL 参数与 Cookie 里的 _csrfToken 相同」——\n// 缺 token 时服务端直接回 {\"code\":1,\"msg\":\"失败\"}，宿主就显示「发现接口返回失败：失败」。\n// 做法：每次请求自造一个 uuid，同时放进参数与 Cookie 头（实测 code:0，20 条/页，可翻页）。\nfunction qdRank(ctx) {\n  var t = uuid();\n  var url = String(ctx.url || '');\n  if (url.indexOf('_csrfToken=') >= 0) {\n    url = url.replace(/_csrfToken=[^&]*/, '_csrfToken=' + t);\n  } else {\n    url += (url.indexOf('?') >= 0 ? '&' : '?') + '_csrfToken=' + t;\n  }\n  var res = http.get(url, { headers: {\n    'User-Agent': 'Mozilla/5.0 (Linux; U; Android 13; zh-cn; MI 11) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120 Mobile Safari/537.36',\n    'Referer': 'https://m.qidian.com/',\n    'Cookie': '_csrfToken=' + t,\n    'Accept': 'application/json, text/plain, */*'\n  } });\n  if (!res.ok) { throw new Error('榜单请求失败：HTTP ' + res.status); }\n  var j = res.json();\n  if (!j || Number(j.code) !== 0) { throw new Error('榜单接口返回：' + ((j && j.msg) || '空')); }\n  var list = ((j.data || {}).records) || [];\n  var out = [];\n  for (var i = 0; i < list.length; i++) {\n    var it = list[i] || {};\n    var kind = [];\n    if (it.cat) { kind.push(String(it.cat)); }\n    if (it.subCat) { kind.push(String(it.subCat)); }\n    out.push({\n      name: String(it.bName || ''),\n      author: String(it.bAuth || ''),\n      kind: kind.join(','),\n      intro: String(it.desc || ''),\n      wordCount: it.cnt == null ? '' : String(it.cnt),\n      lastChapter: it.lastVUCname == null ? '' : String(it.lastVUCname),\n      coverUrl: 'https://bookcover.yuewen.com/qdbimg/349573/' + it.bid,\n      bookUrl: 'https://m.qidian.com/book/' + it.bid + '/'\n    });\n  }\n  if (!out.length) {\n    if (Number(ctx.page || 1) > 1) { return []; }\n    throw new Error('榜单无数据');\n  }\n  return out;\n}\n\n/* ================= 段评 / 本章说（v3, 2026-11-14） =================\n * 站点：起点移动版 m.qidian.com 的 /webcommon/* 接口，免登录。\n * 实测要点：\n *  1) 三个接口都要 _csrfToken，且「URL 参数」与「Cookie 里的」必须是同一个值\n *     —— 只放参数会 403 Forbidden（实测），所以两者用同一个常量。\n *  2) 固定 token 可长期复用：5 组请求（summary/段评两页/章末）全部 200 且 code=0。\n *  3) reviewsummary4m 只给「热门段落」（这正是起点自己挂气泡的规则），\n *     每项 { paragraphId, textCount, isHotSegment, isHotComment }；\n *     paragraphId=-1 是章末评论（不进气泡），气泡行号 = paragraphId - 1\n *     （引擎行号口径：按 \\n 切、跳空行、0 基）。\n *  4) reviewlist4m 支持 page 翻页（size=12/页），故页面取前 2 页合并去重。\n *  5) 章末 getchapterendcomments 返回 DataList + TotalCount（DataList 项字段名首字母大写）。\n * 若站点某天失效：把 QD_CM_TOK 换成新的 uuid（参数与 Cookie 同步即可）。\n */\nvar QD_CM_TOK = '00000000-0000-4000-8000-000000000001';\nvar QD_CM_UA = 'Mozilla/5.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36';\n\nfunction qdCmTok() { return QD_CM_TOK; }\nfunction qdCmUA() { return QD_CM_UA; }\nfunction qdCmCookie() { return '_csrfToken=' + QD_CM_TOK; }\nfunction qdCmIds(chapUrl) {\n  var m = String(chapUrl || '').match(/chapter\\/(\\d+)\\/(\\d+)/);\n  return m ? { bid: m[1], cid: m[2] } : { bid: '', cid: '' };\n}\nfunction qdCmUrl(chapUrl, path, params) {\n  var ids = qdCmIds(chapUrl);\n  var q = ['bookId=' + ids.bid];\n  if (path.indexOf('reviewlist4m') >= 0) { q.push('chapterId=' + ids.cid); }\n  else { q.push('chapterId=' + ids.cid); }\n  for (var k in (params || {})) { q.push(k + '=' + encodeURIComponent(params[k])); }\n  q.push('_csrfToken=' + QD_CM_TOK);\n  return 'https://m.qidian.com' + path + '?' + q.join('&');\n}\nfunction qdCmSumUrl(chapUrl) { return qdCmUrl(chapUrl, '/webcommon/chapterreview/reviewsummary4m', {}); }\nfunction qdCmListUrl(chapUrl, paragraphId, page) { return qdCmUrl(chapUrl, '/webcommon/chapterreview/reviewlist4m', { paragraphId: paragraphId, page: page }); }\nfunction qdCmEndUrl(chapUrl) { return qdCmUrl(chapUrl, '/webcommon/review/getchapterendcomments', {}); }\n/* 统计 → { 行号: 条数 } */\nfunction qdCmCounts(stats) {\n  var out = {};\n  try {\n    var list = (stats && stats.data && stats.data.list) || [];\n    for (var i = 0; i < list.length; i++) {\n      var it = list[i] || {};\n      var pid = Number(it.paragraphId);\n      var cnt = Number(it.textCount || 0);\n      if (!(pid >= 1) || !(cnt > 0)) { continue; }\n      out[pid - 1] = cnt;\n    }\n  } catch (e) {}\n  return out;\n}\nfunction qdCmItems(resp) { try { return (resp && resp.data && resp.data.list) || []; } catch (e) { return []; } }\nfunction qdCmTotal(resp, fallback) {\n  try { var n = Number((resp && resp.data && resp.data.total) || 0); if (n > 0) { return n; } } catch (e) {}\n  return Number(fallback || 0);\n}\nfunction qdCmMerge(a, b) {\n  var out = [], seen = {};\n  var lists = [qdCmItems(a), qdCmItems(b)];\n  for (var l = 0; l < lists.length; l++) {\n    for (var i = 0; i < lists[l].length; i++) {\n      var x = lists[l][i] || {};\n      var key = String(x.reviewId || x.cbid || ((x.userId || '') + '|' + x.content));\n      if (seen[key]) { continue; }\n      seen[key] = 1; out.push(x);\n    }\n  }\n  return out;\n}\nfunction qdCmWhen(ts) { try { return native.formatDate(Number(ts), 'yyyy-MM-dd HH:mm'); } catch (e) { return ''; } }\nfunction qdEndItems(resp) { try { return (resp && resp.data && resp.data.DataList) || []; } catch (e) { return []; } }\nfunction qdEndTotal(resp, fallback) {\n  try { var n = Number((resp && resp.data && resp.data.TotalCount) || 0); if (n > 0) { return n; } } catch (e) {}\n  return Number(fallback || 0);\n}\n\n/* 多路合并（fetch 上限 3 个请求 → 段评取 3 页） */\nfunction qdCmMergeN() {\n  var out = [], seen = {};\n  for (var a = 0; a < arguments.length; a++) {\n    var arr = qdCmItems(arguments[a]);\n    for (var i = 0; i < arr.length; i++) {\n      var x = arr[i] || {};\n      var key = String(x.reviewId || x.cbid || ((x.userId || '') + '|' + x.content));\n      if (seen[key]) { continue; }\n      seen[key] = 1; out.push(x);\n    }\n  }\n  return out;\n}\n\n/* 注入页面的数据瘦身：只留渲染要用的字段（减小序列化/解析与内存开销） */\nfunction qdCmSlim(items) {\n  var out = [];\n  for (var i = 0; i < (items || []).length; i++) {\n    var x = items[i] || {};\n    var rp = [], list = x.replyList || [];\n    for (var k = 0; k < list.length && k < 3; k++) {\n      var y = list[k] || {};\n      rp.push([String(y.nickName || ''), String(y.content || '').slice(0, 120)]);\n    }\n    out.push({ u: String(x.nickName || '读者'), t: String(x.content || '').slice(0, 300),\n               l: Number(x.likeCount || 0), ip: String(x.ipAddress || ''), r: rp });\n  }\n  return out;\n}\nfunction qdEndSlim(items) {\n  var out = [];\n  for (var i = 0; i < (items || []).length; i++) {\n    var x = items[i] || {};\n    out.push({ u: String(x.UserName || '读者'), t: String(x.Content || '').slice(0, 300),\n               l: Number(x.AgreeAmount || 0), ip: String(x.IpLocation || ''), c: Number(x.ReviewCount || 0) });\n  }\n  return out;\n}\n",
  "scriptLimits": {
   "requests": 5
  },
@@ -1444,9 +1444,90 @@
  },
  "content": {
   "let": {
-   "cid": "= match(chapter.url, '/(\\d+)/$', 1)"
+   "cid": "= match(chapter.url, '/(\\d+)/$', 1)",
+   "cmSumUrl": "= qdCmSumUrl(chapter.url)"
   },
-  "text": "= default(join(selAll('main#c-' + cid + ' p@text'), '\\n'), sel('main#c-' + cid + '@text'))"
+  "text": "= default(join(selAll('main#c-' + cid + ' p@text'), '\\n'), sel('main#c-' + cid + '@text'))",
+  "comments": {
+   "when": "= vars.comments != '关'",
+   "stats": {
+    "url": "= cmSumUrl",
+    "headers": {
+     "Accept": "application/json, text/plain, */*",
+     "Referer": "https://m.qidian.com/",
+     "User-Agent": "= qdCmUA()",
+     "Cookie": "= qdCmCookie()"
+    }
+   },
+   "counts": "= qdCmCounts(stats)",
+   "chapterUrl": "= chapter.url",
+   "max": 60,
+   "page": {
+    "title": "= '第 ' + (para.index + 1) + ' 段段评'",
+    "height": 0.85,
+    "fetch": {
+     "c1": {
+      "url": "= qdCmListUrl(chapter.url, para.index + 1, 1)",
+      "headers": {
+       "Accept": "application/json, text/plain, */*",
+       "Referer": "https://m.qidian.com/",
+       "User-Agent": "= qdCmUA()",
+       "Cookie": "= qdCmCookie()"
+      }
+     },
+     "c2": {
+      "url": "= qdCmListUrl(chapter.url, para.index + 1, 2)",
+      "headers": {
+       "Accept": "application/json, text/plain, */*",
+       "Referer": "https://m.qidian.com/",
+       "User-Agent": "= qdCmUA()",
+       "Cookie": "= qdCmCookie()"
+      }
+     },
+     "c3": {
+      "url": "= qdCmListUrl(chapter.url, para.index + 1, 3)",
+      "headers": {
+       "Accept": "application/json, text/plain, */*",
+       "Referer": "https://m.qidian.com/",
+       "User-Agent": "= qdCmUA()",
+       "Cookie": "= qdCmCookie()"
+      }
+     }
+    },
+    "data": {
+     "items": "= qdCmSlim(qdCmMergeN(c1, c2, c3))",
+     "total": "= qdCmTotal(c1, para.count)",
+     "quote": "= para.text"
+    },
+    "html": "<style>html,body{-ms-overflow-style:none;scrollbar-width:none}::-webkit-scrollbar{width:0;height:0;display:none}body{margin:0;font:15px/1.65 -apple-system,\"PingFang SC\",sans-serif;background:#fff;color:#202124}#bar{padding:10px 14px;font-weight:600;background:#fff}#bar .n{font-weight:400;color:#888;font-size:13px;margin-left:6px}.q{margin:8px 14px;padding:8px 10px;background:#f6f7f7;border-left:3px solid #b4231f;color:#555;font-size:13px}.c{padding:11px 14px}.c:nth-child(even){background:#fafafa}.m{display:flex;gap:8px;font-size:12px;color:#888;margin-bottom:5px}.u{color:#b4231f;font-weight:600}.l{margin-left:auto}.t{white-space:pre-wrap;word-break:break-word}.r{margin-top:6px;padding-left:10px;border-left:2px solid #eee;font-size:13px;color:#666}.e{padding:40px 14px;color:#999;text-align:center}#more{padding:14px;text-align:center;color:#999;font-size:13px}@media (prefers-color-scheme:dark){body{background:#18191b;color:#ddd}#bar{background:#18191b}.q{background:#232426;color:#bbb}.u{color:#ff7b72}.r{border-color:#2a2b2e;color:#aaa}.c:nth-child(even){background:#1e1f22}}</style><div id=\"bar\"></div><div id=\"list\"></div><script>(function(){var D=window.__NATIVE_PAGE_DATA__||{},items=D.items||[],total=Number(D.total||0),shown=items.length;var bar=document.getElementById('bar'),box=document.getElementById('list'),BATCH=6,i=0;function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}bar.innerHTML='段评 · '+(total>shown&&total>0?('共 '+total+' 条，已显示 '+shown+' 条'):(shown+' 条'));var head=D.quote?'<div class=\"q\">'+esc(D.quote)+'</div>':'';if(!items.length){box.innerHTML=head+'<div class=\"e\">还没有段评</div>';return;}box.innerHTML=head;var more=document.createElement('div');more.id='more';box.appendChild(more);function batch(){var end=Math.min(i+BATCH,items.length),frag=document.createDocumentFragment();for(;i<end;i++){var x=items[i]||{},d=document.createElement('div');d.className='c';var who=esc(x.u),like=Number(x.l||0);d.innerHTML='<div class=\"m\"><span class=\"u\">'+who+'</span><span>'+esc(x.ip||'')+'</span><span class=\"l\">'+like+' 赞</span></div><div class=\"t\">'+esc(x.content)+'</div>';var rp=x.r||[];if(rp.length){var rh='';for(var q=0;q<Math.min(rp.length,3);q++){var y=rp[q]||{};rh+='<div><b>'+esc(y[0])+'</b> '+esc(y[1])+'</div>';}if(rp.length>3){rh+='<div>…共'+rp.length+'条回复</div>';}var rd=document.createElement('div');rd.className='r';rd.innerHTML=rh;d.appendChild(rd);}frag.appendChild(d);}box.insertBefore(frag,more);more.textContent=i<items.length?('继续下滑（'+i+'/'+items.length+'）'):('已全部显示（'+items.length+' 条）');}function onScroll(){if(i<items.length&&(window.innerHeight+window.scrollY)>=document.body.scrollHeight-400){batch();}}window.addEventListener('scroll',onScroll,{passive:true});batch();})();</script>"
+   },
+   "chapterPage": {
+    "title": "本章说",
+    "height": 0.85,
+    "fetch": {
+     "e1": {
+      "url": "= qdCmEndUrl(chapter.url)",
+      "headers": {
+       "Accept": "application/json, text/plain, */*",
+       "Referer": "https://m.qidian.com/",
+       "User-Agent": "= qdCmUA()",
+       "Cookie": "= qdCmCookie()"
+      }
+     }
+    },
+    "data": {
+     "items": "= qdEndSlim(qdEndItems(e1))",
+     "total": "= qdEndTotal(e1, total)"
+    },
+    "html": "<style>html,body{-ms-overflow-style:none;scrollbar-width:none}::-webkit-scrollbar{width:0;height:0;display:none}body{margin:0;font:15px/1.65 -apple-system,\"PingFang SC\",sans-serif;background:#fff;color:#202124}#bar{padding:10px 14px;font-weight:600;background:#fff}#bar .n{font-weight:400;color:#888;font-size:13px;margin-left:6px}.q{margin:8px 14px;padding:8px 10px;background:#f6f7f7;border-left:3px solid #b4231f;color:#555;font-size:13px}.c{padding:11px 14px}.c:nth-child(even){background:#fafafa}.m{display:flex;gap:8px;font-size:12px;color:#888;margin-bottom:5px}.u{color:#b4231f;font-weight:600}.l{margin-left:auto}.t{white-space:pre-wrap;word-break:break-word}.r{margin-top:6px;padding-left:10px;border-left:2px solid #eee;font-size:13px;color:#666}.e{padding:40px 14px;color:#999;text-align:center}#more{padding:14px;text-align:center;color:#999;font-size:13px}@media (prefers-color-scheme:dark){body{background:#18191b;color:#ddd}#bar{background:#18191b}.q{background:#232426;color:#bbb}.u{color:#ff7b72}.r{border-color:#2a2b2e;color:#aaa}.c:nth-child(even){background:#1e1f22}}</style><div id=\"bar\"></div><div id=\"list\"></div><script>(function(){var D=window.__NATIVE_PAGE_DATA__||{},items=D.items||[],total=Number(D.total||0),shown=items.length;var bar=document.getElementById('bar'),box=document.getElementById('list'),BATCH=6,i=0;function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}bar.innerHTML='本章说 · '+(total>shown&&total>0?('共 '+total+' 条，已显示 '+shown+' 条'):(shown+' 条'));var head=D.quote?'<div class=\"q\">'+esc(D.quote)+'</div>':'';if(!items.length){box.innerHTML=head+'<div class=\"e\">还没有本章说</div>';return;}box.innerHTML=head;var more=document.createElement('div');more.id='more';box.appendChild(more);function batch(){var end=Math.min(i+BATCH,items.length),frag=document.createDocumentFragment();for(;i<end;i++){var x=items[i]||{},d=document.createElement('div');d.className='c';var who=esc(x.u),like=Number(x.l||0),rc=Number(x.c||0);d.innerHTML='<div class=\"m\"><span class=\"u\">'+who+'</span><span>'+esc(x.ip||'')+'</span><span class=\"l\">'+like+' 赞'+(rc>0?(' · '+rc+' 回复'):'')+'</span></div><div class=\"t\">'+esc(x.Content)+'</div>';frag.appendChild(d);}box.insertBefore(frag,more);more.textContent=i<items.length?('继续下滑（'+i+'/'+items.length+'）'):('已全部显示（'+items.length+' 条）');}function onScroll(){if(i<items.length&&(window.innerHeight+window.scrollY)>=document.body.scrollHeight-400){batch();}}window.addEventListener('scroll',onScroll,{passive:true});batch();})();</script>"
+   }
+  }
  },
- "_stripped": 336
+ "vars": [
+  {
+   "key": "comments",
+   "label": "段评 / 本章说（关掉就不请求评论）",
+   "default": "开"
+  }
+ ]
 }
