@@ -1,0 +1,1452 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "发现起点",
+ "url": "https://m.qidian.com",
+ "group": "渡",
+ "comment": "起点 · 轻页原生（发现/榜单）· v2（2026-11-14 修复 csrf）\n\n【本次修复】原版靠顶层 cache 抓 /category/ 的 Set-Cookie 取 _csrfToken；起点现已不再下发该 cookie，榜单接口在 token 缺失时返回 {\"code\":1,\"msg\":\"失败\"} → 宿主显示「发现接口返回失败：失败」。\n现改为 explore 脚本每次自造 uuid，同时放进 URL 参数与 Cookie 头。实测 2026-11-14：月票榜/畅销榜/阅读榜等 majax/rank/* 均 code:0、20 条/页、可翻页。\n【其它】搜索/详情/目录（wxapp categoryV2）/正文逻辑未改。未登录仍只能看试读，VIP 章节内容有限。",
+ "type": "text",
+ "js": "function qdToc(ctx) {\n  var bid = native.match(ctx.book.bookUrl, 'book/(\\\\d+)', 1);\n  if (!bid) throw new Error('无法从书籍地址取得书号：' + ctx.book.bookUrl);\n  var url = 'https://wxapp.qidian.com/api/book/categoryV2?bookId=' + bid;\n  var res = http.get(url);\n  if (!res.ok) throw new Error('目录接口请求失败：HTTP ' + res.status);\n  var payload = res.json();\n  if (!payload || payload.code !== 0 || !payload.data || !payload.data.vs) throw new Error('目录接口返回异常');\n  var chapters = [];\n  payload.data.vs.forEach(function (volume) {\n    if (volume.vN) chapters.push({ title: volume.vN, isVolume: true });\n    (volume.cs || []).forEach(function (item) {\n      chapters.push({\n        title: item.cN,\n        url: 'https://m.qidian.com/chapter/' + bid + '/' + item.id + '/',\n        isVip: item.sS === 0,\n        tag: (item.uT || '') + (item.cnt ? ' · ' + item.cnt + '字' : '')\n      });\n    });\n  });\n  if (!chapters.length) throw new Error('目录为空，站点可能调整了目录接口');\n  return chapters;\n}\n\n// 榜单（2026-11-14 修复）：起点已不再通过 /category/ 下发 _csrfToken，\n// 而 majax/rank/* 要求「URL 参数与 Cookie 里的 _csrfToken 相同」——\n// 缺 token 时服务端直接回 {\"code\":1,\"msg\":\"失败\"}，宿主就显示「发现接口返回失败：失败」。\n// 做法：每次请求自造一个 uuid，同时放进参数与 Cookie 头（实测 code:0，20 条/页，可翻页）。\nfunction qdRank(ctx) {\n  var t = uuid();\n  var url = String(ctx.url || '');\n  if (url.indexOf('_csrfToken=') >= 0) {\n    url = url.replace(/_csrfToken=[^&]*/, '_csrfToken=' + t);\n  } else {\n    url += (url.indexOf('?') >= 0 ? '&' : '?') + '_csrfToken=' + t;\n  }\n  var res = http.get(url, { headers: {\n    'User-Agent': 'Mozilla/5.0 (Linux; U; Android 13; zh-cn; MI 11) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/120 Mobile Safari/537.36',\n    'Referer': 'https://m.qidian.com/',\n    'Cookie': '_csrfToken=' + t,\n    'Accept': 'application/json, text/plain, */*'\n  } });\n  if (!res.ok) { throw new Error('榜单请求失败：HTTP ' + res.status); }\n  var j = res.json();\n  if (!j || Number(j.code) !== 0) { throw new Error('榜单接口返回：' + ((j && j.msg) || '空')); }\n  var list = ((j.data || {}).records) || [];\n  var out = [];\n  for (var i = 0; i < list.length; i++) {\n    var it = list[i] || {};\n    var kind = [];\n    if (it.cat) { kind.push(String(it.cat)); }\n    if (it.subCat) { kind.push(String(it.subCat)); }\n    out.push({\n      name: String(it.bName || ''),\n      author: String(it.bAuth || ''),\n      kind: kind.join(','),\n      intro: String(it.desc || ''),\n      wordCount: it.cnt == null ? '' : String(it.cnt),\n      lastChapter: it.lastVUCname == null ? '' : String(it.lastVUCname),\n      coverUrl: 'https://bookcover.yuewen.com/qdbimg/349573/' + it.bid,\n      bookUrl: 'https://m.qidian.com/book/' + it.bid + '/'\n    });\n  }\n  if (!out.length) {\n    if (Number(ctx.page || 1) > 1) { return []; }\n    throw new Error('榜单无数据');\n  }\n  return out;\n}\n",
+ "scriptLimits": {
+  "requests": 5
+ },
+ "search": {
+  "url": "{{source.url}}/soushu/{{urlencode(key)}}.html?pageNum={{page}}",
+  "list": "div.y-list__item",
+  "fields": {
+   "name": "h2[class^=_searchBookName]@text",
+   "author": "p[class^=_searchBookAuthor]@text",
+   "intro": "p[class^=_searchBookDesc]@text",
+   "kind": "= join(slice(selAll('div[class^=_tags] p@text'), 0, 2), ',')",
+   "wordCount": "= sel('div[class^=_tags] p.2@text')",
+   "coverUrl": "= default(absUrl(sel('img@data-src'), baseUrl), match(sel('a@href'), 'chapter/(\\d+)/', 1) ? 'https://bookcover.yuewen.com/qdbimg/349573/' + match(sel('a@href'), 'chapter/(\\d+)/', 1) + '/180' : '')",
+   "bookUrl": "= match(sel('a@href'), 'chapter/(\\d+)/', 1) ? 'https://m.qidian.com/book/' + match(sel('a@href'), 'chapter/(\\d+)/', 1) + '/' : ''"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "男频"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "书友榜",
+    "url": "{{source.url}}/majax/rank/newfanslist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "推荐榜",
+    "url": "{{source.url}}/majax/rank/reclist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "更新榜",
+    "url": "{{source.url}}/majax/rank/updatelist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "签约榜",
+    "url": "{{source.url}}/majax/rank/signlist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "新书榜",
+    "url": "{{source.url}}/majax/rank/newbooklist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "新人榜",
+    "url": "{{source.url}}/majax/rank/newauthorlist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "三江推荐",
+    "url": "{{source.url}}/webcommon/recommend/sanjiangList?pageNum={{page}}"
+   },
+   {
+    "title": "新书强推",
+    "url": "{{source.url}}/majax/recommend/strongreclist?gender=male&catId=-1&pageNum={{page}}"
+   },
+   {
+    "title": "人气免费",
+    "url": "{{source.url}}/majax/recommend/hotFreelist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "新书免费",
+    "url": "{{source.url}}/majax/recommend/freeNewlist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "新书抢先",
+    "url": "{{source.url}}/majax/recommend/newBooklist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "畅销完本",
+    "url": "{{source.url}}/majax/recommend/bestSelllist?gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "玄幻"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=21&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=21&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=21&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=21&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=21&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=21&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=21&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=21&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=21&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万字↓",
+    "url": "{{source.url}}/majax/category/list?catId=21&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=21&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=21&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=21&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=21&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=21&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=21&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "东方玄幻",
+    "url": "{{source.url}}/majax/category/list?catId=21&subCatId=8&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "异世大陆",
+    "url": "{{source.url}}/majax/category/list?catId=21&subCatId=73&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "王朝争霸",
+    "url": "{{source.url}}/majax/category/list?catId=21&subCatId=58&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "高武世界",
+    "url": "{{source.url}}/majax/category/list?catId=21&subCatId=78&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "奇幻"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=1&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=1&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=1&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=1&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=1&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=1&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=1&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=1&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=1&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=1&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=1&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=1&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=1&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=1&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "现代魔法",
+    "url": "{{source.url}}/majax/category/list?catId=1&subCatId=38&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "剑与魔法",
+    "url": "{{source.url}}/majax/category/list?catId=1&subCatId=62&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "史诗奇幻",
+    "url": "{{source.url}}/majax/category/list?catId=1&subCatId=201&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "神秘幻想",
+    "url": "{{source.url}}/majax/category/list?catId=1&subCatId=202&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "历史神话",
+    "url": "{{source.url}}/majax/category/list?catId=1&subCatId=20092&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "另类幻想",
+    "url": "{{source.url}}/majax/category/list?catId=1&subCatId=20093&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "武侠"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=2&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=2&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=2&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=2&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=2&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=2&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=2&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=2&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=2&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=2&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=2&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=2&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=2&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=2&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "传统武侠",
+    "url": "{{source.url}}/majax/category/list?catId=2&subCatId=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "武侠幻想",
+    "url": "{{source.url}}/majax/category/list?catId=2&subCatId=30&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "国士无双",
+    "url": "{{source.url}}/majax/category/list?catId=2&subCatId=206&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "古武未来",
+    "url": "{{source.url}}/majax/category/list?catId=2&subCatId=20099&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "武侠同人",
+    "url": "{{source.url}}/majax/category/list?catId=2&subCatId=20100&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "仙侠"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=22&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=22&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=22&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=22&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=22&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=22&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=22&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=22&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=22&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=22&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=22&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=22&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=22&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=22&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=22&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=22&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "修真文明",
+    "url": "{{source.url}}/majax/category/list?catId=22&subCatId=18&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "幻想修仙",
+    "url": "{{source.url}}/majax/category/list?catId=22&subCatId=44&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "现代修真",
+    "url": "{{source.url}}/majax/category/list?catId=22&subCatId=64&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "神话修真",
+    "url": "{{source.url}}/majax/category/list?catId=22&subCatId=207&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "古典仙侠",
+    "url": "{{source.url}}/majax/category/list?catId=22&subCatId=20101&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "都市"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=4&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=4&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=4&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=4&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=4&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=4&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=4&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=4&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=4&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=4&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=4&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=4&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=4&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=4&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "爱情婚姻",
+    "url": "{{source.url}}/majax/category/list?catId=4&subCatId=65535&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "都市生活",
+    "url": "{{source.url}}/majax/category/list?catId=4&subCatId=12&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "都市异能",
+    "url": "{{source.url}}/majax/category/list?catId=4&subCatId=16&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "异术超能",
+    "url": "{{source.url}}/majax/category/list?catId=4&subCatId=74&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "青春校园",
+    "url": "{{source.url}}/majax/category/list?catId=4&subCatId=130&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "娱乐明星",
+    "url": "{{source.url}}/majax/category/list?catId=4&subCatId=151&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "商战职场",
+    "url": "{{source.url}}/majax/category/list?catId=4&subCatId=153&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "现实"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=15&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=15&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=15&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=15&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=15&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=15&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=15&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=15&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=15&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=15&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=15&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=15&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=15&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=15&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=15&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=15&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时代叙事",
+    "url": "{{source.url}}/majax/category/list?catId=15&subCatId=20106&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "家庭伦理",
+    "url": "{{source.url}}/majax/category/list?catId=15&subCatId=6&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "女性题材",
+    "url": "{{source.url}}/majax/category/list?catId=15&subCatId=20104&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "青年故事",
+    "url": "{{source.url}}/majax/category/list?catId=15&subCatId=20108&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "社会悬疑",
+    "url": "{{source.url}}/majax/category/list?catId=15&subCatId=20105&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "人间百态",
+    "url": "{{source.url}}/majax/category/list?catId=15&subCatId=209&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "成功励志",
+    "url": "{{source.url}}/majax/category/list?catId=15&subCatId=20107&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "军事"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=6&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=6&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=6&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=6&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=6&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=6&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=6&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=6&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=6&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=6&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=6&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=6&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=6&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=6&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=6&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=6&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "军旅生涯",
+    "url": "{{source.url}}/majax/category/list?catId=6&subCatId=54&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "军事战争",
+    "url": "{{source.url}}/majax/category/list?catId=6&subCatId=65&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "战争幻想",
+    "url": "{{source.url}}/majax/category/list?catId=6&subCatId=80&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "抗战烽火",
+    "url": "{{source.url}}/majax/category/list?catId=6&subCatId=230&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "谍战特工",
+    "url": "{{source.url}}/majax/category/list?catId=6&subCatId=231&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "历史"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=5&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=5&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=5&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=5&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=5&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=5&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=5&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=5&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=5&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=5&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=5&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=5&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=5&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=5&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "架空励史",
+    "url": "{{source.url}}/majax/category/list?catId=5&subCatId=22&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "秦汉三国",
+    "url": "{{source.url}}/majax/category/list?catId=5&subCatId=48&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "↑古先秦",
+    "url": "{{source.url}}/majax/category/list?catId=5&subCatId=220&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "历史传记",
+    "url": "{{source.url}}/majax/category/list?catId=5&subCatId=32&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "两晋隋唐",
+    "url": "{{source.url}}/majax/category/list?catId=5&subCatId=222&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "五代十国",
+    "url": "{{source.url}}/majax/category/list?catId=5&subCatId=223&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "两宋元明",
+    "url": "{{source.url}}/majax/category/list?catId=5&subCatId=224&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "清史民国",
+    "url": "{{source.url}}/majax/category/list?catId=5&subCatId=225&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "外国历史",
+    "url": "{{source.url}}/majax/category/list?catId=5&subCatId=226&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "民间传说",
+    "url": "{{source.url}}/majax/category/list?catId=5&subCatId=20094&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "游戏"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=7&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=7&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=7&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=7&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=7&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=7&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=7&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=7&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=7&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=7&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=7&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=7&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=7&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=7&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=7&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=7&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "电子竞技",
+    "url": "{{source.url}}/majax/category/list?catId=7&subCatId=7&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "虚拟网游",
+    "url": "{{source.url}}/majax/category/list?catId=7&subCatId=70&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "游戏异界",
+    "url": "{{source.url}}/majax/category/list?catId=7&subCatId=240&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "游戏系统",
+    "url": "{{source.url}}/majax/category/list?catId=7&subCatId=20102&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "游戏主播",
+    "url": "{{source.url}}/majax/category/list?catId=7&subCatId=20103&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "体育"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=8&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=8&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=8&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=8&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=8&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=8&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=8&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=8&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=8&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=8&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=8&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=8&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=8&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=8&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=8&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=8&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "篮球运动",
+    "url": "{{source.url}}/majax/category/list?catId=8&subCatId=28&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "体育赛事",
+    "url": "{{source.url}}/majax/category/list?catId=8&subCatId=55&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "足球运动",
+    "url": "{{source.url}}/majax/category/list?catId=8&subCatId=82&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "科幻"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=9&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=9&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=9&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=9&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=9&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=9&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=9&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=9&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=9&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=9&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=9&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=9&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=9&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=9&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=9&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=9&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "古武机甲",
+    "url": "{{source.url}}/majax/category/list?catId=9&subCatId=21&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "未来世界",
+    "url": "{{source.url}}/majax/category/list?catId=9&subCatId=25&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "星际文明",
+    "url": "{{source.url}}/majax/category/list?catId=9&subCatId=68&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "超级科技",
+    "url": "{{source.url}}/majax/category/list?catId=9&subCatId=250&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时空穿梭",
+    "url": "{{source.url}}/majax/category/list?catId=9&subCatId=251&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "进化变异",
+    "url": "{{source.url}}/majax/category/list?catId=9&subCatId=252&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "末世危机",
+    "url": "{{source.url}}/majax/category/list?catId=9&subCatId=253&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "悬疑"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=10&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=10&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=10&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=10&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=10&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=10&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=10&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=10&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=10&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=10&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=10&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=10&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=10&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=10&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=10&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=10&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "诡秘悬疑",
+    "url": "{{source.url}}/majax/category/list?catId=10&subCatId=26&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "奇妙世界",
+    "url": "{{source.url}}/majax/category/list?catId=10&subCatId=35&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "侦探推理",
+    "url": "{{source.url}}/majax/category/list?catId=10&subCatId=57&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "探险求生",
+    "url": "{{source.url}}/majax/category/list?catId=10&subCatId=260&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "古今传奇",
+    "url": "{{source.url}}/majax/category/list?catId=10&subCatId=20095&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "诸天无限"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=20109&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=20109&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=20109&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=20109&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=20109&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=20109&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=20109&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=20109&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=20109&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=20109&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=20109&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=20109&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=20109&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=20109&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=20109&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=20109&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "无限",
+    "url": "{{source.url}}/majax/category/list?catId=20109&subCatId=20110&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "诸天",
+    "url": "{{source.url}}/majax/category/list?catId=20109&subCatId=20111&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "综漫",
+    "url": "{{source.url}}/majax/category/list?catId=20109&subCatId=20112&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "轻小说"
+   },
+   {
+    "title": "月票榜",
+    "url": "{{source.url}}/majax/rank/yuepiaolist?gender=male&catId=12&pageNum={{page}}"
+   },
+   {
+    "title": "畅销榜",
+    "url": "{{source.url}}/majax/rank/hotsaleslist?gender=male&catId=12&pageNum={{page}}"
+   },
+   {
+    "title": "阅读榜",
+    "url": "{{source.url}}/majax/rank/readindexlist?gender=male&catId=12&pageNum={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=12&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=12&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=12&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=12&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=12&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=12&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=12&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=12&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=12&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=12&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=12&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=12&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=12&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "原生幻想",
+    "url": "{{source.url}}/majax/category/list?catId=12&subCatId=60&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "现代幻想",
+    "url": "{{source.url}}/majax/category/list?catId=12&subCatId=10&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "衍生同人",
+    "url": "{{source.url}}/majax/category/list?catId=12&subCatId=281&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "搞笑吐槽",
+    "url": "{{source.url}}/majax/category/list?catId=12&subCatId=282&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "恋爱日常",
+    "url": "{{source.url}}/majax/category/list?catId=12&subCatId=66&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "短篇"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/majax/category/list?catId=20076&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "时间",
+    "url": "{{source.url}}/majax/category/list?catId=20076&gender=male&orderBy=4&pageNum={{page}}"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/majax/category/list?catId=20076&gender=male&orderBy=3&pageNum={{page}}"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/majax/category/list?catId=20076&gender=male&orderBy=11&pageNum={{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/majax/category/list?catId=20076&gender=male&orderBy=9&pageNum={{page}}"
+   },
+   {
+    "title": "点击",
+    "url": "{{source.url}}/majax/category/list?catId=20076&gender=male&orderBy=1&pageNum={{page}}"
+   },
+   {
+    "title": "30万↓",
+    "url": "{{source.url}}/majax/category/list?catId=20076&size=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "30-50万",
+    "url": "{{source.url}}/majax/category/list?catId=20076&size=2&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "50-100万",
+    "url": "{{source.url}}/majax/category/list?catId=20076&size=3&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "1-2百万",
+    "url": "{{source.url}}/majax/category/list?catId=20076&size=4&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "200万↑",
+    "url": "{{source.url}}/majax/category/list?catId=20076&size=5&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "连载",
+    "url": "{{source.url}}/majax/category/list?catId=20076&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "完本",
+    "url": "{{source.url}}/majax/category/list?catId=20076&isfinish=1&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "诗歌散文",
+    "url": "{{source.url}}/majax/category/list?catId=20076&subCatId=20097&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "人物传记",
+    "url": "{{source.url}}/majax/category/list?catId=20076&subCatId=20098&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "影视剧本",
+    "url": "{{source.url}}/majax/category/list?catId=20076&subCatId=20075&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "评论文集",
+    "url": "{{source.url}}/majax/category/list?catId=20076&subCatId=20077&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "生活随笔",
+    "url": "{{source.url}}/majax/category/list?catId=20076&subCatId=20078&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "美文游记",
+    "url": "{{source.url}}/majax/category/list?catId=20076&subCatId=20079&gender=male&pageNum={{page}}"
+   },
+   {
+    "title": "短篇小说",
+    "url": "{{source.url}}/majax/category/list?catId=20076&subCatId=20096&gender=male&pageNum={{page}}"
+   }
+  ],
+  "script": "qdRank"
+ },
+ "detail": {
+  "let": {
+   "bid": "= match(book.bookUrl, 'book/(\\d+)', 1)"
+  },
+  "fields": {
+   "name": "h1.detail__header-detail__title@text",
+   "author": "a.detail__header-detail__author-link@ownText",
+   "intro": "p.detail__summary__content@text",
+   "kind": "= join(selAll('a.detail__header-detail__category@text'), ',')",
+   "status": "= match(sel('p.detail__header-detail__line:last@text'), '^(连载|完本)')",
+   "lastChapter": "a.chapter-link.0@text##^\\s*最新章节\\s*",
+   "updateTime": "span.chapter-time.0@text",
+   "wordCount": "= sel('.novelbook__honorinfo .item:eq(1) .value@text') ? sel('.novelbook__honorinfo .item:eq(1) .value@text') + '万字' : ''",
+   "coverUrl": "= bid ? 'https://bookcover.yuewen.com/qdbimg/349573/' + bid + '/180' : ''"
+  },
+  "keep": {
+   "bid": "= bid"
+  }
+ },
+ "toc": {
+  "script": "qdToc"
+ },
+ "content": {
+  "let": {
+   "cid": "= match(chapter.url, '/(\\d+)/$', 1)"
+  },
+  "text": "= default(join(selAll('main#c-' + cid + ' p@text'), '\\n'), sel('main#c-' + cid + '@text'))"
+ },
+ "_stripped": 336
+}
