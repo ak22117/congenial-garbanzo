@@ -1,0 +1,236 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "懒人听书",
+ "url": "https://m.lrts.me",
+ "group": "渡·听书",
+ "type": "audio",
+ "comment": "全链路(免登录)：搜索+播放走 tingshu8 代理(音频为腾讯音乐签名直链,约24小时有效,VIP章节可播)。书源设置「线路」为下拉(默认接口/备用接口),打开设置页自动测速只列可用线路,原始地址不显示在设置页,规则层 lookup 映射。发现页顶部「状态」「排序」双筛选栏,切换立即作用于首页推荐与全部分类：服务端 labelIds 精确过滤(状态:连载=10006/完结=10005/新品=195932;排序:智能=31000/人气=10001/更新=10002/评论=10003,多标签AND组合实测生效),脚本按参数分缓存10分钟并二次校验state字段,20本/页切片翻页,封面600x600高清。实测风控：lanrentingshu/lrts 接口无签名无频控(15连发全200),封面/音频无防盗链;官方 ajax/searchBook 需登录(apiStatus 485)故搜索保留代理;代理偶发瞬时失败,分类/搜索/正文均已带重试。发现页=首页推荐(全站有声小说)+11个固定排行榜+男频/女频/都市/玄幻/悬疑16个子分类。详情/目录走官网H5接口(getBookInfo/getBookMenu,免登录),目录30条/页自动翻页,章节时长/付费标记齐全。v2 整理：书名只留 | 前第一段,作者统一取演播/主播(不再回退小说作者)。\n【v2（2026-11-14）目录修复】原 getBookMenu 接口失效（非法请求AA）→ 改为解析移动书页 SSR 里的「第N集+标题」；搜索/详情/播放不动。\n【v2.1（2026-11-14）】照「懒人有声」的做法：目录以集数补全（真实标题优先，缺的写「第 N 集」），不再因为解析不到标题就整本打不开。\n【v3.1（2026-11-14）照可用源的做法修正读响应：用 res.body（不是 res.text()）+ 按域名带 Referer/Accept；此前取页 200 但读到空，导致全是占位标题。\n【v3.2（2026-11-14）学到位】目录改用官方 getBookMenu（关键：整套浏览器头，含 Referer/Origin，否则「非法请求AA」）+ 60/页分页并发 8 拿全量真标题；官方不通再退 SSR；最后按集数补占位。不依赖任何第三方云端后端。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13; M2012K11AC) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+ },
+ "vars": [
+  {
+   "key": "line",
+   "label": "线路",
+   "options": [
+    "默认接口",
+    "备用接口"
+   ],
+   "default": "默认接口",
+   "optionsScript": "lineOptions"
+  },
+  {
+   "key": "state",
+   "label": "状态",
+   "options": [
+    "全部",
+    "连载",
+    "完结",
+    "新品"
+   ],
+   "default": "全部",
+   "filter": true
+  },
+  {
+   "key": "sort",
+   "label": "排序",
+   "options": [
+    "智能排序",
+    "最高人气",
+    "最近更新",
+    "最多评论"
+   ],
+   "default": "智能排序",
+   "filter": true
+  }
+ ],
+ "search": {
+  "url": "{{api}}?name={{urlencode(key)}}&page={{page}}",
+  "retry": 1,
+  "fail": "= data != null && data.code != 200 ? default(data.message, '搜索接口异常') : ''",
+  "list": "$.data.list[*]",
+  "fields": {
+   "name": "= get(split($.title, '|'), 0)",
+   "author": "= default($.anchor, '')",
+   "kind": "= join(compact([$.payLabel, $.sections ? $.sections + '集' : null]), ' · ')",
+   "coverUrl": "= $.cover ? replaceText(replaceText($.cover, '.png', '_600x600.png'), '.jp', '_600x600.jp') : ''",
+   "intro": "$.intro",
+   "bookUrl": "https://m.lrts.me/book/{{$.albumId}}"
+  }
+ },
+ "js": "function apiOf(line) {\n  if (line == '备用接口') return 'http://sy.tingshu8.top/yuan1/lrts.php';\n  return 'http://www.tingshu8.top/yuan1/lrts.php';\n}\nfunction pick(b) {\n  return { id: b.baseEntityId || b.id, name: b.name, author: b.author, announcer: b.announcer,\n           cover: b.cover, score: b.score, state: b.state, desc: b.desc,\n           payType: b.payType, sections: b.sections };\n}\nfunction explore(ctx) {\n  var url = ctx.url || '';\n  if (url.indexOf('getBookRank') >= 0) {\n    var rank = http.get(url);\n    if (!rank.ok) throw new Error('榜单请求失败：HTTP ' + rank.status);\n    var rj = rank.json() || {};\n    return { books: (rj.list || []).map(pick) };\n  }\n  var m = url.match(/entityId=([0-9]+)/);\n  if (!m) return { books: [] };\n  var page = ctx.page > 0 ? ctx.page : 1;\n  var size = 20;\n  var st = (ctx.vars && ctx.vars.state) || '全部';\n  var so = (ctx.vars && ctx.vars.sort) || '智能排序';\n  var lb = '31000';\n  if (so == '最高人气') lb = '10001';\n  else if (so == '最近更新') lb = '10002';\n  else if (so == '最多评论') lb = '10003';\n  if (st == '连载') lb += ',10006';\n  else if (st == '完结') lb += ',10005';\n  else if (st == '新品') lb += ',195932';\n  var ck = 'cat_' + lb + '_' + m[1];\n  var books = cache.get(ck);\n  if (!books) {\n    var api = 'https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=' + m[1] + '&pageNum=1&dsize=1000&labelIds=' + lb + '&showFilters=1';\n    var raw = [];\n    var lastStatus = 0;\n    for (var i = 0; i < 2 && !raw.length; i++) {\n      var resp = http.get(api);\n      lastStatus = resp.status;\n      if (resp.ok) raw = resp.json().books || [];\n    }\n    if (!raw.length) throw new Error(lastStatus ? '分类请求失败：HTTP ' + lastStatus : '分类接口返回空数据，请稍后重试');\n    books = raw.map(pick);\n    if (st == '连载') books = books.filter(function (b) { return b.state == 1; });\n    else if (st == '完结') books = books.filter(function (b) { return b.state == 2; });\n    if (books.length) cache.put(ck, books, 600);\n  }\n  var start = (page - 1) * size;\n  return { books: books.slice(start, start + size), total: books.length };\n}\nfunction lineOptions(ctx) {\n  var names = ['默认接口', '备用接口'];\n  var alive = [];\n  for (var i = 0; i < names.length; i++) {\n    try {\n      var r = http.get(apiOf(names[i]) + '?name=' + encodeURIComponent('道君') + '&page=1');\n      if (r.ok && r.json() && r.json().code == 200) alive.push(names[i]);\n    } catch (e) {}\n  }\n  return alive;\n}\n\n/* ===== v2 目录修复（2026-11-14）=====\n * 现象：原目录接口 m.lrts.me/ajax/getBookMenu 回 {\"status\":114,\"msg\":\"非法请求AA\"}，\n *       目录取不到 → 阅读器里「听不了」。搜索（包装机）、详情（官方 getBookInfo）、\n *       单集音频（包装机 ?id=<albumId>*<N>）都实测正常。\n * 做法：改用移动书页的 SSR 数据取目录——页面里直接带「第N集　标题」的完整列表。\n * 过滤：只保留 N ≤ 详情里的集数（book.vars.sections），并去重、按集号排序，\n *       避免把页面里「同类推荐」的章节混进来。\n * 待实测：站点当日对我限流（404），本条改动的联网实测需稍后补（见交付说明）。\n */\nfunction lrtsToc(ctx) {\n  // 目录：官方 m.lrts.me/ajax/getBookMenu（学自可用源的关键一招：必须带齐整套浏览器头，缺了会被「非法请求AA」拦）\n  // 我们自己的增强：分页拿全量 → 以集数补全 → 官方整条失败再退到移动书页 SSR（前 50 集）→ 最后才是纯占位。\n  var bid = String((ctx.book && ctx.book.vars && ctx.book.vars.bookId) || '');\n  if (!bid) { var bm = String(ctx.book.bookUrl || '').match(/book\\/([0-9]+)/); bid = bm ? bm[1] : ''; }\n  if (!bid) { throw new Error('无法取得书号：' + ctx.book.bookUrl); }\n  var total = Number((ctx.book && ctx.book.vars && ctx.book.vars.sections) || 0);\n  var HDR = {\n    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',\n    'Accept': 'application/json, text/plain, */*',\n    'Referer': 'https://m.lrts.me/book/' + bid,\n    'Origin': 'https://m.lrts.me',\n    'X-Requested-With': 'XMLHttpRequest'\n  };\n  function menuUrl(pn) {\n    return 'https://m.lrts.me/ajax/getBookMenu?bookId=' + bid + '&pageNum=' + pn + '&pageSize=60&sortType=0';\n  }\n  function take(resp, map) {\n    var d = null;\n    try { d = JSON.parse(String((resp && resp.body) || '')); } catch (e) { return 0; }\n    if (!d || Number(d.apiStatus) !== 0) { return 0; }\n    var list = d.list || [], n = 0;\n    for (var i = 0; i < list.length; i++) {\n      var it = list[i] || {}, s = parseInt(String(it.section || 0), 10);\n      if (s > 0) { if (!map[s]) { map[s] = String(it.name || ''); } n++; }\n    }\n    return n;\n  }\n  var map = {}, hits = 0;\n  // ① 第 1 页探路：通了才批量（风控时只烧 1 次）\n  var first = null;\n  try { first = http.get(menuUrl(1), { headers: HDR, timeout: 3000 }); } catch (e) { first = null; }\n  if (first && first.ok && first.status === 200) { hits += take(first, map); }\n  // ② 批量取余页（并发 8）\n  if (hits > 0) {\n    var pages = total > 0 ? Math.ceil(total / 60) : 1;\n    if (pages > 12) { pages = 12; }   // 请求预算兜底：大书只取前 12 页（720 章），其余占位\n    var reqs = [], pn;\n    for (pn = 2; pn <= pages; pn++) { reqs.push({ url: menuUrl(pn), headers: HDR }); }\n    if (reqs.length) {\n      var res = [];\n      try { res = http.all(reqs, { concurrency: 8, timeout: 3500 }) || []; } catch (e2) { res = []; }\n      for (var r = 0; r < res.length; r++) { hits += take(res[r], map); }\n    }\n  }\n  // ③ 官方整条不通 → 退到移动书页 SSR（只有前 ~50 集真标题）\n  if (hits === 0) {\n    var hosts = ['https://m.lanrentingshu.com/book/' + bid, 'https://www.lrts.me/book/' + bid];\n    for (var h = 0; h < hosts.length && hits === 0; h++) {\n      var html = '';\n      try {\n        var rs = http.get(hosts[h], { headers: { 'User-Agent': HDR['User-Agent'], 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'Accept-Language': 'zh-CN,zh;q=0.9', 'Referer': (h === 0 ? 'https://m.lanrentingshu.com/' : 'https://www.lrts.me/') } });\n        if (rs && rs.ok) { html = String(rs.body || ''); }\n      } catch (e3) {}\n      if (html) {\n        var rex = /第(\\d{1,5})集[\\s\\u3000]{0,3}([^\\n\"\\\\<>]{1,50})/g, m;\n        while ((m = rex.exec(html)) !== null) {\n          var n2 = Number(m[1]);\n          if (!(n2 >= 1)) { continue; }\n          if (total > 0 && n2 > total) { continue; }\n          if (!map[n2]) { map[n2] = '第' + n2 + '集 ' + String(m[2] || '').replace(/[\\u3000\\s]+$/g, ''); hits++; }\n        }\n      }\n    }\n  }\n  var api = apiOf((ctx.vars && ctx.vars.line) || '默认接口');\n  var list = [];\n  var maxN = total > 0 ? total : 0;\n  if (!maxN) { for (var k in map) { if (map.hasOwnProperty(k)) { var kn = Number(k); if (kn > maxN) { maxN = kn; } } } }\n  if (!maxN) { throw new Error('目录为空：官方接口与目录页都没取到（站点可能改版）'); }\n  for (var q = 1; q <= maxN; q++) {\n    var t = map[q] ? String(map[q]) : '';\n    if (t.indexOf('第') !== 0) { t = '第 ' + q + '集' + (t ? ' ' + t : ''); }\n    list.push({ title: t, url: api + '?id=' + bid + '*' + q, isVip: false, tag: '' });\n  }\n  return list;\n}\n",
+ "explore": {
+  "script": "explore",
+  "list": "$.books[*]",
+  "fields": {
+   "name": "= get(split($.name, '|'), 0)",
+   "author": "= default($.announcer, '')",
+   "coverUrl": "= $.cover ? replaceText(replaceText($.cover, '.png', '_600x600.png'), '.jp', '_600x600.jp') : ''",
+   "kind": "= join(compact([$.payType == 0 ? '免费' : ($.payType ? '会员' : null), $.sections ? $.sections + '集' : null, $.score ? $.score + '分' : null, $.state == 2 ? '完结' : ($.state == 1 ? '连载' : null)]), ' · ')",
+   "intro": "= $.desc",
+   "bookUrl": "https://m.lrts.me/book/{{$.id}}"
+  },
+  "menus": [
+   {
+    "title": "首页推荐",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=1&page={{page}}"
+   },
+   {
+    "title": "热播周榜",
+    "url": "https://m.lanrentingshu.com/ajax/getBookRank?rankId=75&rangeType=1&pageSize=100&filterType=0"
+   },
+   {
+    "title": "新书热播",
+    "url": "https://m.lanrentingshu.com/ajax/getBookRank?rankId=75&rangeType=1&pageSize=100&filterType=1"
+   },
+   {
+    "title": "热搜周榜",
+    "url": "https://m.lanrentingshu.com/ajax/getBookRank?rankId=77&rangeType=1&pageSize=100"
+   },
+   {
+    "title": "好评周榜",
+    "url": "https://m.lanrentingshu.com/ajax/getBookRank?rankId=76&rangeType=1&pageSize=100"
+   },
+   {
+    "title": "会员周榜",
+    "url": "https://m.lanrentingshu.com/ajax/getBookRank?rankId=740&rangeType=1&pageSize=100&filterType=0"
+   },
+   {
+    "title": "会员新书",
+    "url": "https://m.lanrentingshu.com/ajax/getBookRank?rankId=740&rangeType=1&pageSize=100&filterType=1"
+   },
+   {
+    "title": "免费周榜",
+    "url": "https://m.lanrentingshu.com/ajax/getBookRank?rankId=14481&rangeType=1&pageSize=100&filterType=0"
+   },
+   {
+    "title": "新书免费",
+    "url": "https://m.lanrentingshu.com/ajax/getBookRank?rankId=14481&rangeType=1&pageSize=100&filterType=1"
+   },
+   {
+    "title": "完结周榜",
+    "url": "https://m.lanrentingshu.com/ajax/getBookRank?rankId=739&rangeType=1&pageSize=100&filterType=0"
+   },
+   {
+    "title": "新书完结",
+    "url": "https://m.lanrentingshu.com/ajax/getBookRank?rankId=739&rangeType=1&pageSize=100&filterType=1"
+   },
+   {
+    "title": "收藏排行榜",
+    "url": "https://m.lanrentingshu.com/ajax/getBookRank?rankId=14479&rangeType=3&pageSize=100"
+   },
+   {
+    "title": "男频"
+   },
+   {
+    "title": "武侠仙侠",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=14&page={{page}}"
+   },
+   {
+    "title": "历史幻想",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=12&page={{page}}"
+   },
+   {
+    "title": "热血军事",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=9041&page={{page}}"
+   },
+   {
+    "title": "网游竞技",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=9042&page={{page}}"
+   },
+   {
+    "title": "官场商战",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=44&page={{page}}"
+   },
+   {
+    "title": "科幻空间",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=3021&page={{page}}"
+   },
+   {
+    "title": "次元专区",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=9287&page={{page}}"
+   },
+   {
+    "title": "女频"
+   },
+   {
+    "title": "古代言情",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=10&page={{page}}"
+   },
+   {
+    "title": "现代言情",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=3020&page={{page}}"
+   },
+   {
+    "title": "青春校园",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=3106&page={{page}}"
+   },
+   {
+    "title": "穿越架空",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=3109&page={{page}}"
+   },
+   {
+    "title": "都市"
+   },
+   {
+    "title": "都市传说",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=8&page={{page}}"
+   },
+   {
+    "title": "玄幻"
+   },
+   {
+    "title": "玄幻奇幻",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=11&page={{page}}"
+   },
+   {
+    "title": "悬疑"
+   },
+   {
+    "title": "悬疑推理",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=3107&page={{page}}"
+   },
+   {
+    "title": "奇人怪谈",
+    "url": "https://www.lanrentingshu.com/api/category/getResourceList?entityType=1&entityId=9&page={{page}}"
+   }
+  ]
+ },
+ "detail": {
+  "url": "= 'https://m.lrts.me/ajax/getBookInfo?id=' + match(book.bookUrl, '/book/([0-9]+)', 1)",
+  "let": {
+   "d": "= data"
+  },
+  "fail": "= data != null && (default(data.status, 0) != 0 || default(data.apiStatus, 0) != 0) ? default(data.msg, '详情接口返回异常') : ''",
+  "fields": {
+   "name": "= d.name || book.name",
+   "author": "= default(d.announcer, book.author)",
+   "announcer": "= d.announcer",
+   "kind": "= join(compact(concat([d.fatherTypeName], d.labels ? map(d.labels, x => x.name) : [])), ',')",
+   "coverUrl": "= d.bestCover ? d.bestCover : (d.cover ? replaceText(replaceText(d.cover, '.png', '_600x600.png'), '.jp', '_600x600.jp') : book.coverUrl)",
+   "intro": "= stripHtml(d.desc)",
+   "wordCount": "= d.sections ? d.sections + ' 集' : ''",
+   "updateTime": "= d.update",
+   "tocUrl": "= 'https://m.lrts.me/ajax/getBookMenu?bookId=' + match(book.bookUrl, '/book/([0-9]+)', 1) + '&pageNum=1'"
+  },
+  "keep": {
+   "bookId": "= match(book.bookUrl, '/book/([0-9]+)', 1)",
+   "sections": "= d.sections"
+  }
+ },
+ "toc": {
+  "script": "lrtsToc"
+ },
+ "content": {
+  "retry": 2,
+  "audio": "$.data.url",
+  "mediaError": "= data != null && data.code != 200 ? default(data.message, '音频接口返回异常') : '未取到音频地址'"
+ },
+ "let": {
+  "api": "= apiOf(vars.line)"
+ },
+ "scriptLimits": {
+  "requests": 30
+ }
+}

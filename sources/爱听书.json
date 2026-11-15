@@ -1,0 +1,201 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "爱听书",
+ "url": "https://api.itingshu.iiisss.top",
+ "group": "渡·听书",
+ "type": "audio",
+ "rate": "500",
+ "comment": "ˣᵇATS · 爱听书（com.itingshu.hearbook v2.6.5）逆向原生书源 v5.8 单检查按钮（勿分发）。★播放需书源内登录。\n播放链：audio API→chapterPlay→downPlay(需积分) 三级降级 + m.itingshu.net 网页兜底(免登录)；\nting13 系候选自动换 ysxs 有效证书并做 Range 自检，异构后端(酷我/api.sss)免探测直出。\n加密走简听内置 md5/encrypt（lib 仅转发）；每章取址1(+ting13系探测1)。WAF≈250次/IP。\n【v2（2026-11-14）】照可用源补：手动播放 token 兜底（vars.koten）——登录后 token 自动填入，不想登录可手填。机制不变。",
+ "headers": {
+  "Accept": "application/json",
+  "x-Requested-With": "com.itingshu.hearbook",
+  "sign": "Be7ELk7SzVQgPuld1j4E4vsLOfeZAsj7ZUMXi8xRGpE="
+ },
+ "login": {
+  "form": [
+   {
+    "key": "user",
+    "label": "账号（邮箱）"
+   },
+   {
+    "key": "pass",
+    "label": "密码",
+    "secret": true
+   }
+  ],
+  "submit": {
+   "url": "https://api.mmm.iiisss.top/api/itingshu/login",
+   "method": "POST",
+   "headers": {
+    "Content-Type": "application/json",
+    "x-Requested-With": "com.itingshu.hearbook",
+    "sign": "Be7ELk7SzVQgPuld1j4E4vsLOfeZAsj7ZUMXi8xRGpE="
+   },
+   "body": {
+    "username": "{{form.user}}",
+    "password": "{{md5(form.pass)}}"
+   },
+   "ok": "= data.code == 200 && data.message == true",
+   "token": "= data.cookie.token",
+   "user": "= data.cookie.username",
+   "message": "= data.msg"
+  }
+ },
+ "lib": "fn md5hex(text) { return md5(text) }\n// 播放地址归一：ting13 系统一换 ysxs 有效证书，并强制 https。\n// 原先这段在 probe 与 audio 里各写一遍、audio 里还嵌了三次，改一处要同步四处。\nfn fixSrc(u) { return replaceText(replaceText(default(u, ''), '.ting13.top', '.ysxs.top'), 'http://', 'https://') }\nfn aesecb(text, key) {\nlet out = encrypt('AES/ECB/PKCS7Padding', bytes(text), bytes(key))\nreturn typeOf(out) == 'list' ? out : base64Bytes(out)\n}\nfn aesecbN(text, key) {\nreturn bytesBase64(aesecb(text, key))\n}\nfn tsEnc(bid, cid, kt, ts) {\nlet sign = aesecbN(tojson('2.6.5-' + str(ts) + '-' + md5hex(bid + '-' + cid + '.mp3')), '0123456789abcdef')\nreturn aesecbN(tojson({bookID: bid, chapterID: cid, time: ts, koten: kt, sign: sign}), 'nXfMck1YKeuH5ZES')\n}\nfn tsEncF(bid, cid, kt) {\nlet sign = aesecbN(tojson('2.6.5-' + md5hex(bid + '-' + cid + '.mp3')), '0123456789abcdef')\nreturn aesecbN(tojson({bookID: bid, chapterID: cid, time: formatDate(now(), 'yyyy-MM-dd'), koten: kt, sign: sign}), 'nXfMck1YKeuH5ZES')\n}\n\n// 网页兜底播放地址：两个 fetch 分支共用同一表达式，原先写了两份一样的。\nfn wplayUrl(wbook, chTitle) {\n  return 'https://m.itingshu.net/play/' + get(matchAll(wbook, 'href=\"/play/(\\\\d+_\\\\d+_\\\\d+)\\\\.html\"', 1), indexOf(matchAll(wbook, 'href=\"/play/\\\\d+_\\\\d+_\\\\d+\\\\.html\"[^>]*>[^<]*?([1-9]\\\\d*)', 1), match(chTitle, '([1-9]\\\\d*)', 1))) + '.html'\n}\n// 从网页播放页提取音频地址：优先 var now、其次 <audio src>、最后正则兜底。\nfn pickAudio(wp) {\n  if (str(wp) == '') { return '' }\n  let a = match(wp, 'var\\\\s+now\\\\s*=\\\\s*[\"\\']([^\"\\']+)', 1)\n  if (str(a) != '') { return a }\n  let b = match(wp, '<audio[^>]+src=\"([^\"]+)\"', 1)\n  if (str(b) != '') { return b }\n  return default(match(wp, '(https?:\\\\/\\\\/[^\"\\'\\\\s]+\\\\.(?:mp3|m4a|m3u8|aac)[^\"\\'\\\\s]*)', 1), '')\n}",
+ "let": {
+  "ts": "= floor(now() / 1000)",
+  "token": "= md5hex('z7jhAuyG95HkBONdHjJMl6C7yfxVnKoz' + str(ts))"
+ },
+ "search": {
+  "url": "https://api.itingshu.iiisss.top/api/itingshu/cloudsearch?key={{urlencode(key)}}&page={{page}}&time={{ts}}&token={{token}}&appVersion=2.6.5",
+  "method": "GET",
+  "retry": 0,
+  "list": "= data.data",
+  "fields": {
+   "name": "= default(item.novel.name, '')",
+   "author": "= default(item.author.name, item.boyin[0].name, '')",
+   "kind": "= default(item.novel.caption, item.category.name, '')",
+   "coverUrl": "= default(item.novel.covers, item.novel.cover)",
+   "intro": "= default(item.novel.intro, '')",
+   "lastChapter": "= default(item.last.name, '')",
+   "status": "= default(item.novel.isovername, item.novel.isover == 1 ? '完结' : '连载')",
+   "updateTime": "= formatDate(int(default(item.last.time, '0')), 'yyyy-MM-dd')",
+   "bookUrl": "= 'https://api.itingshu.iiisss.top/book/' + item.novel.id"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "热门榜单",
+    "url": "https://api.itingshu.iiisss.top/api/itingshu/topList?platform=qq&pagesize=20&orderid=3&page={{page}}&time={{ts}}&token={{token}}&appVersion=2.6.5"
+   },
+   {
+    "title": "飙升榜",
+    "url": "https://api.itingshu.iiisss.top/api/itingshu/topList?platform=qq&pagesize=20&orderid=5&page={{page}}&time={{ts}}&token={{token}}&appVersion=2.6.5"
+   }
+  ],
+  "dynamicMenus": {
+   "url": "https://api.itingshu.iiisss.top/api/itingshu/catlist?time={{ts}}&token={{token}}&appVersion=2.6.5",
+   "list": "= data.sub.catlist",
+   "title": "= item.text",
+   "target": "= 'https://api.itingshu.iiisss.top/api/itingshu/categorylist?id=' + item.value + '&limit=20&platform=qq&orderid=3&offset=' + str((page - 1) * 20) + '&time=' + str(ts) + '&token=' + token + '&appVersion=2.6.5'"
+  },
+  "list": "= default(data.playlists, data.data, [])",
+  "fields": {
+   "name": "= default(item.novel.name, item.name, '')",
+   "author": "= default(item.boyinname, item.author.name, item.boyin[0].name, item.creator, '')",
+   "kind": "= default(item.category.name, '')",
+   "coverUrl": "= default(item.novel.covers, item.novel.cover, item.coverImgUrl)",
+   "intro": "= default(item.novel.intro, item.description, '')",
+   "lastChapter": "= default(item.last.name, '')",
+   "status": "= default(item.novel.isovername, item.novel.isover == 1 ? '完结' : '连载')",
+   "updateTime": "= formatDate(int(default(item.last.time, '0')), 'yyyy-MM-dd')",
+   "bookUrl": "= 'https://api.itingshu.iiisss.top/book/' + item.novel.id"
+  }
+ },
+ "detail": {
+  "url": "= 'https://api.itingshu.iiisss.top/api/itingshu/bookinfo?id=' + match(book.bookUrl, '/book/([^/?#]+)', 1) + '&page=1&time=' + str(ts) + '&token=' + token + '&appVersion=2.6.5'",
+  "let": {
+   "pl": "= data.playlist ?? {}",
+   "au": "= typeOf(pl.creator) == 'map' ? default(pl.creator.nickname, book.author, '') : default(book.author, pl.creator, '')",
+   "by": "= join(compact([default(get(get(pl.boyin, 0), 'name'), ''), default(get(get(pl.boyin, 1), 'name'), '')]), ' & ')",
+   "st": "= default(pl.isovername, '')"
+  },
+  "fields": {
+   "name": "= default(pl.name, book.name)",
+   "author": "= join(compact([au, by]), ' · ')",
+   "kind": "= default(pl.category.name, book.kind)",
+   "coverUrl": "= default(pl.coverImgUrl, book.coverUrl)",
+   "intro": "= default(pl.description, '')",
+   "lastChapter": "= book.lastChapter",
+   "status": "= default(pl.isovername, book.status)",
+   "tocUrl": "= book.bookUrl"
+  },
+  "retry": 3
+ },
+ "toc": {
+  "url": "= 'https://api.itingshu.iiisss.top/api/itingshu/bookdirst?id=' + match(book.bookUrl, '/book/([^/?#]+)', 1) + '&total=0&lastid=0&oid=0&user=&time=' + str(ts) + '&token=' + token + '&appVersion=2.6.5'",
+  "list": "= data.list ?? []",
+  "fields": {
+   "title": "= item.name",
+   "url": "= 'https://api.itingshu.iiisss.top/api/itingshu/audio?chapterID=' + item.id",
+   "tag": "= item.time"
+  },
+  "retry": 3
+ },
+ "content": {
+  "url": "= ''",
+  "let": {
+   "bookID": "= match(book.bookUrl, '/book/([^/?#]+)', 1)",
+   "chapterID": "= match(chapter.url, 'chapterID=([^&]+)', 1)",
+   "koten": "= default(login.token, vars.koten, '')"
+  },
+  "fetch": {
+   "play": {
+    "url": "https://api.itingshu.iiisss.top/api/itingshu/audio?encrypted={{urlencode(tsEnc(bookID, chapterID, koten, ts))}}&time={{ts}}&token={{token}}&appVersion=2.6.5",
+    "retry": 1
+   },
+   "chap": {
+    "url": "https://api.itingshu.iiisss.top/api/itingshu/chapterPlay?encrypted={{urlencode(tsEnc(bookID, chapterID, koten, ts))}}&time={{ts}}&token={{token}}&appVersion=2.6.5",
+    "when": "= play == null || default(play.data.src, '') == ''"
+   },
+   "flac": {
+    "url": "https://api.mmm.iiisss.top/api/itingshu/downPlay?encrypted={{urlencode(tsEncF(bookID, chapterID, koten))}}&time={{ts}}&token={{token}}&appVersion=2.6.5",
+    "when": "= koten != '' && (play == null || default(play.data.src, '') == '') && (chap == null || default(get(get(chap.data, 0), 'src'), '') == '')"
+   },
+   "probe": {
+    "url": "= fixSrc(default(play.data.src, '', get(get(chap.data, 0), 'src'), default(chap.data.src, ''), flac.data.url, flac.url, flac.data.src))",
+    "headers": {
+     "Range": "bytes=0-1",
+     "User-Agent": "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/96 Mobile"
+    }
+   },
+   "wsearch": {
+    "url": "https://www.itingshu.net/novelsearch/search/result.html",
+    "method": "POST",
+    "when": "= probe == null || len(probe) > 64",
+    "headers": {
+     "Content-Type": "application/x-www-form-urlencoded",
+     "Referer": "https://www.itingshu.net/",
+     "Origin": "https://www.itingshu.net"
+    },
+    "body": "searchword={{urlencode(book.name)}}"
+   },
+   "wbook": {
+    "url": "= wsearch != null ? ('https://www.itingshu.net/youshengxiaoshuo/' + match(wsearch, 'youshengxiaoshuo/(\\d+)', 1) + '/') : ''",
+    "when": "= wsearch != null"
+   },
+   "wplay1": {
+    "url": "= wplayUrl(wbook, chapter.title)",
+    "when": "= wbook != null"
+   },
+   "wplay2": {
+    "url": "= wplayUrl(wbook, chapter.title)",
+    "when": "= wplay1 != null && contains(wplay1, 'reversed')",
+    "headers": {
+     "Cookie": "__51guid__={{urlencode(match(unbase64(join(reverse(split(match(wplay1, 'reversed\\s*=\\s*\"([^\"]+)\"', 1), '')), '')), \"var token = '([^']+)'\", 1))}}"
+    }
+   }
+  },
+  "audio": "= (probe != null && len(probe) < 64) ? fixSrc(default(play.data.src, '', get(get(chap.data, 0), 'src'), default(chap.data.src, ''), flac.data.url, flac.url, flac.data.src)) : (wplay2 != null ? pickAudio(wplay2) : (wplay1 != null ? pickAudio(wplay1) : fixSrc(default(play.data.src, '', get(get(chap.data, 0), 'src'), default(chap.data.src, ''), flac.data.url, flac.url, flac.data.src))))",
+  "mediaError": "= (match(default(play.msg, ''), '更新') != '' && (playP == null || default(playP.data.src, '') == '')) ? '内置加密与纯运算线路均被服务端拒绝：您的简听 encrypt 行为异常，请回退 v4.1 存档书源' : (match(default(play.msg, ''), '重新登录') != '' || match(default(flac.msg, ''), '重新登录') != '') ? '登录已过期：请到书源设置重新登录爱听书账号后再播放' : match(default(flac.msg, ''), '积分') != '' ? '提示：无损线路需要会员积分（当前账号不足），已尝试全部分播放线路均失败' : default(play.msg, '') != '' ? default(play.msg, '') + '（已自动尝试纯运算与网页线路）' : '音频获取失败：已自动尝试全部线路，请稍后重试'",
+  "mediaHeaders": {
+   "User-Agent": "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 Chrome/96 Mobile"
+  }
+ },
+ "actions": [
+  {
+   "label": "检查线路",
+   "url": "https://api.itingshu.iiisss.top/api/itingshu/topList?platform=qq&pagesize=1&orderid=3&page=1&time={{ts}}&token={{token}}&appVersion=2.6.5",
+   "message": "= (data.code == 200 || data.code == 0) ? '✅ 线路正常' : '❌ 线路异常 code=' + default(data.code, '')"
+  }
+ ],
+ "vars": [
+  {
+   "key": "koten",
+   "label": "播放 token（登录成功自动填入；也可手填免登录播放）",
+   "default": ""
+  }
+ ]
+}
