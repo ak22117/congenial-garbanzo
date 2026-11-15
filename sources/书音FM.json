@@ -1,0 +1,366 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "书音FM",
+ "url": "https://m.mekui.com",
+ "group": "渡·听书",
+ "type": "audio",
+ "enabled": true,
+ "enabledExplore": true,
+ "rate": "1200",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+  "Referer": "https://m.mekui.com",
+  "Accept": "application/json, text/plain, */*"
+ },
+ "vars": [
+  {
+   "key": "host",
+   "label": "接口主机(同构镜像可切换)",
+   "options": [
+    "https://m.mekui.com",
+    "https://m.shuyinfm.com"
+   ],
+   "default": "https://m.mekui.com"
+  },
+  {
+   "key": "searchHost",
+   "label": "搜索主机(此站 ecmsapi 搜索未被缓存污染)",
+   "options": [
+    "https://www.shuyinfm.com",
+    "https://m.shuyinfm.com",
+    "https://m.mekui.com"
+   ],
+   "default": "https://www.shuyinfm.com"
+  }
+ ],
+ "let": {
+  "server": "= replace(default(vars.host, source.url), '/+$', '')",
+  "searchServer": "= replace(default(vars.searchHost, 'https://www.shuyinfm.com'), '/+$', '')"
+ },
+ "lib": "// ---------- 列表展示 ----------\n// 酷我封面路径里的 240 是缩略档，CDN 支持 100 / 240 / 300 / 500 / 700 / 1000，统一取 500（正方形）\nfn syOpus(u) {\n  let s = trim(str(u ?? ''))\n  if (s == '' || s == 'null') {\n    return ''\n  }\n  let fixed = match(s, '.*(https?://[^/]+/.*)$', 1)\n  if (fixed != '') {\n    s = fixed\n  }\n  if (startsWith(s, '//')) {\n    s = 'https:' + s\n  }\n  if (startsWith(s, 'http://')) {\n    s = 'https://' + substring(s, 7)\n  }\n  return replace(s, '/star/albumcover/240/', '/star/albumcover/500/')\n}\n\n// infopfen / infopfennum 是采集模板值（全站只有 30603/8128、168/37 两组），不能用；按真实收听量估算\nfn syTier(v) {\n  if (v >= 8000) {\n    return 2.2\n  }\n  if (v >= 3000) {\n    return 2.0\n  }\n  if (v >= 1500) {\n    return 1.7\n  }\n  if (v >= 700) {\n    return 1.4\n  }\n  if (v >= 300) {\n    return 1.0\n  }\n  if (v >= 100) {\n    return 0.6\n  }\n  return 0.2\n}\n\nfn syRate(b) {\n  if (!b) {\n    return ''\n  }\n  let v = num(b.onclick ?? 0)\n  if (v <= 0) {\n    return ''\n  }\n  let ft = str(b.filetype ?? '')\n  let bonus = ft == '完结' ? 0.7 : (contains(ft, '连载') ? 0.3 : 0)\n  let s = str(round(6.3 + syTier(v) + bonus, 1))\n  return contains(s, '.') ? s + '分' : s + '.0分'\n}\n\nfn syKind(b) {\n  if (!b) {\n    return ''\n  }\n  return join(compact([str(b.filetype ?? ''), syRate(b)]), ' · ')\n}\n\n// 演播：听书源要的是「谁讲的」，取 player（播音/演播名单）；playadmin 是小说原著作者，不是本字段要的内容\n// 名单超过 2 人时只显示前两位 + 「等 N 人」——手机列表一行都在 15~20 字内，整串必被截断且看不出人数\n// player 为空或字面量「未知」时留空；2026-10-31 核对站点网页版：详情页标题与正文展示的正是 player 名单\nfn syAuthor(b) {\n  if (!b) {\n    return ''\n  }\n  let pl = trim(str(b.player ?? ''))\n  if (pl == '' || pl == '未知') {\n    return ''\n  }\n  let arr = split(pl, ',')\n  let names = []\n  let i = 0\n  while (i < len(arr)) {\n    let v = trim(str(arr[i]))\n    if (v != '') {\n      push(names, v)\n    }\n    i = i + 1\n  }\n  if (len(names) == 0) {\n    return ''\n  }\n  if (len(names) <= 2) {\n    return join(names, ', ')\n  }\n  return str(names[0]) + ', ' + str(names[1]) + ' 等 ' + str(len(names)) + ' 人'\n}\n",
+ "comment": "书音FM 听书源 · 原生（零脚本）\n【域名】各阶段走 vars.host 选中的镜像：m.mekui.com（主）/ m.shuyinfm.com。两者同 IP、独立 vhost，可一台 200 一台 502，坏了直接换。www.shuyinfm.com 没有音频路由（act=wapseries 404），不能进同一个切换位。\n【搜索】站内搜索被服务端按路径缓存：/api/search/ecms 与 ecmsapi act=search 都会在缓存期内把「上一个人的关键词结果」返回给所有人（响应头 x-ecms-cache / x-api-cache 可见），换关键词、加时间戳、带 no-cache 都绕不过。只有 www.shuyinfm.com 的 ecmsapi act=search 不串（四个关键词实测各自正确），所以 searchHost 单独指向 www，其余阶段仍走 vars.host；id 两站通用。\n【请求账本】搜索 1 · 详情 1 · 目录 1（pagesize=9999 一发全量）· 每切一章 1 · 播放 0（CDN）。rate=1200；不并发、不遍历 id、失败不重试风暴。\n【音频】act=wapseries 的 token = md5(\"act=wapseries&id=..&mod=movie&movieId=..&t=..&token=056a308c…\")，密钥硬编码在客户端；时间戳在播放那一刻算（content.let），未登录可取。\n【评分】站源有 infopfen / infopfennum，但全站只有 30603/8128、168/37 两组固定值（几百本书共用同一秒写入），是采集模板，不是真实评分，不能用。改按真实收听量 onclick 估算：6.3 + 收听档 + 状态（完结 0.7 / 连载 0.3 / 未知 0）。收听档取下界：<100 0.2 · 100 0.6 · 300 1.0 · 700 1.4 · 1500 1.7 · 3000 2.0 · 8000 2.2（按 2096 本抽样分位切）。kind = 状态 · 评分；movietype 全站多为「港台影视」，属采集残留，不显示。\n【封面】酷我路径 .../star/albumcover/240/... 里的 240 是缩略档，CDN 支持 100/240/300/500/700/1000，syOpus 统一换成 500（正方形）：128 个酷我封面实测 119 个解码为 500×500，其余 9 个原图本身小于 500，CDN 不放大。其它图床（喜马 960、蜻蜓 !400、发络 166×235、荔枝 703）尺寸规则各不相同，改一个错一个，保持原样。另有 33/177 封面指向 shuyinfm.oss-cn-hangzhou.aliyuncs.com，源站早已 NoSuchKey（站点自己也在裂图），书源层救不了。\n【隐私】不含 Cookie / Token / 账号 / 设备标识。\n【2026-11-14 加】诊断与镜像自愈三个动作（测镜像并选用最快／只诊断／恢复默认）；数据链路未改，仍零脚本。",
+ "search": {
+  "url": "= searchServer + '/ecmsapi/index.php?mod=movie&act=search&keyword=' + urlencode(key) + '&page=' + page + '&pagesize=20'",
+  "list": "$.data.list[*]",
+  "fields": {
+   "name": "$.title",
+   "author": "= syAuthor($)",
+   "coverUrl": "= syOpus($.titlepic)",
+   "intro": "$.moviesay",
+   "kind": "= syKind($)",
+   "status": "$.filetype",
+   "bookUrl": "= server + '/ecmsapi/index.php?mod=movie&act=detail&id=' + $.id"
+  },
+  "fail": "= key != '' && trim(str(default(data.data.keyword, ''))) != trim(str(key)) ? '站点搜索接口临时异常（返回的不是你搜的词），过一会儿再试；也可以从「发现」分类里找书' : ''"
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "更新"
+   },
+   {
+    "title": "最新更新",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=0&sort=newstime%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "有声小说"
+   },
+   {
+    "title": "全部",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=28&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "言情",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=1&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "玄幻",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=2&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "恐怖",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=5&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "穿越",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=7&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "都市",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=8&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "历史",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=16&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "悬疑",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=33&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "文学",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=38&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "推理",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=39&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "军事",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=40&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "武侠",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=92&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "修真",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=60&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "广播剧"
+   },
+   {
+    "title": "全部",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=29&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "耽美",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=10&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "爱情",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=12&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "古风",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=51&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "现代",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=54&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "评书"
+   },
+   {
+    "title": "全部",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=30&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "单田芳",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=42&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "袁阔成",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=45&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "郭德纲",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=57&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "王玥波",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=55&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "田连元",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=44&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "刘兰芳",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=43&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "袁田",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=53&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "其他栏目"
+   },
+   {
+    "title": "百家讲坛",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=31&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "养生",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=34&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "娱乐",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=35&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "粤语",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=59&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "相声小品",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=91&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "音乐"
+   },
+   {
+    "title": "全部",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=98&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "古风",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=99&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "儿童"
+   },
+   {
+    "title": "全部",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=100&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "故事",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=102&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "儿歌",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=103&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "知识",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=101&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "戏曲"
+   },
+   {
+    "title": "全部",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=81&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "越剧",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=82&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "京剧",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=83&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "黄梅戏",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=84&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "秦腔",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=86&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "评弹",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=89&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "晋剧",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=90&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "大鼓",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=97&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "车载专区"
+   },
+   {
+    "title": "全部",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=66&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "相声小品",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=73&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "音乐",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=70&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "情感",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=71&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "搞笑",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=72&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "公开课",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=75&sort=onclick%20desc&page={{page}}&pagesize=50"
+   },
+   {
+    "title": "生活",
+    "url": "{{server}}/ecmsapi/index.php?act=list&mod=movie&classid=76&sort=onclick%20desc&page={{page}}&pagesize=50"
+   }
+  ],
+  "list": "$.data.list[*]",
+  "fields": {
+   "name": "$.title",
+   "author": "= syAuthor($)",
+   "coverUrl": "= syOpus($.titlepic)",
+   "intro": "$.moviesay",
+   "kind": "= syKind($)",
+   "status": "$.filetype",
+   "bookUrl": "= server + '/ecmsapi/index.php?mod=movie&act=detail&id=' + $.id"
+  }
+ },
+ "detail": {
+  "let": {
+   "d": "= data.data.detail"
+  },
+  "fields": {
+   "name": "= d.title",
+   "author": "= syAuthor(d)",
+   "coverUrl": "= syOpus(d.titlepic)",
+   "intro": "= d.moviesay",
+   "kind": "= syKind(d)",
+   "status": "= d.filetype",
+   "tocUrl": "= server + '/ecmsapi/index.php?mod=movie&act=movielist&id=' + d.id + '&page=1&pagesize=9999'"
+  },
+  "keep": {
+   "workId": "= d.id"
+  }
+ },
+ "toc": {
+  "list": "$.data.moielist[*]",
+  "fields": {
+   "title": "$.title",
+   "url": "= server + '/ecmsapi/index.php?mod=movie&act=detail&id=' + default(book.vars.workId, match(str(book.tocUrl), 'id=(\\\\d+)', 1)) + '&seq=' + $.id"
+  },
+  "nextUrl": "= num(match(baseUrl, 'page=(\\\\d+)', 1)) < num(data.data.totalpage) ? replace(baseUrl, 'page=' + match(baseUrl, 'page=(\\\\d+)', 1), 'page=' + (num(match(baseUrl, 'page=(\\\\d+)', 1)) + 1)) : ''"
+ },
+ "content": {
+  "url": "= ''",
+  "let": {
+   "workId": "= match(str(chapter.url), 'id=(\\\\d+)', 1)",
+   "seq": "= match(str(chapter.url), 'seq=(\\\\d+)', 1)",
+   "ts": "= floor(now() / 1000)",
+   "token": "= md5('act=wapseries&id=' + workId + '&mod=movie&movieId=' + seq + '&t=' + ts + '&token=056a308c515e16b2fe5a5c631319339cbc60a8ee0e03d016')"
+  },
+  "fetch": {
+   "su": {
+    "url": "= server + '/ecmsapi/index.php?act=wapseries&mod=movie&id=' + workId + '&movieId=' + seq + '&t=' + ts + '&token=' + token"
+   }
+  },
+  "audio": "= len(str(su.data.SeriesUrl)) > 0 ? str(su.data.SeriesUrl) : ''"
+ },
+ "variable": "",
+ "js": "/* ---------- 诊断与镜像自愈（2026-11-14 加）----------\n * 数据链路仍是声明式、零脚本；这里只服务 actions。\n * 硬规矩：探测/写状态只能在脚本里（表达式里不行，见 源体检 第 13 项）。\n */\nvar SY_HOSTS = ['https://m.mekui.com', 'https://m.shuyinfm.com'];\nvar SY_SEARCH_HOSTS = ['https://www.shuyinfm.com', 'https://m.shuyinfm.com', 'https://m.mekui.com'];\nvar SY_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';\n\nfunction syProbe(base) {\n  var t0 = Date.now();\n  try {\n    var u = base + '/ecmsapi/index.php?mod=movie&act=search&keyword=' + encodeURIComponent('鬼吹灯') + '&page=1&pagesize=1';\n    var r = http.get(u, { headers: { 'User-Agent': SY_UA, 'Referer': base, 'Accept': 'application/json, text/plain, */*' }, timeout: 6000 });\n    var body = String((r && r.body) || '');\n    var ok = !!(r && r.ok && r.status === 200 && body.indexOf('\"data\"') >= 0);\n    return { ok: ok, st: (r && r.status) || 0, ms: Date.now() - t0 };\n  } catch (e) { return { ok: false, st: 0, ms: Date.now() - t0 }; }\n}\nfunction syDiag() {\n  var out = ['接口主机：'], i, r;\n  for (i = 0; i < SY_HOSTS.length; i++) { r = syProbe(SY_HOSTS[i]); out.push((r.ok ? '✅ ' : '❌ ') + SY_HOSTS[i] + '  ' + r.ms + 'ms'); }\n  out.push('', '搜索主机：');\n  for (i = 0; i < SY_SEARCH_HOSTS.length; i++) { r = syProbe(SY_SEARCH_HOSTS[i]); out.push((r.ok ? '✅ ' : '❌ ') + SY_SEARCH_HOSTS[i] + '  ' + r.ms + 'ms'); }\n  return out;\n}\nfunction syAutoHost() {\n  var out = syDiag(), i, best = null, bestS = null, r;\n  for (i = 0; i < SY_HOSTS.length; i++) { r = syProbe(SY_HOSTS[i]); if (r.ok && (!best || r.ms < best.ms)) { best = { u: SY_HOSTS[i], ms: r.ms }; } }\n  for (i = 0; i < SY_SEARCH_HOSTS.length; i++) { r = syProbe(SY_SEARCH_HOSTS[i]); if (r.ok && (!bestS || r.ms < bestS.ms)) { bestS = { u: SY_SEARCH_HOSTS[i], ms: r.ms }; } }\n  if (best) { try { vars.set('host', best.u); } catch (e) {} out.push('', '已把「接口主机」设为：' + best.u); }\n  else { out.push('', '⚠️ 接口主机都不可用，未改设置'); }\n  if (bestS) { try { vars.set('searchHost', bestS.u); } catch (e) {} out.push('已把「搜索主机」设为：' + bestS.u); }\n  else { out.push('⚠️ 搜索主机都不可用，未改设置'); }\n  return out;\n}\nfunction syResetHost() {\n  try { vars.set('host', 'https://m.mekui.com'); } catch (e) {}\n  try { vars.set('searchHost', 'https://www.shuyinfm.com'); } catch (e) {}\n  return ['已恢复默认镜像：接口主机 m.mekui.com、搜索主机 www.shuyinfm.com'];\n}\n",
+ "actions": [
+  {
+   "label": "测镜像并选用最快",
+   "script": "syAutoHost"
+  },
+  {
+   "label": "只诊断不改设置",
+   "script": "syDiag"
+  },
+  {
+   "label": "恢复默认镜像",
+   "script": "syResetHost"
+  }
+ ]
+}

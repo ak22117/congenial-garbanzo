@@ -1,0 +1,116 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "悦听吧",
+ "url": "http://www.yuetingba.cn",
+ "group": "渡·听书",
+ "type": "audio",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+  "Referer": "http://www.yuetingba.cn/",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "zh-CN,zh;q=0.9",
+  "Upgrade-Insecure-Requests": "1"
+ },
+ "comment": "悦听吧（yuetingba.cn）听书源·精简版（2026-11-03）。\n\n链路：搜索 /Search?name=&type=1&pageIndex=N（注意是 pageIndex，page 会被站点忽略）；发现 12 个菜单；详情页即目录页 /book/detail/<书籍id>/<起始集>，200 集/页，目录一次列全剩余页；音频 /api/app/docs-listen/<章节id>/audio-url 直接返回 mp3 直链（约 10 分钟过期，现取现用，勿缓存）。\n\n站点缺口：列表页没有分类/状态/集数，也没有评分、播放量，所以列表只显示书名·主播·简介·封面；分类与状态、集数在详情里。\n\n已知限制：音频直链用的是站点返回的 IP:端口，站点换服务器时会变，靠接口取不缓存；token/expire 由站点给出，规则不参与签名。\n验收范围：引擎回放（搜索 6 条 / 发现 15 条 / 详情 / 目录 1053 集 / 首章音频直链），真机未验。\n维护日期：2026-11-03。\n【v2（2026-11-14）】站点 200 但引擎只拿到 2 字节 → 补浏览器头（Accept/Accept-Language/Upgrade-Insecure-Requests）；选择器本身仍有效（页面里 .section-box-list-item 存在）。",
+ "lib": "// 目录分页：详情页即目录页，200 集/页；total 由详情 keep 带入\nfn ytPages(bu, total) {\n  let id = str(match(str(bu), 'detail/([a-f0-9-]+)', 1))\n  let n = int(default(str(total), '0'), 0)\n  if (len(id) == 0 || n <= 200) {\n    return ''\n  }\n  let out = []\n  let skip = 200\n  while (skip < n) {\n    push(out, 'http://www.yuetingba.cn/book/detail/' + id + '/' + str(skip))\n    skip = skip + 200\n  }\n  return out\n}\n// 详情页的 分类 · 状态\nfn ytKind(h) {\n  let c = str(match(str(h), '分[ ]*类：</span><span[^>]*>([^<]{1,20})', 1))\n  let s = str(match(str(h), '状[ ]*态：</span><span[^>]*>([^<]{1,20})', 1))\n  if (len(s) == 0) {\n    return c\n  }\n  if (len(c) == 0) {\n    return s\n  }\n  return c + ' · ' + s\n}",
+ "search": {
+  "url": "http://www.yuetingba.cn/Search?name={{urlencode(key)}}&type=1&pageIndex={{page}}",
+  "list": ".section-box-list-item",
+  "fields": {
+   "name": ".box-list-item-text-title a@text",
+   "author": ".box-list-item-text a[href*='type=3']@text",
+   "intro": ".box-list-item-text-intro@text",
+   "coverUrl": "img.img-thumbnail@src",
+   "bookUrl": ".box-list-item-text-title a@href"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "玄幻",
+    "url": "{{source.url}}/book/1/{{page}}"
+   },
+   {
+    "title": "都市",
+    "url": "{{source.url}}/book/4/{{page}}"
+   },
+   {
+    "title": "历史",
+    "url": "{{source.url}}/book/2/{{page}}"
+   },
+   {
+    "title": "名著",
+    "url": "{{source.url}}/book/6/{{page}}"
+   },
+   {
+    "title": "女频",
+    "url": "{{source.url}}/book/7/{{page}}"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/book/5/{{page}}"
+   },
+   {
+    "title": "武侠",
+    "url": "{{source.url}}/book/3/{{page}}"
+   },
+   {
+    "title": "评书",
+    "url": "{{source.url}}/book/a/{{page}}"
+   },
+   {
+    "title": "社科",
+    "url": "{{source.url}}/book/8/{{page}}"
+   },
+   {
+    "title": "儿童",
+    "url": "{{source.url}}/book/9/{{page}}"
+   },
+   {
+    "title": "最新",
+    "url": "{{source.url}}/top/latest/{{page}}"
+   },
+   {
+    "title": "推荐",
+    "url": "{{source.url}}/top/recommend/{{page}}"
+   }
+  ],
+  "list": ".section-box-list-item",
+  "fields": {
+   "name": ".box-list-item-text-title a@text",
+   "author": ".box-list-item-text a[href*='type=3']@text",
+   "intro": ".box-list-item-text-intro@text",
+   "coverUrl": "img.img-thumbnail@src",
+   "bookUrl": ".box-list-item-text-title a@href"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "h1.book-detail-title@text",
+   "author": ".text-desc-content a[href*='type=3']@text",
+   "kind": "= ytKind(body)",
+   "lastChapter": "= '共 ' + str(match(str(body), '集[ ]*数：</span><span[^>]*>([0-9]+)', 1)) + ' 集'",
+   "intro": "meta[name=description]@content",
+   "coverUrl": "img.img-thumbnail@src",
+   "tocUrl": "= book.bookUrl"
+  },
+  "keep": {
+   "total": "= default(match(str(body), '\"numberOfPages\"[ ]*:[ ]*([0-9]+)', 1), match(str(body), '集[ ]*数：</span><span[^>]*>([0-9]+)', 1))"
+  }
+ },
+ "toc": {
+  "list": ".ting-list-content-item",
+  "fields": {
+   "title": "a[title]@title##^0*(\\d+)$##第$1集",
+   "url": "a[title]@href"
+  },
+  "nextUrl": "= ytPages(book.bookUrl, book.vars.total)",
+  "batch": 8
+ },
+ "content": {
+  "url": "= 'http://www.yuetingba.cn/api/app/docs-listen/' + str(match(chapter.url, '[Tt]ing/([a-f0-9-]+)', 1)) + '/audio-url'",
+  "fail": "= len(str(body)) < 20 ? '悦听吧：音频接口未返回地址' : ''",
+  "audio": "= trim(first(lines(str(body))))"
+ }
+}

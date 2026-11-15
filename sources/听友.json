@@ -1,0 +1,191 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "听友",
+ "url": "https://www.tingyou.fm",
+ "group": "渡·听书",
+ "type": "audio",
+ "enabled": true,
+ "rate": 1000,
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36",
+  "Origin": "https://www.tingyou.fm",
+  "Referer": "https://www.tingyou.fm/",
+  "Accept": "application/json, text/plain, */*"
+ },
+ "vars": [
+  {
+   "key": "api",
+   "label": "接口线路（动作可一键测速选择）",
+   "default": "https://appp.fdhtbz.cn/api",
+   "options": [
+    "https://appp.fdhtbz.cn/api",
+    "https://api-preview.toulaopao.cc/api",
+    "https://laopaoaappi.oobyvy.vip/api",
+    "https://ffggewvge.dasfrvvbbhhafdgserqw.cc/api"
+   ],
+   "optionsScript": "tyLineOptions"
+  },
+  {
+   "key": "audio",
+   "label": "音频出口（默认不改写）",
+   "default": "",
+   "options": [
+    "",
+    "file.hgeuz.cn",
+    "file.tingyou8.vip"
+   ]
+  }
+ ],
+ "let": {
+  "api": "= tyLineOf(vars.api)"
+ },
+ "js": "/* 听友（tingyou.fm）· 融合版（2026-11-14）\n * 硬规矩（真机踩到）：**表达式里不能发请求、不能读写状态** —— 所以 let/字段表达式里绝不调 http/vars；\n * 探测线路、记忆线路一律放脚本（阶段脚本 / vars.optionsScript / actions）。\n */\nvar TY_LINES = [\"https://appp.fdhtbz.cn/api\", \"https://api-preview.toulaopao.cc/api\", \"https://laopaoaappi.oobyvy.vip/api\", \"https://ffggewvge.dasfrvvbbahhafdgserqw.cc/api\"];\nvar TY_UA = 'Mozilla/5.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36';\n\n/* —— 以下是「纯函数」：只做字符串处理，表达式里可以安全调用 —— */\nfunction tyLineOf(s) {\n  s = String(s || '');\n  var m = s.match(/https?:\\/\\/[^\\s)]+/);\n  if (m) { return m[0]; }\n  return TY_LINES[0];\n}\n/* —— 以下要发请求/写状态：只在脚本里调 —— */\nfunction tyHd(extra) {\n  var h = { 'Accept': 'application/json, text/plain, */*', 'Origin': 'https://www.tingyou.fm',\n            'Referer': 'https://www.tingyou.fm/', 'User-Agent': TY_UA };\n  if (extra) { for (var k in extra) { h[k] = extra[k]; } }\n  return h;\n}\nfunction tyProbe(base) {\n  var t0 = Date.now();\n  try {\n    var r = http.get(base + '/h5/listening/rank?section=hot&page=1', { headers: tyHd(), timeout: 5000 });\n    return { ok: !!(r && r.ok && r.status === 200), ms: Date.now() - t0 };\n  } catch (e) { return { ok: false, ms: Date.now() - t0 }; }\n}\n/* 选项脚本：测所有线路 → 可用的排前面（返回选项名数组） */\nfunction tyLineOptions() {\n  var items = [], i;\n  for (i = 0; i < TY_LINES.length; i++) {\n    var r = tyProbe(TY_LINES[i]);\n    items.push({ u: TY_LINES[i], ok: r.ok, ms: r.ms });\n  }\n  items.sort(function (a, b) { return (a.ok ? a.ms : 999999) - (b.ok ? b.ms : 999999); });\n  var out = [];\n  for (i = 0; i < items.length; i++) { out.push(items[i].u); }\n  return out;\n}\n/* 动作：测线路并把最快可用的写进设置 */\nfunction tyAutoLine() {\n  var items = [], i;\n  for (i = 0; i < TY_LINES.length; i++) {\n    var r = tyProbe(TY_LINES[i]);\n    items.push({ u: TY_LINES[i], ok: r.ok, ms: r.ms });\n  }\n  items.sort(function (a, b) { return (a.ok ? a.ms : 999999) - (b.ok ? b.ms : 999999); });\n  var out = [];\n  for (i = 0; i < items.length; i++) { out.push((items[i].ok ? '✅ ' : '❌ ') + items[i].u + '  ' + items[i].ms + 'ms'); }\n  var best = items[0];\n  if (best && best.ok) { try { vars.set('api', best.u); } catch (e) {} out.push('', '已设为：' + best.u); }\n  else { out.push('', '⚠️ 没有可用线路，先别改设置'); }\n  return out;\n}\n/* 音频出口：默认不改写 */\nfunction tyAudio(u) {\n  var s = String(u || '');\n  var v = String(vars.audio || '');   // 表达式里读变量只能用 vars.X（属性）；vars.get() 属读状态，会被引擎拒\n  var m = v.match(/^([a-z0-9.\\-]+)$/);\n  if (m && s.indexOf('file.') >= 0) { return replaceText(s, 'file.hgeuz.cn', m[1]); }\n  return s;\n}\nfunction tyAid(u) { var m = String(u || '').match(/album\\/([0-9]+)/); return m ? m[1] : ''; }\nfunction tyUrlAid(u) { var m = String(u || '').match(/\\/p\\/([0-9]+)\\//); return m ? m[1] : ''; }\nfunction tyUrlIdx(u) { var m = String(u || '').match(/\\/p\\/\\d+\\/([0-9]+)/); return m ? m[1] : ''; }\n",
+ "search": {
+  "url": "= api + '/h5/listening/search'",
+  "method": "POST",
+  "headers": {
+   "Content-Type": "application/json"
+  },
+  "body": {
+   "keyword": "{{key}}",
+   "page": "= num(page)"
+  },
+  "list": "$.results[*]",
+  "retry": 1,
+  "fields": {
+   "name": "$.title",
+   "author": "= str(default($.teller, $.author))",
+   "coverUrl": "$.cover_url",
+   "intro": "= str(default($.intro, $.description))",
+   "kind": "= str(default($.type, $.cat))",
+   "status": "= $.status == 1 ? '连载中' : '已完结'",
+   "wordCount": "= $.count ? str($.count) + '集' : ''",
+   "updateTime": "= $.updated_at ? formatDate($.updated_at, 'yyyy-MM-dd') : ''",
+   "bookUrl": "= 'https://www.tingyou.fm/album/' + $.id"
+  }
+ },
+ "detail": {
+  "url": "= api + '/h5/listening/album/' + tyAid(book.bookUrl)",
+  "fields": {
+   "name": "$.title",
+   "author": "= str(default($.teller, $.author))",
+   "coverUrl": "$.cover_url",
+   "intro": "$.synopsis",
+   "kind": "= str(default($.type, $.cat))",
+   "status": "= $.status == 1 ? '连载中' : '已完结'",
+   "wordCount": "= $.count ? str($.count) + '集' : ''",
+   "updateTime": "= $.updated_at ? formatDate($.updated_at, 'yyyy-MM-dd') : ''",
+   "tocUrl": "= 'https://www.tingyou.fm/album/' + str($.id)"
+  },
+  "keep": {
+   "albumId": "= str($.id)"
+  },
+  "fail": "= $.id ? '' : '详情没取到：点书源动作「测线路」，换条通的再试'"
+ },
+ "toc": {
+  "url": "= api + '/h5/listening/chapters/' + str(book.vars.albumId)",
+  "retry": 2,
+  "list": "$.chapters[*]",
+  "fields": {
+   "title": "$.title",
+   "url": "= 'https://www.tingyou.fm/p/' + str(book.vars.albumId) + '/' + str($.index)",
+   "tag": "= $.duration ? str(round(num($.duration) / 60)) + '分' : ''"
+  },
+  "fail": "= $.chapters ? '' : '目录为空：点书源动作「测线路」，换条通的再试'"
+ },
+ "content": {
+  "url": "= api + '/h5/listening/play'",
+  "method": "POST",
+  "retry": 2,
+  "headers": {
+   "Content-Type": "application/json"
+  },
+  "body": {
+   "album_id": "= tyUrlAid(chapter.url)",
+   "chapter_idx": "= tyUrlIdx(chapter.url)"
+  },
+  "audio": "= tyAudio($.play_url)",
+  "mediaError": "= $.play_url ? '' : '本集没取到音频地址：可能是付费章节，或在书源动作里「测线路」换条通的再试'"
+ },
+ "actions": [
+  {
+   "label": "测线路并选用最快的",
+   "script": "tyAutoLine"
+  }
+ ],
+ "explore": {
+  "menus": [
+   {
+    "title": "热门榜",
+    "url": "= api + '/h5/listening/rank?section=hot&page=' + page"
+   },
+   {
+    "title": "最新上架",
+    "url": "= api + '/h5/listening/rank?section=new&page=' + page"
+   },
+   {
+    "title": "有声小说",
+    "url": "= api + '/h5/listening/category?category=2&sort=popular&page=' + page"
+   },
+   {
+    "title": "评书",
+    "url": "= api + '/h5/listening/category?category=1&sort=popular&page=' + page"
+   },
+   {
+    "title": "分类"
+   },
+   {
+    "title": "玄幻奇幻",
+    "url": "= api + '/h5/listening/category?category=2&type=46&sort=popular&page=' + page"
+   },
+   {
+    "title": "武侠仙侠",
+    "url": "= api + '/h5/listening/category?category=2&type=11&sort=popular&page=' + page"
+   },
+   {
+    "title": "言情通俗",
+    "url": "= api + '/h5/listening/category?category=2&type=19&sort=popular&page=' + page"
+   },
+   {
+    "title": "恐怖惊悚",
+    "url": "= api + '/h5/listening/category?category=2&type=14&sort=popular&page=' + page"
+   },
+   {
+    "title": "历史军事",
+    "url": "= api + '/h5/listening/category?category=2&type=15&sort=popular&page=' + page"
+   },
+   {
+    "title": "官场商战",
+    "url": "= api + '/h5/listening/category?category=2&type=17&sort=popular&page=' + page"
+   },
+   {
+    "title": "刑侦反腐",
+    "url": "= api + '/h5/listening/category?category=2&type=16&sort=popular&page=' + page"
+   },
+   {
+    "title": "广播剧",
+    "url": "= api + '/h5/listening/category?category=2&type=36&sort=popular&page=' + page"
+   },
+   {
+    "title": "相声小品",
+    "url": "= api + '/h5/listening/category?category=2&type=21&sort=popular&page=' + page"
+   }
+  ],
+  "list": "$.items[*] || $.data[*] || $.results[*]",
+  "fields": {
+   "name": "$.title",
+   "author": "= str(default($.teller, $.author))",
+   "coverUrl": "$.cover_url",
+   "intro": "= str(default($.intro, $.description))",
+   "kind": "= str(default($.type, $.cat))",
+   "status": "= $.status == 1 ? '连载中' : '已完结'",
+   "wordCount": "= $.count ? str($.count) + '集' : ''",
+   "updateTime": "= $.updated_at ? formatDate($.updated_at, 'yyyy-MM-dd') : ''",
+   "bookUrl": "= 'https://www.tingyou.fm/album/' + $.id"
+  },
+  "fail": "= (data && (data.items || data.data || data.results)) ? '' : '发现页没取到数据：在书源动作里「测线路」，换条通的再试'"
+ },
+ "enabledExplore": true,
+ "comment": "\n【发现页】融合两版：解析结构用订阅版（含分组标题）、分类表用我们那份（14 项）、bookUrl 用干净标记地址。\n【修正】tyAudio 里 vars.get() 改 vars.audio（表达式内读状态被引擎禁止；此错由源体检第 13 项抓出）。"
+}
