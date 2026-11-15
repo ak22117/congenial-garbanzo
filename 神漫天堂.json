@@ -1,0 +1,230 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "☻神漫天堂☻",
+ "url": "https://www.cdnhjk.net/jm-v231m?xb=split",
+ "group": "漫画",
+ "type": "comic",
+ "comment": "【2026-11-15 优化】去掉调试 log 残留；内容脚本的线路池改为引用 SM_SERVERS，避免两处定义漂移；其余未动。",
+ "headers": {
+  "User-Agent": "okhttp/4.9.1"
+ },
+ "vars": [
+  {
+   "key": "server",
+   "label": "浏览线路（发现/搜索/目录）",
+   "options": [
+    "线路① https://www.cdnhjk.net",
+    "线路② https://www.cdnutc.cc",
+    "线路③ https://www.cdngwc.net",
+    "线路④ https://www.cdngwc.club",
+    "线路⑤ https://www.cdnutc.me",
+    "线路⑥ https://www.cdngwc.cc"
+   ],
+   "default": "线路② https://www.cdnutc.cc",
+   "optionsScript": "optServerList"
+  },
+  {
+   "key": "imgHost",
+   "label": "图片线路（正文图+封面）",
+   "options": [
+    "线路① https://cdn-msp.jmapiproxy1.cc",
+    "线路② https://cdn-msp.jmapiproxy2.cc",
+    "线路③ https://cdn-msp2.jmapiproxy2.cc",
+    "线路④ https://cdn-msp3.jmapiproxy2.cc",
+    "线路⑤ https://cdn-msp.jmapinodeudzn.net",
+    "线路⑥ https://cdn-msp3.jmapinodeudzn.net"
+   ],
+   "default": "线路⑤ https://cdn-msp.jmapinodeudzn.net",
+   "optionsScript": "optImgList"
+  }
+ ],
+ "lib": "// 接口响应解密。\n// 请求固定携带 Token: \"0\" 与 Tokenparam: \"0,2.1.11\"（服务器不校验其新鲜度），\n// 服务器用 Tokenparam 里的时间戳派生密钥：md5(ts + '185Hcomic3PAPP7R') 的\n// 32 字符 hex 文本按 UTF-8 取 32 字节，AES-256-ECB 加密响应 data 字段。\n// 时间戳固定为 \"0\"，密钥即常量，一次解密即可，无需尝试多个候选。\nfn dec(b64) {\n  let key = bytes(md5('0' + '185Hcomic3PAPP7R'))\n  return json(trim(fromBytes(decrypt('AES/ECB/PKCS5Padding', base64Bytes(b64), key, ''))))\n}\n\n// 排序变量映射为接口排序码（App 真实码：''=最新, tf=爱心, mv=总榜, mv_m=月榜, mv_w=周榜）。\n// 「最新发布」用 mr：在 categories/filter 上与空值等效，在 search 上必须非空。\nfn sc(name) {\n  return lookup({'最新发布': 'mr', '最多爱心': 'tf', '总排行': 'mv', '月排行': 'mv_m', '周排行': 'mv_w'}, name, 'mr')\n}\n\n// 正文图片域名替换为用户选定线路：接口下发的图片域名是轮询的（非按网络优化），\n// 且各图片 CDN 域名均可访问同一路径，故统一替换到 vars.imgHost，\n// 某条线路不通/慢时在书源设置切换即可（实测全部可用，见使用说明）。\nfn imgLine(u, host) {\n  let i = indexOf(u, '://')\n  if (i < 0) { return u }\n  let rest = substring(u, i + 3, len(u))\n  let j = indexOf(rest, '/')\n  if (j < 0) { return u }\n  return host + substring(rest, j, len(rest))\n}\n\n// 线路选项显示「线路N 地址」→ 取地址部分；纯地址原样返回\nfn lineHost(s) {\n  let a = split(s, ' ')\n  return default(a[1], s)\n}\n",
+ "explore": {
+  "menus": [
+   {
+    "title": "分类"
+   },
+   {
+    "title": "最新A漫",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o={{sc('最新发布')}}"
+   },
+   {
+    "title": "同人",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o={{sc('最新发布')}}&c=doujin"
+   },
+   {
+    "title": "单本",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o={{sc('最新发布')}}&c=single"
+   },
+   {
+    "title": "短篇",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o={{sc('最新发布')}}&c=short"
+   },
+   {
+    "title": "其他类",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o={{sc('最新发布')}}&c=another"
+   },
+   {
+    "title": "韩漫",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o={{sc('最新发布')}}&c=hanman"
+   },
+   {
+    "title": "英文",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o={{sc('最新发布')}}&c=meiman"
+   },
+   {
+    "title": "Cosplay",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o={{sc('最新发布')}}&c=another_cosplay"
+   },
+   {
+    "title": "3D",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o={{sc('最新发布')}}&c=3D"
+   },
+   {
+    "title": "排行榜"
+   },
+   {
+    "title": "总排行",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o=tr"
+   },
+   {
+    "title": "月排行",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o=mv_m"
+   },
+   {
+    "title": "周排行",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o=mv_w"
+   },
+   {
+    "title": "最多爱心",
+    "url": "{{lineHost(vars.server)}}/categories/filter?page={{page}}&o=tf"
+   },
+   {
+    "title": "周榜"
+   }
+  ],
+  "dynamicMenus": {
+   "url": "{{lineHost(vars.server)}}/week",
+   "headers": {
+    "User-Agent": "okhttp/4.9.1",
+    "Token": "0",
+    "Tokenparam": "0,2.1.11"
+   },
+   "list": "= typeOf(data.data) == 'string' ? slice(dec(data.data).categories, 0, 12) : slice(data.data.categories, 0, 12)",
+   "title": "= $.time",
+   "target": "= lineHost(vars.server) + '/week/filter?id=' + $.id + '&page=' + page"
+  },
+  "headers": {
+   "User-Agent": "okhttp/4.9.1",
+   "Token": "0",
+   "Tokenparam": "0,2.1.11"
+  },
+  "let": {
+   "d": "= typeOf(data.data) == 'string' ? dec(data.data) : data.data"
+  },
+  "fail": "= data.code != 200 ? default(data.errorMsg, '接口错误 code=' + data.code) : (d == null ? '响应解密失败，请到书源设置切换线路重试' : '')",
+  "list": "= d.content ?? d.list",
+  "fields": {
+   "name": "= $.name",
+   "author": "= $.author",
+   "kind": "= $.category.title ?? ''",
+   "intro": "= $.description ?? ''",
+   "coverUrl": "= lineHost(vars.imgHost) + '/media/albums/' + $.id + '_3x4.jpg?v=' + default($.update_at, '')",
+   "updateTime": "= $.update_at != null && len(str($.update_at)) >= 8 ? formatDate(int($.update_at), 'yyyy-MM-dd') : default($.update_at, '')",
+   "bookUrl": "{{lineHost(vars.server)}}/album?id={{$.id}}",
+   "type": "comic"
+  }
+ },
+ "search": {
+  "url": "{{lineHost(vars.server)}}/search?search_query={{urlencode(key)}}&page={{page}}&main_cat=0&o={{sc('最新发布')}}",
+  "headers": {
+   "User-Agent": "okhttp/4.9.1",
+   "Token": "0",
+   "Tokenparam": "0,2.1.11"
+  },
+  "let": {
+   "d": "= typeOf(data.data) == 'string' ? dec(data.data) : data.data"
+  },
+  "fail": "= data.code != 200 ? default(data.errorMsg, '接口错误 code=' + data.code) : (d == null ? '响应解密失败，请到书源设置切换线路重试' : '')",
+  "list": "= d.content ?? d.list",
+  "fields": {
+   "name": "= $.name",
+   "author": "= $.author",
+   "kind": "= $.category.title ?? ''",
+   "intro": "= $.description ?? ''",
+   "coverUrl": "= lineHost(vars.imgHost) + '/media/albums/' + $.id + '_3x4.jpg?v=' + default($.update_at, '')",
+   "updateTime": "= $.update_at != null && len(str($.update_at)) >= 8 ? formatDate(int($.update_at), 'yyyy-MM-dd') : default($.update_at, '')",
+   "bookUrl": "{{lineHost(vars.server)}}/album?id={{$.id}}",
+   "type": "comic"
+  }
+ },
+ "detail": {
+  "headers": {
+   "User-Agent": "okhttp/4.9.1",
+   "Token": "0",
+   "Tokenparam": "0,2.1.11"
+  },
+  "let": {
+   "d": "= typeOf(data.data) == 'string' ? dec(data.data) : data.data"
+  },
+  "fail": "= data.code != 200 ? default(data.errorMsg, '接口错误 code=' + data.code) : (d == null ? '响应解密失败，请到书源设置切换线路重试' : '')",
+  "fields": {
+   "name": "= d.name",
+   "author": "= typeOf(d.author) == 'list' ? join(compact(d.author), ',') : default(d.author, '')",
+   "kind": "= typeOf(d.tags) == 'list' ? join(compact(d.tags), ',') : default(d.tags, '')",
+   "intro": "= d.description ?? ''",
+   "coverUrl": "= lineHost(vars.imgHost) + '/media/albums/' + d.id + '_3x4.jpg?v=' + default(d.addtime, '')",
+   "updateTime": "= d.addtime != null && len(str(d.addtime)) >= 8 ? formatDate(int(d.addtime), 'yyyy-MM-dd') : default(d.addtime, '')"
+  },
+  "keep": {
+   "bookId": "= d.id"
+  }
+ },
+ "toc": {
+  "url": "{{lineHost(vars.server)}}/album?id={{default(book.vars.bookId, match(book.bookUrl, 'id=(\\d+)', 1))}}",
+  "headers": {
+   "User-Agent": "okhttp/4.9.1",
+   "Token": "0",
+   "Tokenparam": "0,2.1.11"
+  },
+  "let": {
+   "d": "= typeOf(data.data) == 'string' ? dec(data.data) : data.data"
+  },
+  "fail": "= data.code != 200 ? default(data.errorMsg, '接口错误 code=' + data.code) : (d == null ? '响应解密失败，请到书源设置切换线路重试' : '')",
+  "list": "= len(d.series) > 0 ? d.series : list(1, {id: d.id, name: d.name})",
+  "fields": {
+   "title": "= len(default($.sort, '')) == 0 ? (len(default($.name, '')) > 0 ? $.name : default(d.name, '')) : (substring(default($.name, ''), 0, len('第' + $.sort + '话')) == '第' + $.sort + '话' || substring(default($.name, ''), 0, len('第' + $.sort + '話')) == '第' + $.sort + '話' ? $.name : '第' + $.sort + '话' + (len(default($.name, '')) > 0 ? ' ' + $.name : ''))",
+   "url": "{{lineHost(vars.server)}}/comic_read?id={{$.id}}"
+  }
+ },
+ "content": {
+  "script": "content",
+  "images": "= typeOf(data) == 'string' ? json(data).images : default(data.images, [])",
+  "imageDecode": {
+   "script": "jmImageDecode",
+   "processPlainImages": true
+  },
+  "mediaHeaders": {
+   "User-Agent": "okhttp/4.9.1"
+  }
+ },
+ "js": "function jmJparse(t, what) {\n  try { return JSON.parse(t); }\n  catch (e) { throw new Error(what + \" JSON解析失败，输入前60字符: \" + String(t).slice(0, 60)); }\n}\n\nfunction jmUtf8(s) {\n  var out = [];\n  for (var i = 0; i < s.length; i++) {\n    var c = s.charCodeAt(i);\n    if (c < 0x80) out.push(c);\n    else if (c < 0x800) { out.push(0xC0 | (c >> 6), 0x80 | (c & 63)); }\n    else { out.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63)); }\n  }\n  return new Uint8Array(out);\n}\nfunction jmImageDecode(bytes, ctx) {\n  var m = String(ctx.url || '').match(/\\/media\\/photos\\/(\\d+)\\/([^\\/?]+)/);\n  if (!m) return bytes;\n  var name = m[2];\n  try { name = decodeURIComponent(name); } catch (e) { }\n  if (/\\.gif$/i.test(name)) return bytes;\n  var aid = m[1], path5 = name.substring(0, 5), num = 1;\n  var a = parseInt(aid, 10);\n  if (a >= 220980) {\n    if (a < 268850) num = 10;\n    else {\n      var d = image.hash('MD5', jmUtf8(aid + path5));\n      var nib = d[d.length - 1] & 15;\n      var k = nib < 10 ? 48 + nib : 87 + nib;\n      k = (a <= 421925) ? k % 10 : k % 8;\n      num = (k >= 0 && k <= 9) ? k * 2 + 2 : 10;\n    }\n  }\n  if (num <= 1) return bytes;\n  return image.reorderStrips(bytes, { count: num, remainder: 'last', format: 'image/webp', quality: 90 });\n}\n\nfunction content(ctx) {\n  try {\n    var __r = (function (ctx) {\n      var curl = String((ctx.chapter && ctx.chapter.url) || ctx.url || '');\n      var m = /id=(\\d+)/.exec(curl);\n      if (!m) throw new Error('章节地址缺少 id：' + curl);\n      var id = m[1];\n      var sm = /^https?:\\/\\/[^\\/]+/.exec(curl);\n      var server = sm ? sm[0] : __hostOf(ctx.vars && ctx.vars.server, 'https://www.cdnutc.cc');\n      var imgHost = __hostOf(ctx.vars && ctx.vars.imgHost, 'https://cdn-msp.jmapiproxy1.cc');\n      var tryServers = [server].concat(SM_SERVERS)\n        .filter(function (v, i, a) { return v && a.indexOf(v) === i; }).slice(0, 3);\n      var d = null, usedServer = null, lastErr = null;\n      for (var round = 0; round < 2 && !d; round++) {\n        if (round > 0) sleep(600);\n        for (var si = 0; si < tryServers.length && !d; si++) {\n          var sv = tryServers[si];\n          var rr = http.get(sv + '/comic_read?id=' + id, { headers: { 'Token': '0', 'Tokenparam': '0,2.1.11' } });\n          if (!rr || (!rr.ok && !rr.body)) { lastErr = 'HTTP ' + (rr ? rr.status : 0); continue; }\n          var tt = String(rr.body || '').replace(/^\\uFEFF/, '').trim();\n          var ee = null;\n          try { ee = jmJparse(tt, '接口响应'); } catch (e2) { lastErr = e2.message; continue; }\n          if (ee.code !== 200) { lastErr = 'code=' + ee.code + ' ' + (ee.errorMsg || ''); continue; }\n          try {\n            var pp = native.decrypt('AES/ECB/PKCS5Padding', native.base64Bytes(ee.data), native.md5('0' + '185Hcomic3PAPP7R'), '');\n            var dd = JSON.parse(native.fromBytes(pp));\n            if (dd.images && dd.images.length) { d = dd; usedServer = sv; }\n            else lastErr = 'images 空';\n          } catch (e4) { lastErr = '解密失败: ' + e4.message; }\n        }\n      }\n      if (!d) throw new Error('所有线路均失败（' + lastErr + '）');\n      var paths = (d.images || []).map(function (x) { return typeof x === 'string' ? x : (x && x.image); }).filter(Boolean);\n      if (!paths.length) throw new Error('章节没有图片');\n      var urls = paths.map(function (u) { return imgHost + String(u).replace(/^https?:?(?::\\/\\/|\\/\\/)[^\\/]+/, ''); });\n      return { images: urls };\n    })(ctx);\n    if (!__r || !__r.images || !__r.images.length) {\n      throw new Error(\"正文脚本未返回图片列表\");\n    }\n    return { images: __r.images.map(String) };\n  } catch (e) {\n    var msg = \"content 脚本失败: \" + ((e && e.message) || e);\n    throw new Error(msg);\n  }\n}\n\n// 「线路N 地址」→ 地址；纯地址/空原样回退\nfunction __hostOf(s, fb) {\n  s = String(s || '');\n  if (/^自动/.test(s)) return fb;\n  var i = s.indexOf(' ');\n  return (i > 0 ? s.substring(i + 1).trim() : s) || fb;\n}\n\n// ===== 设置区操作按钮（懒人有声同款） =====\nvar SM_SERVERS = ['https://www.cdnhjk.net', 'https://www.cdnutc.cc', 'https://www.cdngwc.net', 'https://www.cdngwc.club', 'https://www.cdnutc.me', 'https://www.cdngwc.cc'];\nvar SM_IMGS = ['https://cdn-msp.jmapiproxy1.cc', 'https://cdn-msp.jmapiproxy2.cc', 'https://cdn-msp2.jmapiproxy2.cc', 'https://cdn-msp3.jmapiproxy2.cc', 'https://cdn-msp.jmapinodeudzn.net', 'https://cdn-msp3.jmapinodeudzn.net'];\nvar SM_HD = { 'User-Agent': 'okhttp/4.9.1', 'Token': '0', 'Tokenparam': '0,2.1.11' };\nvar SM_NUMS = ['①', '②', '③', '④', '⑤', '⑥'];\nfunction smName(host, list) { var i = list.indexOf(host); return i >= 0 ? ('线路' + SM_NUMS[i] + ' ' + host) : host; }\nfunction smProbe(url) {\n  var t0 = Date.now();\n  try {\n    var r = http.get(url, { headers: SM_HD, timeout: 8000 });\n    var st = (r && r.status) || 0;\n    return { ok: st === 200, st: st, ms: Date.now() - t0 };\n  } catch (e) { return { ok: false, st: 0, ms: Date.now() - t0, err: (e && e.message) || String(e) }; }\n}\nfunction smProbeList(list, path) {\n  var out = [];\n  for (var i = 0; i < list.length; i++) {\n    var r = smProbe(list[i] + path);\n    out.push({ n: smName(list[i], list), u: list[i], ok: r.ok, st: r.st, ms: r.ms, err: r.err || '' });\n  }\n  return out;\n}\nfunction optServerList() {\n  var items = smProbeList(SM_SERVERS, '/categories/filter?page=1&o=mr');\n  items.sort(function(a, b) { return (a.ok ? a.ms : 999999) - (b.ok ? b.ms : 999999); });\n  return items.map(function(x) { return x.n; });\n}\nfunction optImgList() {\n  var items = smProbeList(SM_IMGS, '/media/albums/100001_3x4.jpg');\n  items.sort(function(a, b) { return (a.ok ? a.ms : 999999) - (b.ok ? b.ms : 999999); });\n  return items.map(function(x) { return x.n; });\n}\n// ===== 三按钮：诊断 / 重测速并应用 / 恢复默认 =====\nfunction actDiagnose() {\n  var sv = smProbeList(SM_SERVERS, '/categories/filter?page=1&o=mr');\n  var im = smProbeList(SM_IMGS, '/media/albums/100001_3x4.jpg');\n  var i, j, fails = 0, fixed = [], bestS = null, bestI = null, lines = [], imgs = [];\n  for (i = 0; i < sv.length; i++) {\n    if (!sv[i].ok) fails++;\n    if (sv[i].ok && (!bestS || sv[i].ms < bestS.ms)) bestS = sv[i];\n    lines.push('  ' + (sv[i].ok ? '✅' : '❌') + ' ' + sv[i].n.replace('https://', '') + '  ' + sv[i].ms + 'ms HTTP ' + sv[i].st + (sv[i].ok ? '' : '  ' + (sv[i].err || '')));\n  }\n  for (i = 0; i < im.length; i++) {\n    if (!im[i].ok) fails++;\n    if (im[i].ok && (!bestI || im[i].ms < bestI.ms)) bestI = im[i];\n    imgs.push('  ' + (im[i].ok ? '✅' : '❌') + ' ' + im[i].n.replace('https://', '') + '  ' + im[i].ms + 'ms HTTP ' + im[i].st + (im[i].ok ? '' : '  ' + (im[i].err || '')));\n  }\n  var curS = String(vars.get('server') || ''), curI = String(vars.get('imgHost') || ''), sOk = true, iOk = true;\n  if (curS) { sOk = false; for (j = 0; j < sv.length; j++) if (sv[j].n === curS) sOk = sv[j].ok; }\n  if (curI) { iOk = false; for (j = 0; j < im.length; j++) if (im[j].n === curI) iOk = im[j].ok; }\n  if (!sOk && bestS) { vars.set('server', bestS.n); fixed.push('浏览线路 ' + curS + ' 不通 → 已切到 ' + bestS.n); }\n  if (!iOk && bestI) { vars.set('imgHost', bestI.n); fixed.push('图片线路 ' + curI + ' 不通 → 已切到 ' + bestI.n); }\n  if (fixed.length) { try { ui.refreshExplore(); } catch (e) {} }\n  var head;\n  if (!fails && !fixed.length) head = '🩺 诊断结果：✅ 浏览线路与图片线路全部可用';\n  else if (fixed.length) head = '🩺 诊断结果：⚠️ ' + fails + ' 处异常，已自动修复 ' + fixed.length + ' 处，现在可以正常使用';\n  else head = '🩺 诊断结果：❌ ' + fails + ' 处异常，且无可替代线路';\n  var out = [head, '  当前 浏览 ' + (sOk ? curS || '默认' : bestS ? bestS.n : '无可用') + ' · 图片 ' + (iOk ? curI || '默认' : bestI ? bestI.n : '无可用')];\n  for (i = 0; i < fixed.length; i++) out.push('  🔧 ' + fixed[i]);\n  out.push('', '浏览线路（分类/搜索接口）');\n  out = out.concat(lines);\n  out.push('', '图片线路（正文图+封面）');\n  out = out.concat(imgs);\n  return out.join('\\n');\n}\nfunction actRetest() {\n  var sv = smProbeList(SM_SERVERS, '/categories/filter?page=1&o=mr');\n  var best = null;\n  for (var i = 0; i < sv.length; i++) if (sv[i].ok && (!best || sv[i].ms < best.ms)) best = sv[i];\n  if (!best) return '❌ 全部浏览线路不可用，请稍后重试';\n  vars.set('server', best.n);\n  var im = smProbeList(SM_IMGS, '/media/albums/100001_3x4.jpg');\n  var bestImg = null;\n  for (var k = 0; k < im.length; k++) if (im[k].ok && (!bestImg || im[k].ms < bestImg.ms)) bestImg = im[k];\n  var msg = '⚡ 重测速完成，已应用最快线路\\n✅ 浏览线路已切换: ' + best.n + ' (' + best.ms + 'ms)';\n  if (bestImg) { vars.set('imgHost', bestImg.n); msg += '\\n✅ 图片线路已切换: ' + bestImg.n + ' (' + bestImg.ms + 'ms)'; }\n  try { ui.refreshExplore(); } catch (e2) {}\n  return msg;\n}\n\nfunction actReset() {\n  vars.set('server', '线路⑤ https://www.cdnutc.me');\n  vars.set('imgHost', '线路⑤ https://cdn-msp.jmapinodeudzn.net');\n  try { ui.refreshExplore(); } catch (e2) {}\n  return '♻️ 已复位默认线路（浏览⑤ / 图片⑤）';\n}",
+ "scriptLimits": {
+  "requests": 100
+ },
+ "actions": [
+  {
+   "label": "🩺 一键诊断",
+   "script": "actDiagnose"
+  },
+  {
+   "label": "⚡ 重测速并应用",
+   "script": "actRetest"
+  },
+  {
+   "label": "♻️ 恢复默认",
+   "script": "actReset"
+  }
+ ]
+}
