@@ -1,11 +1,11 @@
 {
  "sourceFormat": "native",
  "version": 1,
- "name": "☻神漫天堂☻",
+ "name": "神漫天堂",
  "url": "https://www.cdnhjk.net/jm-v231m?xb=split",
- "group": "漫画",
+ "group": "渡·漫画",
  "type": "comic",
- "comment": "【2026-11-15 优化】去掉调试 log 残留；内容脚本的线路池改为引用 SM_SERVERS，避免两处定义漂移；其余未动。",
+ "comment": "【2026-11-15 优化】去掉调试 log 残留；内容脚本的线路池改为引用 SM_SERVERS，避免两处定义漂移；其余未动。\n【2026-11-15 规范】名称去装饰符号（☻神漫天堂☻ → 神漫天堂）；分组 漫画 → 渡·漫画。",
  "headers": {
   "User-Agent": "okhttp/4.9.1"
  },
