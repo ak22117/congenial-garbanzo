@@ -1,0 +1,272 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "外博影视",
+ "url": "https://v.waiboys.com",
+ "type": "video",
+ "group": "渡·影视",
+ "comment": "移植自阅读 JS 书源《外博影视》（yckceo id 121）。原书源靠 webview 在页面里执行 DOM 脚本抓取，并用 data:image 卡片 + showvideoplay 桥播放；本移植利用该站（v.waiboys.com，mxone 模板）本来就是服务端直出 HTML 的特点，改成纯声明式规则：列表按卡片开头切段后用 sel/selAll 取字段，详情直接取 DOM，目录从详情页的选集链接生成（优先主线路 sid/1 并按地址去重），播放取播放页里 <a id=\"bfurl\"> 的地址（CDN 短链自动补 /index.m3u8）。不再需要 webview、不需要注入脚本，播放也不依赖第三方播放器桥。",
+ "rate": "5/1000",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36",
+  "Accept": "text/html,*/*",
+  "Accept-Language": "zh-CN,zh;q=0.9",
+  "Referer": "https://v.waiboys.com/"
+ },
+ "search": {
+  "url": "{{source.url}}/vod/search.html?wd={{urlencode(key)}}&page={{page}}",
+  "list": "= searchCards(body)",
+  "fields": {
+   "name": "= default(sel('h3 a@title', item), sel('h3 a', item))",
+   "coverUrl": "= sel('img@data-src', item)",
+   "status": "= sel('a[class*=video-serial]', item)",
+   "kind": "= join(selAll('div[class*=video-info-aux] a@text', item), ' / ')",
+   "bookUrl": "= sel('h3 a@href', item)",
+   "type": "video"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "电影"
+   },
+   {
+    "title": "全部",
+    "url": "{{source.url}}/vod/type/id/1.html?page={{page}}"
+   },
+   {
+    "title": "喜剧",
+    "url": "{{source.url}}/vod/show/class/%E5%96%9C%E5%89%A7/id/1.html?page={{page}}"
+   },
+   {
+    "title": "爱情",
+    "url": "{{source.url}}/vod/show/class/%E7%88%B1%E6%83%85/id/1.html?page={{page}}"
+   },
+   {
+    "title": "恐怖",
+    "url": "{{source.url}}/vod/show/class/%E6%81%90%E6%80%96/id/1.html?page={{page}}"
+   },
+   {
+    "title": "动作",
+    "url": "{{source.url}}/vod/show/class/%E5%8A%A8%E4%BD%9C/id/1.html?page={{page}}"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/vod/show/class/%E7%A7%91%E5%B9%BB/id/1.html?page={{page}}"
+   },
+   {
+    "title": "剧情",
+    "url": "{{source.url}}/vod/show/class/%E5%89%A7%E6%83%85/id/1.html?page={{page}}"
+   },
+   {
+    "title": "战争",
+    "url": "{{source.url}}/vod/show/class/%E6%88%98%E4%BA%89/id/1.html?page={{page}}"
+   },
+   {
+    "title": "警匪",
+    "url": "{{source.url}}/vod/show/class/%E8%AD%A6%E5%8C%AA/id/1.html?page={{page}}"
+   },
+   {
+    "title": "犯罪",
+    "url": "{{source.url}}/vod/show/class/%E7%8A%AF%E7%BD%AA/id/1.html?page={{page}}"
+   },
+   {
+    "title": "动画",
+    "url": "{{source.url}}/vod/show/class/%E5%8A%A8%E7%94%BB/id/1.html?page={{page}}"
+   },
+   {
+    "title": "电视剧"
+   },
+   {
+    "title": "全部",
+    "url": "{{source.url}}/vod/type/id/2.html?page={{page}}"
+   },
+   {
+    "title": "古装",
+    "url": "{{source.url}}/vod/show/class/%E5%8F%A4%E8%A3%85/id/2.html?page={{page}}"
+   },
+   {
+    "title": "战争",
+    "url": "{{source.url}}/vod/show/class/%E6%88%98%E4%BA%89/id/2.html?page={{page}}"
+   },
+   {
+    "title": "青春偶像",
+    "url": "{{source.url}}/vod/show/class/%E9%9D%92%E6%98%A5%E5%81%B6%E5%83%8F/id/2.html?page={{page}}"
+   },
+   {
+    "title": "喜剧",
+    "url": "{{source.url}}/vod/show/class/%E5%96%9C%E5%89%A7/id/2.html?page={{page}}"
+   },
+   {
+    "title": "家庭",
+    "url": "{{source.url}}/vod/show/class/%E5%AE%B6%E5%BA%AD/id/2.html?page={{page}}"
+   },
+   {
+    "title": "犯罪",
+    "url": "{{source.url}}/vod/show/class/%E7%8A%AF%E7%BD%AA/id/2.html?page={{page}}"
+   },
+   {
+    "title": "动作",
+    "url": "{{source.url}}/vod/show/class/%E5%8A%A8%E4%BD%9C/id/2.html?page={{page}}"
+   },
+   {
+    "title": "奇幻",
+    "url": "{{source.url}}/vod/show/class/%E5%A5%87%E5%B9%BB/id/2.html?page={{page}}"
+   },
+   {
+    "title": "剧情",
+    "url": "{{source.url}}/vod/show/class/%E5%89%A7%E6%83%85/id/2.html?page={{page}}"
+   },
+   {
+    "title": "历史",
+    "url": "{{source.url}}/vod/show/class/%E5%8E%86%E5%8F%B2/id/2.html?page={{page}}"
+   },
+   {
+    "title": "综艺"
+   },
+   {
+    "title": "全部",
+    "url": "{{source.url}}/vod/type/id/3.html?page={{page}}"
+   },
+   {
+    "title": "选秀",
+    "url": "{{source.url}}/vod/show/class/%E9%80%89%E7%A7%80/id/3.html?page={{page}}"
+   },
+   {
+    "title": "情感",
+    "url": "{{source.url}}/vod/show/class/%E6%83%85%E6%84%9F/id/3.html?page={{page}}"
+   },
+   {
+    "title": "访谈",
+    "url": "{{source.url}}/vod/show/class/%E8%AE%BF%E8%B0%88/id/3.html?page={{page}}"
+   },
+   {
+    "title": "播报",
+    "url": "{{source.url}}/vod/show/class/%E6%92%AD%E6%8A%A5/id/3.html?page={{page}}"
+   },
+   {
+    "title": "旅游",
+    "url": "{{source.url}}/vod/show/class/%E6%97%85%E6%B8%B8/id/3.html?page={{page}}"
+   },
+   {
+    "title": "音乐",
+    "url": "{{source.url}}/vod/show/class/%E9%9F%B3%E4%B9%90/id/3.html?page={{page}}"
+   },
+   {
+    "title": "美食",
+    "url": "{{source.url}}/vod/show/class/%E7%BE%8E%E9%A3%9F/id/3.html?page={{page}}"
+   },
+   {
+    "title": "纪实",
+    "url": "{{source.url}}/vod/show/class/%E7%BA%AA%E5%AE%9E/id/3.html?page={{page}}"
+   },
+   {
+    "title": "曲艺",
+    "url": "{{source.url}}/vod/show/class/%E6%9B%B2%E8%89%BA/id/3.html?page={{page}}"
+   },
+   {
+    "title": "生活",
+    "url": "{{source.url}}/vod/show/class/%E7%94%9F%E6%B4%BB/id/3.html?page={{page}}"
+   },
+   {
+    "title": "短剧"
+   },
+   {
+    "title": "全部",
+    "url": "{{source.url}}/vod/type/id/4.html?page={{page}}"
+   },
+   {
+    "title": "情感",
+    "url": "{{source.url}}/vod/show/class/%E6%83%85%E6%84%9F/id/4.html?page={{page}}"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/vod/show/class/%E7%A7%91%E5%B9%BB/id/4.html?page={{page}}"
+   },
+   {
+    "title": "热血",
+    "url": "{{source.url}}/vod/show/class/%E7%83%AD%E8%A1%80/id/4.html?page={{page}}"
+   },
+   {
+    "title": "推理",
+    "url": "{{source.url}}/vod/show/class/%E6%8E%A8%E7%90%86/id/4.html?page={{page}}"
+   },
+   {
+    "title": "搞笑",
+    "url": "{{source.url}}/vod/show/class/%E6%90%9E%E7%AC%91/id/4.html?page={{page}}"
+   },
+   {
+    "title": "冒险",
+    "url": "{{source.url}}/vod/show/class/%E5%86%92%E9%99%A9/id/4.html?page={{page}}"
+   },
+   {
+    "title": "萝莉",
+    "url": "{{source.url}}/vod/show/class/%E8%90%9D%E8%8E%89/id/4.html?page={{page}}"
+   },
+   {
+    "title": "校园",
+    "url": "{{source.url}}/vod/show/class/%E6%A0%A1%E5%9B%AD/id/4.html?page={{page}}"
+   },
+   {
+    "title": "动作",
+    "url": "{{source.url}}/vod/show/class/%E5%8A%A8%E4%BD%9C/id/4.html?page={{page}}"
+   },
+   {
+    "title": "机战",
+    "url": "{{source.url}}/vod/show/class/%E6%9C%BA%E6%88%98/id/4.html?page={{page}}"
+   },
+   {
+    "title": "动漫"
+   },
+   {
+    "title": "全部",
+    "url": "{{source.url}}/vod/type/id/5.html?page={{page}}"
+   },
+   {
+    "title": "B站"
+   },
+   {
+    "title": "全部",
+    "url": "{{source.url}}/vod/type/id/24.html?page={{page}}"
+   },
+   {
+    "title": "其它"
+   },
+   {
+    "title": "全部",
+    "url": "{{source.url}}/vod/type/id/53.html?page={{page}}"
+   }
+  ],
+  "list": "= itemCards(body)",
+  "fields": {
+   "name": "= default(sel('div[class*=video-name] a@title', item), sel('div[class*=video-name] a', item))",
+   "coverUrl": "= sel('img@data-src', item)",
+   "kind": "= join(selAll('div[class*=module-item-caption] span@text', item), ' / ')",
+   "status": "= sel('div[class*=module-item-ru]', item)",
+   "intro": "= sel('div[class*=video-text]', item)",
+   "bookUrl": "= sel('div[class*=video-name] a@href', item)",
+   "type": "video"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "= sel('h1.page-title', body)",
+   "coverUrl": "= sel('div[class*=module-item-pic] img@data-src', body)",
+   "intro": "= replaceText(sel('div[class*=vod_content]', body), '暂无简介', '')",
+   "kind": "= join(selAll('div[class*=video-info-aux] a@text', body), ' / ')",
+   "type": "video"
+  }
+ },
+ "toc": {
+  "url": "{{book.bookUrl}}",
+  "list": "= episodeList(body)",
+  "fields": {
+   "title": "$.title",
+   "url": "$.url"
+  }
+ },
+ "content": {
+  "video": "= m3u8Of(body)"
+ },
+ "lib": "// ===== 站点说明 =====\n// v.waiboys.com 是 mxone 模板，列表/详情/播放页全部服务端直出 HTML，不需要 webview。\n// 原 JS 书源用 $.webview 跑 DOM 脚本、用 data:image 卡片唤起 showvideoplay；\n// 这里改成：按卡片开头切段 + sel/selAll 取字段，播放地址直接给 content.video。\n\n// ===== 列表：按卡片开头切段 =====\nfn itemCards(html) { return split(default(html, \"\"), '<div class=\"module-item\">') }\nfn searchCards(html) { return split(default(html, \"\"), '<div class=\"video-info\">') }\n\n// 取开头的连续数字\nfn digitsOf(v) {\n  let s = default(v, \"\")\n  let out = \"\"\n  let i = 0\n  while (i < len(s)) {\n    let ch = substring(s, i, i + 1)\n    if (indexOf(\"0123456789\", ch) < 0) { return out }\n    out = out + ch\n    i = i + 1\n  }\n  return out\n}\n\n// /vod/play/id/1/sid/1/nid/12.html → 12\nfn nidOf(u) {\n  let s = default(u, \"\")\n  let i = indexOf(s, \"/nid/\")\n  if (i < 0) { return \"\" }\n  return digitsOf(substring(s, i + 5, len(s)))\n}\n\n// ===== 选集 =====\n// 详情页每个线路一个 module-blocklist，选集形如\n// <a href=\"/vod/play/id/…/sid/S/nid/N.html\" title=\"…\"><span>第N期</span></a>\n// 优先只取第一条线路 sid/1，并按地址去重（页面会把同一集渲染多次）。\nfn pickEpisodes(urls, labels, onlyMain) {\n  let out = []\n  let seen = []\n  let i = 0\n  while (i < len(urls)) {\n    let u = urls[i]\n    let use = true\n    if (onlyMain && !contains(u, \"/sid/1/\")) { use = false }\n    if (use && indexOf(seen, u) < 0) {\n      push(seen, u)\n      let t = default(get(labels, i, \"\"), \"\")\n      if (t == \"\") { t = \"第\" + nidOf(u) + \"集\" }\n      push(out, {title: t, url: u})\n    }\n    i = i + 1\n  }\n  return out\n}\n\nfn episodeList(html) {\n  let s = default(html, \"\")\n  let urls = matchAll(s, '<a href=\"(/vod/play/[^\"]+)\"[^>]*><span>([^<]*)</span>', 1)\n  let labels = matchAll(s, '<a href=\"(/vod/play/[^\"]+)\"[^>]*><span>([^<]*)</span>', 2)\n  let main = pickEpisodes(urls, labels, true)\n  if (len(main) > 0) { return main }\n  let all = pickEpisodes(urls, labels, false)\n  if (len(all) > 0) { return all }\n  // 电影没有选集列表，只有“立刻播放”按钮\n  let btn = matchAll(s, '<a href=\"(/vod/play/[^\"]+)\" title=\"立刻播放', 1)\n  if (len(btn) > 0) { return [{title: \"正片\", url: first(btn)}] }\n  return []\n}\n\n// ===== 播放地址 =====\n// 播放页里有 <a id=\"bfurl\" href=\"…\">：可能是完整 m3u8，也可能是 CDN 短链\n// （短链返回一个播放页，源码里 const vid = \"短链/index.m3u8\"），所以短链补 /index.m3u8。\nfn m3u8Of(html) {\n  let s = default(html, \"\")\n  let v = default(sel(\"a#bfurl@href\", s), \"\")\n  if (v == \"\") {\n    // 兜底：进页面里 player 配置的 url 字段（斜杠被转义成 \\/）\n    v = default(first(matchAll(s, 'url\":\"(https?[^\"]{8,300})\"', 1)), \"\")\n    v = replaceText(v, \"\\\\/\", \"/\")\n  }\n  if (v == \"\") { return \"\" }\n  if (contains(v, \"m3u8\")) { return v }\n  return v + \"/index.m3u8\"\n}"
+}

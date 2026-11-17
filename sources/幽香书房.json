@@ -1,0 +1,248 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "幽香书房",
+ "url": "https://www.yxshufang.com",
+ "group": "渡",
+ "type": "text",
+ "rate": "20/10000",
+ "comment": "幽香书房 原生书源 v12（2026-10-17 · 密钥链破 CDN 缓存版）。\n\n【更正：之前的 403 不是风控，是站点轮换了 AES 密钥】\n  · 站点的目录接口 = POST /index.php?action=loadChapterPage，body 是 AES-256-CBC 密文；\n    密钥写死在 /templates/js/<32位hash>.js 里（文件名随密钥变）。\n  · 实测：旧密钥 → 服务端解密失败 → HTTP 403 {\"code\":-1,\"msg\":\"Error\",\"data\":[]}；\n    换成当前密钥（从站点自己的 JS 现取）→ 200 正常返回 100 条/页。\n    换一台完全不同的 IP（23.82.96.208）用旧密钥测，同样 403 → 与 IP/风控无关。\n  · 所以「目录请求失败（HTTP 403）」= 密钥过期，不是被封。\n\n【v8 怎么保证以后不再失效】密钥不写死，改成向站点现取（三步、都走 cache、失败静默）：\n  ① cache.probeBid 取首页 → 一个现成书码（书被删也不失效）\n  ② cache.jsName  取该书详情页 → 里面引用的 32 位 hash 脚本名\n  ③ cache.js      取该脚本 → 正则取出 key|iv（AESCrypt('…32位…') 与 parse('…16位…')）\n  → yxAes 用现取的 key/iv（拿不到才落回内置常量）；三者 TTL 600s，即每 10 分钟最多 3 个 GET。\n  → 站点再换密钥，源会在 ≤10 分钟内自愈，目录重新变成全真名，无需换书源文件。\n\n【v12：密钥链为什么要带 ?v= —— CDN 缓存会把密钥带旧】\n  · 站点**频繁轮换** AES 密钥（实测一天 4 次：0gT5Ce… → 2TKg3… → MSbQz… → 1F9kEW…），\n    而**首页与详情页有 CDN 缓存**（响应头 X-Cache: HIT / UPDATING）。\n  · 于是\"首页 → 详情页取 hash 脚本名 → 抓密钥脚本\"这条链可能拿到**旧页面 → 旧 hash → 旧密钥**：\n    接口 403 报 Error → 目录静默降级（开头 100 章真名 + 尾部 20 章真名 + 中段占位名）。\n    实测同一时刻：旧 hash 文件 MSbQz….js 的密钥 → 403；新 hash 文件 1F9kEW….js 的密钥 → 200 + 100 章。\n  · 修法：链上每一步带 ?v=<时间戳> 破 CDN 缓存；TTL 600s→300s（轮换后 ≤5 分钟自愈）。\n  · 想立刻重探：书源设置里把「线路」来回切一次（探针缓存键含全部变量值）。\n  · 注意：降级时的占位名会写进本地章节表 —— 恢复后要**刷新一次目录**才会变回真名。\n\n【限速为什么必须留着（v10 的改动作废，v11 装回）】\n  · 官方 4.0.919 口径说\"站点不限流就别写 rate\"，但**这个加密接口不适用**：\n    它按**突发（并发）**识别，不按总量 —— 实测同样请求量：\n      · 串行 68 页 / 0.9 秒间隔、共几百次  → 全程 200，从没被挡；\n      · 一次并行突发（batch 4/8/16，共 35 个 POST 打在同一个 action 上）→ WAF 立即对该 IP 封了这条接口\n        （返回空 body 的 403；换一台干净 IP 立刻恢复 200）。\n  · 所以 rate 留 20/10000（≈2 请求/秒，把默认的 4 并发批顺成近似串行）；\n  · 并且**不要调大 batch**（默认 4 就行）：提高并发正是上面被挡的方向；\n  · 代价：四五千章的书（45~70 页目录）首次打开约 20~35 秒 —— 之后走本地章节表缓存，不再请求。\n  · 想真快只能等官方的\"目录预取/结果缓存\"（已在缺口清单里），源里没有安全的提速余量。\n\n【v9 修了什么：目录开头的 100 章不显示】\n  · 现象：真机上「共 2686 章」而站点是 2786 章，且列表从第 101 章开始 —— 正好少第 1 页那 100 条。\n  · 原因：目录第 1 页的接口地址（/index.php?action=loadChapterPage&i=1）与「接口健康探针」用的\n    地址**完全相同**（URL 里不带书码），真机引擎把这条地址当成「已请求过」而过滤 → 整页丢失。\n  · 修法一：接口地址统一带 &b=<书码>（yxApiUrl），探针用 &b=probe-x → 两者永不撞车。\n  · 修法二：第 1..100 章改由**详情页内嵌目录**直出（真实名、零风险），接口只补 101..（从第 2 页起），\n    少发 1 个请求，而且即使接口整条挂了，开头 100 章也一定在。\n\n【v7 修了什么】\n ① 目录只显示 100 章 —— 真凶是「目录<span>（N章）」对一部分书写成 0 章\n    （实测 QOPB / IPKM：span=0，但站点自己的「最新章节」块末条分别是 852 / 607）。\n    v6 只认 span → 总章数取到 0 → 只能铺到内嵌的 100 章。\n    v7 改成多来源取最大：目录<span>章节数 / og:latest_chapter_url 章号 /\n    全页同名书章节链接最大章号（含「最新章节」20 条），三个都取不到才用\n    <option> 上界兜底。离线 8/8 精确命中真实总章数，QOPB=852 已与接口全量目录互证。\n ② 目录不再依赖 detail 阶段留下的 book.vars：toc 第 1 页永远取详情页，\n    页数与总章数都在 toc 阶段现场算 → 旧书 / 从发现页进来的书也不会退化成 100 章。\n ③ 尾部真实章名：内嵌 100 章之外，再并上「最新章节」的最后 20 章真名。\n ④ 探针改成两步自愈：先 GET 首页取一个现成书码，再用它 POST 探接口；\n    探针书被删也不会失效。when 用 vars 求值 → 「仅详情页」模式下探针一次都不发。\n ⑤ 页数按 ceil(总章数/100) 精确取，不多抓一页（越界页会被站点返回最后一页 → 重复章节）。\n\n【接口挂了怎么表现】目录仍是**整本**：真实名（内嵌 100 + 最新章节 20）+ 其余「第N章」\n  占位，URL 全部按 /book/书码-章号.html 构造，照样能顺着读；接口恢复后自动变全真名。\n  想立刻重探接口：在书源设置里把「线路」来回切一次（探针缓存的键含全部变量值）。\n  ⚠ 引擎只在请求成功时写缓存 → 接口被拦时探针记不住，每个阶段会重探 1 次（不会风暴，\n    但会给站点多送 1 个 403 请求）。被拦期间想彻底不发接口请求：把「目录方式」切到\n    「详情页整本(零额外请求)」，目录内容一模一样，只是不发探针。\n\n【搜索】本站无书名搜索，只有 /author/ 作者名匹配（唐家三少→25 本；书名恒为 0）。\n\n【正文】字体图标（承载真字）已还原；置换错字已修正（受限替换，实测 0 误伤）；章尾互推域名已清除。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "zh-CN,zh;q=0.9",
+  "Referer": "https://www.yxshufang.com/"
+ },
+ "vars": [
+  {
+   "key": "host",
+   "label": "线路",
+   "options": [
+    "https://www.yxshufang.com",
+    "https://yxshufang.com",
+    "http://www.yxshufang.com"
+   ],
+   "default": "https://www.yxshufang.com"
+  },
+  {
+   "key": "tocmode",
+   "label": "目录方式",
+   "options": [
+    "智能(接口优先→自动回退)",
+    "详情页整本(零额外请求)"
+   ],
+   "default": "智能(接口优先→自动回退)"
+  }
+ ],
+ "let": {
+  "server": "= replace(default(vars.host, source.url), '/+$', '')",
+  "api": "= yxApiRoot(server)",
+  "wantApi": "= !test(str(vars.tocmode), '^详情页')",
+  "apiKey": "= yxSplit(js, 0)",
+  "apiIv": "= yxSplit(js, 1)",
+  "useApi": "= wantApi && apiOk == '1'"
+ },
+ "cache": {
+  "probeBid": {
+   "when": "= !test(str(vars.tocmode), '^详情页')",
+   "url": "= yxApiRoot(replace(default(vars.host, source.url), '/+$', '')) + '/?v=' + now()",
+   "headers": {
+    "Accept": "text/html,application/xhtml+xml,*/*;q=0.8"
+   },
+   "value": "= yxOrBid(yxFirstBid(body))",
+   "ttl": 300
+  },
+  "jsName": {
+   "when": "= !test(str(vars.tocmode), '^详情页') && probeBid != null && probeBid != ''",
+   "url": "= yxApiRoot(replace(default(vars.host, source.url), '/+$', '')) + '/book/' + str(probeBid) + '.html?v=' + now()",
+   "headers": {
+    "Accept": "text/html,application/xhtml+xml,*/*;q=0.8"
+   },
+   "value": "= yxJsName(body)",
+   "ttl": 300
+  },
+  "js": {
+   "when": "= !test(str(vars.tocmode), '^详情页') && jsName != null && jsName != ''",
+   "url": "= yxApiRoot(replace(default(vars.host, source.url), '/+$', '')) + '/templates/js/' + str(jsName) + '.js?v=' + now()",
+   "headers": {
+    "Accept": "*/*"
+   },
+   "value": "= yxKeyIv(body)",
+   "ttl": 300
+  },
+  "apiOk": {
+   "when": "= !test(str(vars.tocmode), '^详情页') && probeBid != null && probeBid != '' && js != null && yxSplit(js, 0) != '' && yxSplit(js, 1) != ''",
+   "url": "= yxApiUrl(yxApiRoot(replace(default(vars.host, source.url), '/+$', '')), 'probe-x', 1)",
+   "method": "POST",
+   "headers": {
+    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+    "X-Requested-With": "XMLHttpRequest",
+    "Accept": "application/json, text/javascript, */*; q=0.01"
+   },
+   "body": "= yxProbeBody(probeBid, yxSplit(js, 0), yxSplit(js, 1))",
+   "value": "= data != null && str(get(data, 'code', '-1')) == '0' ? '1' : '0'",
+   "ttl": 300
+  }
+ },
+ "lib": "// ===== 幽香书房 原生书源 函数库 v6（2026-10-16 抗 WAF 版）=====\n\n// ── 0. 接口主机归一 ─────────────────────────────────────────────────────\n// 目录接口是 POST，而裸域/http 会把它 301 成 GET（请求体丢失）→ 403。\nfn yxApiRoot(host) {\n  let h = replace(str(host), '^https?://', '', '')\n  h = replace(h, '^www\\\\.', '', '')\n  h = replace(h, '/[\\\\s\\\\S]*$', '', '')\n  return 'https://www.' + h\n}\n\n// ── 1. 目录接口加密 ─────────────────────────────────────────────────────\n// ⚠ 站点会**轮换 AES 密钥**（封装在 /templates/js/<32位hash>.js 里，文件名随 hash 变）。\n//   旧密钥 = 服务端解密失败 = HTTP 403 {\"code\":-1,\"msg\":\"Error\"} —— 这不是风控！\n//   所以 key/iv 改成从站点自己的脚本现取（cache.site/jsName/js），取不到才用下面的常量兜底。\nfn yxAes(plain, key, iv) {\n  let k = str(key)\n  let v = str(iv)\n  if (len(k) != 32) { k = 'SatdUcOtSLhcPw2v64B8oRToIZZt0Hdr' }\n  if (len(v) != 16) { v = '8075311411457704' }\n  return urlencode(bytesBase64(encrypt('AES/CBC/PKCS5Padding', plain, k, v)))\n}\n\n// 探针请求体（书码由首页现取；key/iv 由密钥脚本现取）\nfn yxProbeBody(bid, key, iv) {\n  let b = yxOrBid(bid)\n  return 'data=' + yxAes('{\\\"id\\\":\\\"' + b + '\\\",\\\"page\\\":1}', key, iv)\n}\n\n// 首页里第一个书级链接（/book/XXXX.html）→ 探针书码，永不过期\nfn yxFirstBid(html) {\n  let m = match(str(html), '/book/([A-Za-z0-9]+)\\\\.html', 1)\n  if (m == null) { return '' }\n  return str(m)\n}\nfn yxOrBid(bid) {\n  let s = trim(str(bid))\n  if (len(s) < 2 || len(s) > 16) { return 'QBXF' }\n  return s\n}\n\n// 接口地址：带上 &b=<书码>，让每本书的地址彼此不同\n// （否则「探针」和「目录第 1 页」的 URL 完全一样，真机引擎会把后者当成重复地址过滤掉 → 少 100 章）\nfn yxApiUrl(api, bid, page) {\n  return str(api) + '/index.php?action=loadChapterPage&i=' + str(page) + '&b=' + str(bid)\n}\n// 前 100 章由详情页内嵌目录直接给出（真实名、零风险），所以接口只需要从第 2 页开始\nfn yxFront(html, bid) {\n  let t = yxTotal(html, bid)\n  if (t > 100) { return 100 }\n  return t\n}\n\n// 目录请求体\nfn yxBody(bid, page, key, iv) {\n  return 'data=' + yxAes('{\\\"id\\\":\\\"' + str(bid) + '\\\",\\\"page\\\":' + str(page) + '}', key, iv)\n}\n\n// ── 1b. 密钥自愈用的三个小工具 ──────────────────────────────────────────\n// 'a|b' 取第 idx 段\nfn yxSplit(s, idx) {\n  let parts = split(str(s), '|')\n  return str(default(parts[int(str(idx), 0)], ''))\n}\n// 详情页里引用的 32 位 hash 脚本名（站点的 AES 封装就在这个文件里）\nfn yxJsName(html) {\n  let m = match(str(html), '/templates/js/([A-Za-z0-9]{32})', 1)\n  if (m == null) { return '' }\n  return str(m)\n}\n// 从密钥脚本里取 \"key|iv\"\nfn yxKeyIv(js) {\n  let s = str(js)\n  let k = match(s, 'AESCrypt\\\\(.([A-Za-z0-9]{32}).', 1)\n  let v = match(s, 'parse\\\\(.([0-9]{16}).\\\\)', 1)\n  if (k == null || v == null) { return '' }\n  let ks = str(k)\n  let vs = str(v)\n  if (len(ks) != 32 || len(vs) != 16) { return '' }\n  return ks + '|' + vs\n}\n\n// ── 2. 目录分页页数（<option value=\"N\">1-100章</option> 的个数）────────────\nfn yxPageCount(html) {\n  let n = len(matchAll(str(html), '<option value=\"[0-9]+\">', 0))\n  if (n < 1) { n = 1 }\n  return n\n}\n\n// ── 2b. <option> 里最大的结束章号（仅作最后兜底，是上界）────────────────\nfn yxOptEnd(html) {\n  let mx = 0\n  for s in matchAll(str(html), '<option value=\"[0-9]+\">([^<]*)</option>', 1) {\n    let m = match(str(s), '-([0-9]+)\\\\s*章', 1)\n    if (m != null) {\n      let n = int(str(m), 0)\n      if (n > mx) { mx = n }\n    }\n  }\n  return mx\n}\n\n// ── 2c. 全页「同名书章节链接」的最大章号 ────────────────────────────────\n// 这是本源的**关键修复**：详情页上同名书的章节链接有两处 ——\n//   ① <ul id=\"ul_all_chapters\"> 内嵌固定 100 章；\n//   ② 头部「最新章节」块，20 条，末条就是全书最后一章。\n// 取全页最大值 = 真实总章数（离线 8/8 精确命中：QBXF=116 01CL=338 QOPB=852\n// IPKM=607 P3OT=652 DRKM=66 CFOT=29 3ORK=11；其中 QOPB 的 852 与接口全量\n// 目录 904 条 / 章号上限 852 完全一致）。\n// 注意：站点的「目录<span>（N章）」对一部分书写成 0 章（实测 QOPB/IPKM），\n//       只认它就会退化成「只有 100 章」—— 这正是用户反馈的那个 bug。\nfn yxPageMax(html, bid) {\n  let b = str(bid)\n  if (b == '') { return 0 }\n  let mx = 0\n  for s in matchAll(str(html), '/book/' + b + '-([0-9]+)\\\\.html', 1) {\n    let n = int(str(s), 0)\n    if (n > mx) { mx = n }\n  }\n  return mx\n}\n\n// ── 3. 总章数：多来源取最大（全部来自同一个详情页，零额外请求）──────────\nfn yxTotal(html, bid) {\n  let h = str(html)\n  let t = 0\n  // ① 目录<span>（N章）\n  let sp = match(h, '目录<span>（\\\\s*([0-9]+)\\\\s*章', 1)\n  if (sp != null) { t = int(str(sp), 0) }\n  // ② og:novel:latest_chapter_url 的章号（部分书没有这个 meta）\n  let og = match(h, 'og:novel:latest_chapter_url\"[^>]*content=\"[^\"]*?-([0-9]+)\\\\.html', 1)\n  if (og != null) {\n    let n = int(str(og), 0)\n    if (n > t) { t = n }\n  }\n  // ③ 全页同名书链接最大章号（最可靠，span 为 0 的书也靠它）\n  let pm = yxPageMax(h, bid)\n  if (pm > t) { t = pm }\n  // ④ 三个都没有 → 用 <option> 上界兜底（宁多勿少）\n  if (t < 1) { t = yxOptEnd(h) }\n  return t\n}\n\n// ── 3b. 接口要抓多少页：<option> 页数与「按总章数算出的页数」取大 ─────────\nfn yxTocPages(html, bid) {\n  let p = yxPageCount(html)\n  let total = yxTotal(html, bid)\n  let need = 0\n  let c = 0\n  while (c < total && need < 200) {\n    need = need + 1\n    c = c + 100\n  }\n  if (need > p) { p = need }\n  if (p < 1) { p = 1 }\n  if (p > 200) { p = 200 }\n  return p\n}\n\n// ── 4. 取书码 ───────────────────────────────────────────────────────────\nfn yxBid(url) {\n  let b = match(str(url), '/book/([A-Za-z0-9]+)\\\\.html', 1)\n  if (b == null) { return '' }\n  return str(b)\n}\n\n// ── 5. og:description ───────────────────────────────────────────────────\nfn yxOgDesc(html) {\n  let h = str(html)\n  let m = match(h, '<meta[^>]*property=\"og:description\"[^>]*content=\"([\\\\s\\\\S]*?)\"', 1)\n  if (m == null) { m = match(h, '<meta[^>]*content=\"([\\\\s\\\\S]*?)\"[^>]*property=\"og:description\"', 1) }\n  if (m == null) { return '' }\n  return trim(replace(str(m), '\\\\s+', ' ', 'g'))\n}\n\n// ── 6. 降级路径：用详情页自己把整本目录铺出来（零额外请求）───────────────\n// 名字来源（同一页）：<ul id=\"ul_all_chapters\"> 的 1..100 章 + 头部「最新章节」\n// 的最后 20 章（真实标题）。中间取不到的章号给「第N章」占位，URL 一律按\n// /book/{书码}-{章号}.html 构造 —— 站点保证该形状可直接打开。\n// ⚠ 必须限定同名书（/book/{bid}-N.html），否则「相关推荐」的其它书会混进来。\nfn yxTocFill(html, bid, root, total) {\n  let b = str(bid)\n  if (b == '') { return [] }\n  let base = str(root)\n  if (!endsWith(base, '/')) { base = base + '/' }\n  let lim = int(str(total), 0)\n  if (lim < 1) { return [] }\n  let titles = list(lim + 1, '')\n  for c in split(str(html), '<a ') {\n    let cs = str(c)\n    let hf = match(cs, 'href=\"/book/' + b + '-([0-9]+)\\\\.html\"', 1)\n    if (hf != null) {\n      let no = int(str(hf), 0)\n      if (no > 0 && no <= lim) {\n        let tag = match(cs, '^[^>]*>', 0)\n        let ti = null\n        if (tag != null) { ti = match(str(tag), 'title=\"([^\"]*)\"', 1) }\n        if (ti == null) { ti = match(cs, '>([^<]*)</a>', 1) }\n        let t = trim(str(ti))\n        if (t != '') { titles[no] = t }\n      }\n    }\n  }\n  let out = []\n  let k = 0\n  let c = 1\n  while (c <= lim) {\n    let nm = titles[c]\n    if (nm == null || nm == '') { nm = '第' + c + '章' }\n    out[k] = { title: nm, url: base + 'book/' + b + '-' + c + '.html', order: c }\n    k = k + 1\n    c = c + 1\n  }\n  return out\n}\n\n// ── 7. 接口 JSON -> 统一列表 ────────────────────────────────────────────\nfn yxTocApi(json) {\n  if (json == null) { return [] }\n  let d = get(json, 'data', null)\n  if (d == null) { return [] }\n  let out = []\n  let k = 0\n  for it in d {\n    let u = str(default(get(it, 'chapterurl', ''), ''))\n    if (u != '') {\n      out[k] = { title: str(default(get(it, 'chaptername', ''), '')), url: u, order: int(default(str(get(it, 'chapterorder', '0')), '0'), 0) }\n      k = k + 1\n    }\n  }\n  return out\n}\n\n// ── 8. （已合并进 yxTocFill：降级路径直接吃详情页 HTML，不再需要二次铺章）\n\n\n// ── 9. 字体图标还原（正文真字）──────────────────────────────────────────\nfn yxIcon(code) {\n  let tbl = '内|暴|强|情|缝|禽|插|逼|操|潮|喷|阴|艳|裸|乳|荡|穴|鸡|淫|苞|奸|胸|射|嫩|肉|骚|性|蒂|茎|阴|骚|奶|屃|成|人|药|春|迷|尿|粉|肛|龟|头|ＡＶ|精|屌|口|狂|蜜|处|女|唇|道|阳|虐|虫|妇|液|色|颜|熟|交|爽|臀|爆|舔|做|爱|欲|吹|自|慰|点|９|Ｇ|玉|幼|援|抽|Ｂ|ｂ|水|母|狗|户|部|要|了|奴|小|脚|痒|酥|死|我|兽|揉|搓|捏|扣|抠|棍|棒|洞|密|美|少|摩|腿|春|乱|伦|露|漏|浪|开|巨|根|菊|巴|黑|豪|好|肥|送|艳|被|干|拔|乱|理|白|刺|体|下|面|诱|感|快|货|比|日|妈|你|娘|婊|子|配|仙|火|叫|在|里|子|宫|给|聊|照|流|群|屁|眼|马|无|码|友|拳|洞|片|黄|偷|禁|套|弄|位|脱|光|舒|服|溜|舞|丢|还|糜|妻|换|妓|招|嫖|娼|ａ|Ａ|毛|Ｈ|ｈ|一|夜|本|热|推|图|书|娃|男|抓|浑|圆|饱|满|润|湿|滑|丰|腴|韵|尤|物|横|陈|存|娇|喘|息|麻|桃|透|风|腹|长|粗|肿|胀|人|紧|夹|吸|撅|起|来|雪|发|翘|硕|大|胴|双|草|坐|掌|跨|柔|软|臂|瘫|媚|秘|破'\n  let parts = split(tbl, '|')\n  let n = parseHex(str(code)) - 0xE001\n  if (n < 0) { return '' }\n  return str(default(parts[n], ''))\n}\nfn yxIconMatch(m) {\n  let c = yxIcon(m[1])\n  if (c == '') { return str(m[0]) }\n  return c\n}\n\n// ── 10. 正文净化 ────────────────────────────────────────────────────────\nfn yxText(raw) {\n  let t = str(raw)\n  if (t == '') { return '' }\n  let t0 = t\n  t = replace(t, '(?:最新章节《[^》]*》已更新[^<]{0,40}|章节更新提醒[：:][^<>。！？]{0,40}[。！？]?|书友都在[^<>。！？]{0,60}[。！？]?|[^<>。！？]{0,80}https?://[^<>。！？]{0,200}[。！？]?|https?://[^ 　<，。！？：]{1,200}|(?:shoujiks|lawenbook|365zww|bixiazww|dzdxsw|jianpanxsw|136shuwu|yichunxsw|qiushuwang|555zww|shenyexs|zhenhunxsz|yayaxsw|sosoxsz|yinxingxsw|piaolpxs|huaxixsw|xuizhenxs|jujingxs|yanyuxsw|doufuxsw|kelexs|ciyuankong|rrssk|zhaoshu|rrunion|edgelib)\\\\.(?:com|net|cn|org|vip|xyz|cc|info|top|club|la)[ 　]*|[a-z0-9-]{2,20}\\\\.(?:com|net|cn|org|vip|xyz|cc|info|top|club|la)|(?:欢迎来到幽香书房|幽香书房|可乐小说|找书啦)[^<>。！？]{0,30}[。！？]?|《[^》]{1,40}》[ 　]*[：:]?[ 　]*(?:口碑炸裂|好评如潮|口碑爆棚|好评不断|强烈推荐|不容错过)[^<。！]{0,20}[。！]?)', '', 'g')\n  t = replace(t, '<i[^>]*icon-uni([0-9A-Fa-f]{3,4})[^>]*>\\\\s*</i>', m => yxIconMatch(m), 'g')\n  t = replace(t, '<i[^>]*icon-uni([0-9A-Fa-f]{3,4})[^>]*>', m => yxIconMatch(m), 'g')\n  t = replace(t, '一首(?=[在陪保打走坐没下数当垂站盯对])', '一直', 'g')\n  t = replace(t, '首接', '直接', 'g')\n  t = replace(t, '首到', '直到', 'g')\n  t = replace(t, '首奔', '直奔', 'g')\n  t = replace(t, '首入', '直入', 'g')\n  t = replace(t, '首面', '直面', 'g')\n  t = replace(t, '首言', '直言', 'g')\n  t = replace(t, '首叫', '直叫', 'g')\n  t = replace(t, '首首', '直直', 'g')\n  t = replace(t, '坐首', '坐直', 'g')\n  t = replace(t, '发首', '发直', 'g')\n  t = replace(t, '径首', '径直', 'g')\n  t = replace(t, '己经', '已经', 'g')\n  t = replace(t, '己然', '已然', 'g')\n  t = replace(t, '己晚', '已晚', 'g')\n  t = replace(t, '己清', '已清', 'g')\n  t = replace(t, '己充', '已充', 'g')\n  t = replace(t, '第西', '第四', 'g')\n  t = replace(t, '西面八方', '四面八方', 'g')\n  t = replace(t, '西十', '四十', 'g')\n  t = replace(t, '西百', '四百', 'g')\n  t = replace(t, '西千', '四千', 'g')\n  t = replace(t, '西个', '四个', 'g')\n  t = replace(t, '西岁', '四岁', 'g')\n  t = replace(t, '西枪', '四枪', 'g')\n  t = replace(t, '西点', '四点', 'g')\n  t = replace(t, '西处', '四处', 'g')\n  t = replace(t, '西肢', '四肢', 'g')\n  t = replace(t, '西蹄', '四蹄', 'g')\n  t = replace(t, '西只', '四只', 'g')\n  t = replace(t, '西级', '四级', 'g')\n  t = replace(t, '西份', '四份', 'g')\n  t = replace(t, '西位', '四位', 'g')\n  t = replace(t, '西条', '四条', 'g')\n  t = replace(t, '西两', '四两', 'g')\n  t = replace(t, '西散', '四散', 'g')\n  t = replace(t, '三西', '三四', 'g')\n  t = replace(t, '舍尖', '舌尖', 'g')\n  t = replace(t, '巧舍', '巧舌', 'g')\n  t = replace(t, '口干舍燥', '口干舌燥', 'g')\n  t = replace(t, '添弄', '舔弄', 'g')\n  t = replace(t, '添舐', '舔舐', 'g')\n  t = replace(t, '添着', '舔着', 'g')\n  t = replace(t, '嘴添', '嘴舔', 'g')\n  t = replace(t, '添干净', '舔干净', 'g')\n  t = replace(t, '浴火焚身', '欲火焚身', 'g')\n  t = replace(t, '浴求不满', '欲求不满', 'g')\n  t = replace(t, '无浴无求', '无欲无求', 'g')\n  t = replace(t, '双如', '双乳', 'g')\n  t = replace(t, '皮鼓', '屁股', 'g')\n  t = replace(t, '翘皮鼓', '翘屁股', 'g')\n  t = replace(t, '夸间', '胯间', 'g')\n  t = replace(t, '夸下', '胯下', 'g')\n  t = replace(t, '垮下', '胯下', 'g')\n  t = replace(t, '垮间', '胯间', 'g')\n  t = replace(t, '臊狼', '骚狼', 'g')\n  t = replace(t, '小臊蹄子', '小骚蹄子', 'g')\n  t = replace(t, '风臊', '风骚', 'g')\n  t = replace(t, '小臊货', '小骚货', 'g')\n  t = replace(t, '档漾', '荡漾', 'g')\n  t = replace(t, '小档妇', '小荡妇', 'g')\n  t = replace(t, '狼档', '浪荡', 'g')\n  t = replace(t, '放狼', '放浪', 'g')\n  t = replace(t, '机器优雅', '极其优雅', 'g')\n  if (t == '') { t = t0 }\n  if (test(t, '数据库连接失败|获取内容失败|读取当前章节内容失败|读取内容失败|内容获取失败|代理出现问题|Max retries exceeded|ProxyError|章节不存在|Error :')) {\n    let r = trim(replace(replace(t, '<[^>]*>', ' ', 'g'), '\\\\s+', ' ', 'g'))\n    return '<p>【本章正文暂时取不到：源站返回「' + substring(r, 0, 90) + '」。稍后重试，或在书架里换一个书源阅读。】</p>'\n  }\n  return t\n}\n\n// ── 11. 章节内分页 ──────────────────────────────────────────────────────\nfn yxNext(html, base) {\n  let u = match(str(html), '<a[^>]+id=\"next_url\"[^>]+href=\"([^\"]+)\"', 1)\n  if (u == null) { return '' }\n  let s = str(u)\n  if (!test(s, '-[0-9]+-[0-9]+\\\\.html')) { return '' }\n  return absUrl(s, base)\n}",
+ "search": {
+  "url": "= server + '/author/' + urlencode(key) + '-' + page + '.html'",
+  "list": "li.searchresult",
+  "fields": {
+   "name": "h3@text",
+   "author": "a[href*=\"/author/\"]@text||p:eq(0)@ownText",
+   "coverUrl": "img@data-original||img@src",
+   "intro": "p.searchresult_p@text",
+   "kind": "span:first@text##^\\s+|\\s*\\/\\s*[\\s\\S]*$##",
+   "status": "span:first@text##^[\\s\\S]*\\/\\s*|\\s+$##",
+   "wordCount": "span.s_gray@text##^\\s+|\\s{2,}[\\s\\S]*$##",
+   "updateTime": "span.s_gray@text##^[\\s\\S]*\\s{2,}|\\s+$##",
+   "lastChapter": "div:eq(1) p:last a@text",
+   "bookUrl": "a@href"
+  },
+  "fail": "= page == 1 && len(selAll('li.searchresult')) == 0 ? '本站搜索按【作者名】匹配，填书名会搜不到。请改用作者名（如：唐家三少）' : ''"
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "玄幻",
+    "url": "{{server}}/list-4-{{page}}/"
+   },
+   {
+    "title": "奇幻",
+    "url": "{{server}}/list-5-{{page}}/"
+   },
+   {
+    "title": "武侠",
+    "url": "{{server}}/list-6-{{page}}/"
+   },
+   {
+    "title": "仙侠",
+    "url": "{{server}}/list-7-{{page}}/"
+   },
+   {
+    "title": "都市",
+    "url": "{{server}}/list-8-{{page}}/"
+   },
+   {
+    "title": "军事",
+    "url": "{{server}}/list-9-{{page}}/"
+   },
+   {
+    "title": "历史",
+    "url": "{{server}}/list-10-{{page}}/"
+   },
+   {
+    "title": "游戏",
+    "url": "{{server}}/list-11-{{page}}/"
+   },
+   {
+    "title": "体育",
+    "url": "{{server}}/list-12-{{page}}/"
+   },
+   {
+    "title": "科幻",
+    "url": "{{server}}/list-13-{{page}}/"
+   },
+   {
+    "title": "诸天无限",
+    "url": "{{server}}/list-14-{{page}}/"
+   },
+   {
+    "title": "悬疑",
+    "url": "{{server}}/list-15-{{page}}/"
+   },
+   {
+    "title": "古代言情",
+    "url": "{{server}}/list-16-{{page}}/"
+   },
+   {
+    "title": "仙侠奇缘",
+    "url": "{{server}}/list-17-{{page}}/"
+   },
+   {
+    "title": "现代言情",
+    "url": "{{server}}/list-18-{{page}}/"
+   },
+   {
+    "title": "浪漫青春",
+    "url": "{{server}}/list-19-{{page}}/"
+   },
+   {
+    "title": "科幻空间",
+    "url": "{{server}}/list-22-{{page}}/"
+   },
+   {
+    "title": "短篇言情",
+    "url": "{{server}}/list-24-{{page}}/"
+   },
+   {
+    "title": "原生幻想",
+    "url": "{{server}}/list-25-{{page}}/"
+   },
+   {
+    "title": "搞笑吐槽",
+    "url": "{{server}}/list-28-{{page}}/"
+   },
+   {
+    "title": "热门榜",
+    "url": "{{server}}/rank-{{page}}.html"
+   },
+   {
+    "title": "全部分类",
+    "url": "{{server}}/list-1-{{page}}/"
+   }
+  ],
+  "list": ".side_commend ul.flex > li",
+  "fields": {
+   "name": "h2@text||h3@text",
+   "author": "a[href*=\"/author/\"]@text||p:eq(0)@ownText",
+   "coverUrl": "img@data-original||img@src",
+   "intro": "p.indent@text||p.searchresult_p@text",
+   "kind": "span:first@text##^\\s+|\\s*\\/\\s*[\\s\\S]*$##",
+   "status": "span:first@text##^[\\s\\S]*\\/\\s*|\\s+$##",
+   "wordCount": "em.orange@text||span.s_gray@text##^\\s+|\\s{2,}[\\s\\S]*$##",
+   "updateTime": "em.blue@text||span.s_gray@text##^[\\s\\S]*\\s{2,}|\\s+$##",
+   "bookUrl": "a@href"
+  }
+ },
+ "detail": {
+  "url": "= book.bookUrl",
+  "fields": {
+   "name": ".novel_info_title h1@text",
+   "author": ".novel_info_title i a@text",
+   "coverUrl": ".novel_info_main img@src",
+   "intro": "= default(yxText(yxOgDesc(body)), '暂无简介')",
+   "kind": ".novel_info_title p span:nth-child(1)@text",
+   "wordCount": ".novel_info_title p span:nth-child(2)@text",
+   "status": ".novel_info_title p span:nth-child(3)@text",
+   "updateTime": "meta[property=\"og:novel:update_time\"]@content||.flex.to100 em@text",
+   "lastChapter": "meta[property=\"og:novel:latest_chapter_name\"]@content||.flex.to100 a@text"
+  },
+  "keep": {
+   "pages": "= str(yxTocPages(body, yxBid(book.bookUrl)))",
+   "total": "= str(yxTotal(body, yxBid(book.bookUrl)))"
+  }
+ },
+ "toc": {
+  "url": "= server + '/book/' + yxBid(book.bookUrl) + '.html'",
+  "headers": {
+   "Content-Type": "= useApi && page > 1 ? 'application/x-www-form-urlencoded; charset=UTF-8' : ''",
+   "X-Requested-With": "= useApi && page > 1 ? 'XMLHttpRequest' : ''",
+   "Accept": "= useApi && page > 1 ? 'application/json, text/javascript, */*; q=0.01' : 'text/html,application/xhtml+xml,*/*;q=0.8'",
+   "Referer": "= server + '/book/' + yxBid(book.bookUrl) + '.html'"
+  },
+  "body": "= useApi && page > 1 ? yxBody(yxBid(book.bookUrl), page, apiKey, apiIv) : ''",
+  "nextUrl": "= data == null && useApi && yxTocPages(body, yxBid(book.bookUrl)) > 1 ? map(range(yxTocPages(body, yxBid(book.bookUrl)) - 1), i => yxApiUrl(api, yxBid(book.bookUrl), i + 2)) : []",
+  "list": "= data != null ? yxTocApi(data) : yxTocFill(body, yxBid(book.bookUrl), server, (useApi ? yxFront(body, yxBid(book.bookUrl)) : yxTotal(body, yxBid(book.bookUrl))))",
+  "fields": {
+   "title": "$.title",
+   "url": "$.url"
+  }
+ },
+ "content": {
+  "url": "= chapter.url",
+  "text": "= yxText(sel('#article@html'))",
+  "nextUrl": "= yxNext(body, baseUrl)"
+ }
+}

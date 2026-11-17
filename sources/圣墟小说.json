@@ -1,0 +1,134 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "圣墟小说",
+ "url": "http://www.shengxuxu.info",
+ "group": "渡",
+ "type": "text",
+ "comment": "圣墟小说原生版（2026-10-14 由兼容书源迁移）：纯 CSS 选择器、无脚本，能力与兼容版一致。\n· 状态/分类等来自书籍页 og:novel:* meta；站点列表页不提供状态，故列表卡片显示应用默认值，打开书籍后即以详情为准。\n· 榜单为 最近更新 / 最新入库 / 收藏榜 / 推荐榜（总榜按总点击排名、永远是老书；月榜/周榜按需求已移除）。",
+ "search": {
+  "url": "{{source.url}}/search.html?searchtype=novelname&searchkey={{urlencode(key)}}",
+  "list": ".librarylist li",
+  "fields": {
+   "name": "a.1@text",
+   "author": "span.1@text##.+：##",
+   "kind": "span.2@text##.+：##",
+   "coverUrl": "img@src||img@data-src",
+   "intro": "p.intro@text##^\\s+|\\s+$##",
+   "lastChapter": ".last@text##最新章节：|\\([\\d\\-: ]+\\)##",
+   "updateTime": ".last@text##^[\\s\\S]*\\(|\\)[\\s\\S]*$##",
+   "bookUrl": "a.1@href"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "榜单"
+   },
+   {
+    "title": "最近更新",
+    "url": "{{source.url}}/top/lastupdate/{{page}}.html"
+   },
+   {
+    "title": "最新入库",
+    "url": "{{source.url}}/top/postdate/{{page}}.html"
+   },
+   {
+    "title": "收藏榜",
+    "url": "{{source.url}}/top/marknum/{{page}}.html"
+   },
+   {
+    "title": "推荐榜",
+    "url": "{{source.url}}/top/votenum/{{page}}.html"
+   },
+   {
+    "title": "分类"
+   },
+   {
+    "title": "玄幻",
+    "url": "{{source.url}}/sort/xuanhuan/{{page}}.html"
+   },
+   {
+    "title": "奇幻",
+    "url": "{{source.url}}/sort/qihuan/{{page}}.html"
+   },
+   {
+    "title": "武侠",
+    "url": "{{source.url}}/sort/wuxia/{{page}}.html"
+   },
+   {
+    "title": "仙侠",
+    "url": "{{source.url}}/sort/xianxia/{{page}}.html"
+   },
+   {
+    "title": "都市",
+    "url": "{{source.url}}/sort/dushi/{{page}}.html"
+   },
+   {
+    "title": "历史",
+    "url": "{{source.url}}/sort/lishi/{{page}}.html"
+   },
+   {
+    "title": "军事",
+    "url": "{{source.url}}/sort/junshi/{{page}}.html"
+   },
+   {
+    "title": "游戏",
+    "url": "{{source.url}}/sort/youxi/{{page}}.html"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/sort/kehuan/{{page}}.html"
+   },
+   {
+    "title": "灵异",
+    "url": "{{source.url}}/sort/lingyi/{{page}}.html"
+   },
+   {
+    "title": "其他",
+    "url": "{{source.url}}/sort/qita/{{page}}.html"
+   }
+  ],
+  "list": ".librarylist li",
+  "fields": {
+   "name": "a.1@text",
+   "author": "span.1@text##.+：##",
+   "kind": "span.2@text##.+：##",
+   "coverUrl": "img@src||img@data-src",
+   "intro": "p.intro@text##^\\s+|\\s+$##",
+   "lastChapter": ".last@text##最新章节：|\\([\\d\\-: ]+\\)##",
+   "updateTime": ".last@text##^[\\s\\S]*\\(|\\)[\\s\\S]*$##",
+   "bookUrl": "a.1@href"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "meta[property=\"og:novel:book_name\"]@content",
+   "author": "meta[property=\"og:novel:author\"]@content",
+   "kind": "meta[property=\"og:novel:category\"]@content",
+   "status": "meta[property=\"og:novel:status\"]@content",
+   "lastChapter": "meta[property=\"og:novel:latest_chapter_name\"]@content",
+   "updateTime": "meta[property=\"og:novel:update_time\"]@content",
+   "coverUrl": "meta[property=\"og:image\"]@content",
+   "intro": "meta[property=\"og:description\"]@content##(^|[。！？]+[”」）】]?)##$1<br>"
+  }
+ },
+ "toc": {
+  "list": ".dirlist!0 li",
+  "fields": {
+   "title": "a@text",
+   "url": "a@href"
+  }
+ },
+ "content": {
+  "text": "#chaptercontent@html",
+  "nextUrl": "text.下一页@href",
+  "replace": [
+   {
+    "pattern": "本章完。|\\s*《[^《]*?》圣墟小说网全文字更新,牢记网址:www\\.shengxuxu\\.info\\s*<br\\s*/?\\s*",
+    "with": "",
+    "flags": "g"
+   }
+  ]
+ }
+}

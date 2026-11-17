@@ -1,0 +1,498 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "哔哩文库",
+ "url": "https://www.biliwenku.com",
+ "headers": {
+  "Referer": "https://www.biliwenku.com/"
+ },
+ "search": {
+  "url": "/search.html?keyword={{urlencode(key)}}",
+  "list": ".search-result-item",
+  "fields": {
+   "name": ".rank-modules-works-item-title@text",
+   "bookUrl": ".rank-modules-works-item-title@href",
+   "coverUrl": ".rank-modules-works-item-cover img@src",
+   "intro": ".rank-modules-works-item-desc@text",
+   "lastChapter": ".rank-modules-works-item-chapter-name a@text",
+   "author": ".rank-modules-works-item-author@text##\\s*·[\\s\\S]*$##"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "h1.book-title@text",
+   "author": ".book-meta-item a.value@text",
+   "coverUrl": ".book-info--coverImage-cover img@src",
+   "intro": "#introText@text",
+   "lastChapter": "#latestChapter@text",
+   "updateTime": "#updateTime@text"
+  }
+ },
+ "toc": {
+  "list": ".chapter-list-container ol li",
+  "fields": {
+   "title": ".chapter-title@text##^分卷[：:]##",
+   "url": "a@href",
+   "isVolume": "= len(sel('a@href')) == 0"
+  }
+ },
+ "content": {
+  "let": {
+   "raw": "#TextContent@html"
+  },
+  "text": "= blBody(raw)"
+ },
+ "vars": [
+  {
+   "key": "section",
+   "label": "分类筛选",
+   "options": [
+    "全部",
+    "书库",
+    "文库",
+    "题材",
+    "排行"
+   ],
+   "default": "全部",
+   "filter": true
+  }
+ ],
+ "explore": {
+  "menus": [
+   {
+    "title": "书库",
+    "when": "= vars.section == '全部' || vars.section == '书库'"
+   },
+   {
+    "title": "全部小说",
+    "url": "/shuku.html?page={{page}}",
+    "when": "= vars.section == '全部' || vars.section == '书库'"
+   },
+   {
+    "title": "完本小说",
+    "url": "/topfull_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '书库'"
+   },
+   {
+    "title": "文库分类",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "电击文库",
+    "url": "/shuku/cat_01_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "富士见文库",
+    "url": "/shuku/cat_02_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "角川文库",
+    "url": "/shuku/cat_03_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "MFJ文库",
+    "url": "/shuku/cat_04_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "Fami通文库",
+    "url": "/shuku/cat_05_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "GA文库",
+    "url": "/shuku/cat_06_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "HJ文库",
+    "url": "/shuku/cat_07_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "一迅社",
+    "url": "/shuku/cat_08_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "集英社文库",
+    "url": "/shuku/cat_09_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "小学馆",
+    "url": "/shuku/cat_10_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "讲谈社",
+    "url": "/shuku/cat_11_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "少女文库",
+    "url": "/shuku/cat_12_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "其他文库",
+    "url": "/shuku/cat_13_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "SF文库",
+    "url": "/shuku/cat_14_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '文库'"
+   },
+   {
+    "title": "题材分类",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "龙傲天",
+    "url": "/shuku/tag_25_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "黑暗",
+    "url": "/shuku/tag_18_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "魔法",
+    "url": "/shuku/tag_01_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "音乐",
+    "url": "/shuku/tag_45_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "韩国轻小说",
+    "url": "/shuku/tag_62_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "青梅竹马",
+    "url": "/shuku/tag_24_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "青春",
+    "url": "/shuku/tag_08_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "间谍",
+    "url": "/shuku/tag_47_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "转生",
+    "url": "/shuku/tag_52_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "脑洞",
+    "url": "/shuku/tag_23_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "职场",
+    "url": "/shuku/tag_33_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "耽美",
+    "url": "/shuku/tag_48_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "群像",
+    "url": "/shuku/tag_06_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "美食",
+    "url": "/shuku/tag_37_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "经营",
+    "url": "/shuku/tag_13_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "竞技",
+    "url": "/shuku/tag_44_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "穿越",
+    "url": "/shuku/tag_11_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "科幻",
+    "url": "/shuku/tag_22_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "百合",
+    "url": "/shuku/tag_35_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "病娇",
+    "url": "/shuku/tag_54_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "猎奇",
+    "url": "/shuku/tag_42_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "犯罪",
+    "url": "/shuku/tag_19_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "游戏",
+    "url": "/shuku/tag_41_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "治愈",
+    "url": "/shuku/tag_32_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "欢乐向",
+    "url": "/shuku/tag_05_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "校园",
+    "url": "/shuku/tag_07_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "机战",
+    "url": "/shuku/tag_34_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "末日",
+    "url": "/shuku/tag_40_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "旅行",
+    "url": "/shuku/tag_27_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "斗智",
+    "url": "/shuku/tag_15_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "推理",
+    "url": "/shuku/tag_60_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "战斗",
+    "url": "/shuku/tag_20_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "战争",
+    "url": "/shuku/tag_14_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "惊悚",
+    "url": "/shuku/tag_17_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "悬疑",
+    "url": "/shuku/tag_09_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "恋爱",
+    "url": "/shuku/tag_10_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "性转",
+    "url": "/shuku/tag_31_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "异能",
+    "url": "/shuku/tag_29_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "异世界",
+    "url": "/shuku/tag_53_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "宅文化",
+    "url": "/shuku/tag_39_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "妹妹",
+    "url": "/shuku/tag_26_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "女性视角",
+    "url": "/shuku/tag_21_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "女儿",
+    "url": "/shuku/tag_04_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "奇幻",
+    "url": "/shuku/tag_12_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "大逃杀",
+    "url": "/shuku/tag_43_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "大小姐",
+    "url": "/shuku/tag_16_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "复仇",
+    "url": "/shuku/tag_30_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "后宫",
+    "url": "/shuku/tag_03_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "冒险",
+    "url": "/shuku/tag_02_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "其他文库",
+    "url": "/shuku/tag_55_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "伪娘",
+    "url": "/shuku/tag_36_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "人外",
+    "url": "/shuku/tag_28_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "NTR",
+    "url": "/shuku/tag_46_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "JK",
+    "url": "/shuku/tag_38_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "JC",
+    "url": "/shuku/tag_49_{{page}}.html",
+    "when": "= vars.section == '全部' || vars.section == '题材'"
+   },
+   {
+    "title": "排行榜",
+    "when": "= vars.section == '全部' || vars.section == '排行'"
+   },
+   {
+    "title": "总点击榜",
+    "url": "/rank/click_all_{{padStart(str(page), 2, '0')}}.html",
+    "when": "= vars.section == '全部' || vars.section == '排行'"
+   },
+   {
+    "title": "月点击榜",
+    "url": "/rank/click_month_{{padStart(str(page), 2, '0')}}.html",
+    "when": "= vars.section == '全部' || vars.section == '排行'"
+   },
+   {
+    "title": "周点击榜",
+    "url": "/rank/click_week_{{padStart(str(page), 2, '0')}}.html",
+    "when": "= vars.section == '全部' || vars.section == '排行'"
+   },
+   {
+    "title": "新书热榜",
+    "url": "/rank/new_hot_{{padStart(str(page), 2, '0')}}.html",
+    "when": "= vars.section == '全部' || vars.section == '排行'"
+   },
+   {
+    "title": "总推荐榜",
+    "url": "/rank/vote_all_{{padStart(str(page), 2, '0')}}.html",
+    "when": "= vars.section == '全部' || vars.section == '排行'"
+   },
+   {
+    "title": "月推荐榜",
+    "url": "/rank/vote_month_{{padStart(str(page), 2, '0')}}.html",
+    "when": "= vars.section == '全部' || vars.section == '排行'"
+   },
+   {
+    "title": "周推荐榜",
+    "url": "/rank/vote_week_{{padStart(str(page), 2, '0')}}.html",
+    "when": "= vars.section == '全部' || vars.section == '排行'"
+   },
+   {
+    "title": "最新入库",
+    "url": "/rank/newest_{{padStart(str(page), 2, '0')}}.html",
+    "when": "= vars.section == '全部' || vars.section == '排行'"
+   },
+   {
+    "title": "最近更新",
+    "url": "/rank/recent_update_{{padStart(str(page), 2, '0')}}.html",
+    "when": "= vars.section == '全部' || vars.section == '排行'"
+   },
+   {
+    "title": "总收藏榜",
+    "url": "/rank/favorites_{{padStart(str(page), 2, '0')}}.html",
+    "when": "= vars.section == '全部' || vars.section == '排行'"
+   }
+  ],
+  "list": ".rank-modules-works-item",
+  "fields": {
+   "name": ".rank-modules-works-item-title@text",
+   "bookUrl": ".rank-modules-works-item-title@href",
+   "coverUrl": ".rank-modules-works-item-cover img@src",
+   "intro": ".rank-modules-works-item-desc@text",
+   "lastChapter": ".rank-modules-works-item-chapter-name a@text",
+   "author": ".rank-modules-works-item-author@text##\\s*·[\\s\\S]*$##"
+  }
+ },
+ "type": "text",
+ "group": "渡",
+ "comment": "日轻文库（哔哩文库）。搜索 search.html?keyword=，书库/文库/题材/排行四组分菜单用 vars.section 切换。\n【2026-11-10 修插图 + 提速】原用 `@text` 会连正文里的 <img> 一起删掉（插图章全空）；改为 #TextContent@html + lib blBody()，保留 <img> 只清其余标签。\n提速点：站点本来把插图标成 loading=\"eager\"（前 2 张）/ loading=\"lazy\"（其余 13~18 张），早期版本丢掉了这个属性，阅读器一进章节就抓全部图；现已原样保留，滚到才加载。\n⚠ 站点图偏大且服务器慢：单张 235~431KB、宽 1384~2593px，实测单张约 3.5 秒、6 张并行 3.8 秒（真机浏览器实测），Cloudflare 不缓存（cf-cache-status: DYNAMIC）；站点无缩略图接口（w/size/type/thumb/q 参数均无效，无 CF 缩放、无 webp）。\n已知限制：站点无作者搜索；目录页 43 个「分卷：第N卷」项无链接，已标 isVolume。\n验收范围：沙箱回放（插图章 15 张图含 13 lazy + 2 eager；插图章 20 张含 18 lazy；序章 103 行纯文字）。真机未验——阅读器是否遵守 loading 属性必须真机确认。维护日期：2026-11-10。",
+ "lib": "// 哔哩文库正文：保留插图 <img> 和它的懒加载属性，只清掉多余标签\n// 站点两类图：前 2 张 eager 用 src，其余 lazy 用 data-src（配 lazysizes），都要认\nfn blUrl(tag) {\n  let t = str(tag)\n  let u = match(t, 'data-src=\"([^\"]+)\"', 1)            // 懒加载图优先\n  if (str(u) == '') {\n    u = match(t, 'src=\"([^\"]+)\"', 1)\n  }\n  if (str(u) == '') { return '' }\n  return str(u)\n}\n\n// 保留原站的 loading 属性：eager 的立刻加载，lazy 的滚到才加载。\n// 丢掉它会让阅读器一进章节就抓全部插图（实测一章 15~20 张、单张 235~431KB）。\nfn blImg(tag) {\n  let t = str(tag)\n  let u = blUrl(t)\n  if (u == '') { return '' }\n  let ld = match(t, 'loading=\"([^\"]+)\"', 1)\n  if (str(ld) == '') { return '<img src=\"' + u + '\">' }\n  return '<img src=\"' + str(u) + '\" loading=\"' + str(ld) + '\">'\n}\n\nfn blBody(h) {\n  let s = str(h)\n  // 图片框自带的兜底文案，先整块删掉\n  s = replace(s, '<span[^>]*image-error[^>]*>[^<]*</span>', '', 'g')\n  s = replace(s, '<br[^>]*>', fromCharCode(10), 'gi')\n  s = replace(s, '</p>', fromCharCode(10), 'gi')\n  // 去掉除 <img> 以外的所有标签\n  s = replace(s, '<\\/?(?!img\\b)[a-zA-Z][^>]*>', '', 'g')\n  // 图片统一成 <img src=\"...\" loading=\"...\">，供阅读器当插图渲染\n  s = replace(s, '<img[^>]*>', m => blImg(m[0]), 'gi')\n  s = htmlDecode(s)\n  let out = []\n  for line in split(s, fromCharCode(10)) {\n    let x = trim(str(line))\n    if (x != '') { push(out, x) }\n  }\n  return join(out, fromCharCode(10))\n}\n"
+}

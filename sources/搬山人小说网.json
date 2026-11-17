@@ -1,0 +1,176 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "搬山人小说网",
+ "url": "https://www.banshanren.com",
+ "group": "渡",
+ "type": "text",
+ "enabled": true,
+ "enabledExplore": true,
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+ },
+ "comment": "原生（2026-10-16 实测）www.banshanren.com。排行榜=官方接口 /api/rank?range=N（免登录、只需 UA；1周/2月/3年/4新作/5收藏）。发现页形状自适应：榜单菜单是 JSON、分类是 HTML，共用同一套 list/fields（字段用 typeOf(item) 分支）；接口 tagNames 是数组，须走 tyJoin。搜索用 HTML /search/index?keyword=。目录在详情页内 .chapter_list li a；正文 .chapter_content_box。⚠️ 封面 AES 加密（decrypt.worker.js，原生不执行 JS），未设 coverUrl。",
+ "explore": {
+  "menus": [
+   {
+    "title": "书库"
+   },
+   {
+    "title": "全部小说",
+    "url": "{{source.url}}/all/0-0-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "男频",
+    "url": "{{source.url}}/all/1-0-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "女频",
+    "url": "{{source.url}}/all/2-0-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "排行榜（官方接口）"
+   },
+   {
+    "title": "新作榜",
+    "url": "{{source.url}}/api/rank?range=4"
+   },
+   {
+    "title": "周榜单",
+    "url": "{{source.url}}/api/rank?range=1"
+   },
+   {
+    "title": "月榜单",
+    "url": "{{source.url}}/api/rank?range=2"
+   },
+   {
+    "title": "年榜单",
+    "url": "{{source.url}}/api/rank?range=3"
+   },
+   {
+    "title": "收藏榜",
+    "url": "{{source.url}}/api/rank?range=5"
+   },
+   {
+    "title": "分类"
+   },
+   {
+    "title": "奇幻玄幻",
+    "url": "{{source.url}}/all/0-4-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "BG言情",
+    "url": "{{source.url}}/all/0-5-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "BL耽美",
+    "url": "{{source.url}}/all/0-1-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "GL百合",
+    "url": "{{source.url}}/all/0-2-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "现代都市",
+    "url": "{{source.url}}/all/0-3-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "穿越重生",
+    "url": "{{source.url}}/all/0-7-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "武侠仙侠",
+    "url": "{{source.url}}/all/0-8-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "悬疑惊悚",
+    "url": "{{source.url}}/all/0-10-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "历史军事",
+    "url": "{{source.url}}/all/0-14-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/all/0-6-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "校园",
+    "url": "{{source.url}}/all/0-13-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "同人",
+    "url": "{{source.url}}/all/0-15-0-0-0-0-1-{{page}}/"
+   },
+   {
+    "title": "轻小说",
+    "url": "{{source.url}}/all/0-16-0-0-0-0-1-{{page}}/"
+   }
+  ],
+  "list": "= data != null && data.model != null ? data.model : selAll('.novel_li')",
+  "fields": {
+   "name": "= typeOf(item) == 'map' ? str(item.title) : sel('.title_box a.title@text')",
+   "bookUrl": "= typeOf(item) == 'map' ? source.url + '/novel/' + str(item.slug) : sel('.title_box a.title@href')",
+   "author": "= typeOf(item) == 'map' ? tyJoin(item.authors) : sel('.title_box .info_box:eq(0)@text')",
+   "coverUrl": "= typeOf(item) == 'map' ? str(item.coverUrl) : sel('img@data-src')",
+   "intro": "= typeOf(item) == 'map' ? tyJoin(item.brief) : ''",
+   "kind": "= typeOf(item) == 'map' ? tyJoin(item.tagNames) : ''",
+   "wordCount": "= typeOf(item) == 'map' ? str(item.wordCountFormat) : tyPick(sel('.title_box .info_box:eq(1)@text'), '([0-9.]+万?字)')",
+   "status": "= typeOf(item) == 'map' ? (item.finished == 1 ? '完结' : '连载') : trim(tyPick(sel('.title_box .info_box:eq(1)@text'), '^([^·]+)'))",
+   "lastChapter": "= typeOf(item) == 'map' ? tyJoin(item.latestUpdate) : ''",
+   "updateTime": "= typeOf(item) == 'map' ? str(item.updateTimeDesc) : ''"
+  }
+ },
+ "search": {
+  "url": "{{source.url}}/search/index?keyword={{urlencode(key)}}",
+  "list": ".novel_li",
+  "fields": {
+   "name": ".title_box a.title@text",
+   "bookUrl": ".title_box a.title@href",
+   "author": ".title_box .info_box:eq(0)@text",
+   "status": "= trim(tyPick(sel('.title_box .info_box:eq(1)@text'), '^([^·]+)'))",
+   "wordCount": "= tyPick(sel('.title_box .info_box:eq(1)@text'), '([0-9.]+万?字)')",
+   "coverUrl": "img@data-src"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": ".novel_title_box h1@text",
+   "author": ".novel_title_box .info_box span.hl@text",
+   "kind": ".category_list li a@text",
+   "intro": ".novel_intro_box p@text",
+   "wordCount": "= tyPick(sel('.novel_summary_box@text'), '([0-9.]+万?字)')",
+   "status": "= tyPick(sel('.novel_summary_box@text'), '(完结|连载)')",
+   "tocUrl": "{{book.bookUrl}}"
+  }
+ },
+ "toc": {
+  "list": ".chapter_list li a",
+  "fields": {
+   "title": "text",
+   "url": "href"
+  }
+ },
+ "content": {
+  "text": ".chapter_content_box@html",
+  "replace": [
+   {
+    "pattern": "<span class=\"z count_\\d+\"[^>]*>\\d*</span>",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "<h2[^>]*>[\\s\\S]*?</h2>",
+    "with": "",
+    "flags": "g"
+   }
+  ]
+ },
+ "lib": "fn tyPick(s, re) {\n  let m = match(str(s), re, 1)\n  return m == '' ? '' : m\n}\n\n// 接口里有的字段是数组（如 tagNames: [\"丝袜恋足\",\"NTR\",...]）。\n// 直接 str() 会把整个数组渲染成 [\"…\"]，这里统一按分隔符拼成文本。\nfn tyJoin(v) {\n  if (v == null) { return '' }\n  if (typeOf(v) == 'list') { return join(v, ',') }\n  return str(v)\n}\n",
+ "coverDecode": {
+  "algorithm": "AES/CBC/PKCS7Padding",
+  "key": "V4@.Tx+uXZn)AiH>",
+  "keyEncoding": "utf8",
+  "ivPrefixBytes": 16
+ }
+}

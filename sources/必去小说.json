@@ -1,0 +1,195 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "必去小说",
+ "url": "http://www.ibiquw.org",
+ "group": "渡",
+ "type": "text",
+ "comment": "必去小说网（ibiquw.org，杰奇 CMS）。站点只支持 http。\n· 搜索改 GET 查询串（原源 POST+body 在原生不生效），实测有结果；.toplist li 的 .s1~.s6 = 书名/最新章节/作者/字数/状态/时间，原源把 .s5 当 kind，实为状态。\n· 搜索列表无封面：lib bqCover 按书号推 /files/article/image/{id去末三位}/{id}/{id}s.jpg（951、120281 复算均对）。\n· 详情封面原源用 .pic img，本站已无，改 og:image；目录 .book_list li a 全量内联（4699 章）。\n· 连载组「仙侠」原源 catid 写成 1（与玄幻同页），按完结组口径改成 2。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+  "Accept-Language": "zh-CN,zh;q=0.9"
+ },
+ "lib": "// 搜索列表无封面图：/files/article/image/{书号去末三位}/{书号}/{书号}s.jpg\nfn bqCover(u, base) {\n  let id = match(str(u), '/book/([0-9]+)', 1)\n  if (id == '') { return '' }\n  let n = len(id)\n  let g = '0'\n  if (n > 3) { g = substring(id, 0, n - 3) }\n  return str(base) + '/files/article/image/' + g + '/' + id + '/' + id + 's.jpg'\n}",
+ "explore": {
+  "menus": [
+   {
+    "title": "榜单"
+   },
+   {
+    "title": "默认",
+    "url": "{{source.url}}/xs/quanbu-default-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "总榜",
+    "url": "{{source.url}}/xs/quanbu-allvisit-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "月榜",
+    "url": "{{source.url}}/xs/quanbu-monthvisit-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "周榜",
+    "url": "{{source.url}}/xs/quanbu-weekvisit-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "日榜",
+    "url": "{{source.url}}/xs/quanbu-dayvisit-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "总推",
+    "url": "{{source.url}}/xs/quanbu-allvote-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "月推",
+    "url": "{{source.url}}/xs/quanbu-monthvote-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "周推",
+    "url": "{{source.url}}/xs/quanbu-weekvote-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "日推",
+    "url": "{{source.url}}/xs/quanbu-dayvote-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/xs/quanbu-goodnum-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/xs/quanbu-size-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "最新",
+    "url": "{{source.url}}/xs/quanbu-postdate-0-0-0-0-0-0-{{page}}.html"
+   },
+   {
+    "title": "连载"
+   },
+   {
+    "title": "玄幻",
+    "url": "{{source.url}}/xs/2-default-0-0-0-0-1-0-{{page}}.html"
+   },
+   {
+    "title": "仙侠",
+    "url": "{{source.url}}/xs/2-default-0-0-0-0-1-0-{{page}}.html"
+   },
+   {
+    "title": "都市",
+    "url": "{{source.url}}/xs/3-default-0-0-0-0-1-0-{{page}}.html"
+   },
+   {
+    "title": "军史",
+    "url": "{{source.url}}/xs/4-default-0-0-0-0-1-0-{{page}}.html"
+   },
+   {
+    "title": "网游",
+    "url": "{{source.url}}/xs/5-default-0-0-0-0-1-0-{{page}}.html"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/xs/6-default-0-0-0-0-1-0-{{page}}.html"
+   },
+   {
+    "title": "灵异",
+    "url": "{{source.url}}/xs/7-default-0-0-0-0-1-0-{{page}}.html"
+   },
+   {
+    "title": "言情",
+    "url": "{{source.url}}/xs/8-default-0-0-0-0-1-0-{{page}}.html"
+   },
+   {
+    "title": "其他",
+    "url": "{{source.url}}/xs/9-default-0-0-0-0-1-0-{{page}}.html"
+   },
+   {
+    "title": "完结"
+   },
+   {
+    "title": "玄幻",
+    "url": "{{source.url}}/xs/1-default-0-0-0-0-2-0-{{page}}.html"
+   },
+   {
+    "title": "仙侠",
+    "url": "{{source.url}}/xs/2-default-0-0-0-0-2-0-{{page}}.html"
+   },
+   {
+    "title": "都市",
+    "url": "{{source.url}}/xs/3-default-0-0-0-0-2-0-{{page}}.html"
+   },
+   {
+    "title": "军史",
+    "url": "{{source.url}}/xs/4-default-0-0-0-0-2-0-{{page}}.html"
+   },
+   {
+    "title": "网游",
+    "url": "{{source.url}}/xs/5-default-0-0-0-0-2-0-{{page}}.html"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/xs/6-default-0-0-0-0-2-0-{{page}}.html"
+   },
+   {
+    "title": "灵异",
+    "url": "{{source.url}}/xs/7-default-0-0-0-0-2-0-{{page}}.html"
+   },
+   {
+    "title": "言情",
+    "url": "{{source.url}}/xs/8-default-0-0-0-0-2-0-{{page}}.html"
+   },
+   {
+    "title": "其他",
+    "url": "{{source.url}}/xs/9-default-0-0-0-0-2-0-{{page}}.html"
+   }
+  ],
+  "list": ".sitebox dl",
+  "fields": {
+   "name": "h3 a@text",
+   "bookUrl": "h3 a@href",
+   "coverUrl": "dt img@src",
+   "intro": "dd.book_des@text",
+   "author": "dd.book_other span@text",
+   "lastChapter": "dd.book_other a@text",
+   "updateTime": "span.uptime@text"
+  }
+ },
+ "search": {
+  "url": "{{source.url}}/modules/article/search.php?searchkey={{urlencode(key)}}",
+  "fail": "= key == '' ? '请输入书名或作者名再搜索' : ''",
+  "list": ".toplist li",
+  "fields": {
+   "name": ".s1@text",
+   "bookUrl": ".s1 a@href",
+   "author": ".s3@text",
+   "kind": "",
+   "lastChapter": ".s2@text",
+   "wordCount": ".s4@text",
+   "status": ".s5@text",
+   "updateTime": ".s6@text",
+   "coverUrl": "= bqCover(sel(\".s1 a@href\"), source.url)"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "#info h1@text",
+   "author": ".options span:eq(0)@text",
+   "coverUrl": "meta[property=\"og:image\"]@content",
+   "intro": ".bookinfo_intro@text##^《[^》]*》简介：|《[^》]*》是作者[\\s\\S]*|您要是觉得[\\s\\S]*",
+   "kind": ".title a:eq(1)@text##小说",
+   "lastChapter": ".update a@text",
+   "updateTime": ".options span:eq(1)@text",
+   "status": "meta[property=\"og:novel:status\"]@content"
+  }
+ },
+ "toc": {
+  "list": ".book_list li a",
+  "fields": {
+   "title": "@text",
+   "url": "@href"
+  }
+ },
+ "content": {
+  "text": "#htmlContent@html"
+ }
+}

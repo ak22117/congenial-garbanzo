@@ -1,0 +1,101 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "天域小说",
+ "url": "http://wap.tycqzw.info",
+ "group": "渡",
+ "type": "text",
+ "comment": "天域小说网 · 原生书源。\n2026-10-31 复核：m.zmccx.com 与 www.zmccx.com 均已跳转/不通，实际站点为 wap.tycqzw.info（HTTP）。\n\n目录：详情页的 all.html 一页铺完整本，没有分页。页内混着「↓直达页面底部」和页脚链接，\n已按「含本书目录段 + 数字.html 结尾」双重条件筛掉。\n\n封面：/files/article/image/{前段}/{后段}/{后段}s.jpg，书号 23_23808 要拆成 23/23808。\n列表页本身没有 img，封面靠书号推导。\n\n正文：站点按「第(1/3)页」切页，但最后一页的「下一章」指向目录页而不是下一章，\n所以分页地址按 _2.html / _3.html 自己拼，绝不跟随「下一章」。\n每页开头有「标题第(n/m)页」，净化时整行删掉（只认「第N章」的正则会漏「序章」）。\n\n⚠ 已知问题：最新章节（第576章）的正文被站点塞了别的书的段落，属于站点行为，源改不了。\n⚠ 部分书的简介是站点垃圾数据（例如 \"/>\"），源只做 trim，不改写。",
+ "lib": "\n// ── 天域小说网：只有移动站 m.zmccx.com 可访问（www.zmccx.com 已不通）\nfn sdRoot(u) {\n  let m = match(str(u), '^(https?://[^/]+)', 1)\n  if (str(m) == '') { return 'http://wap.tycqzw.info' }\n  return str(m)\n}\n\nfn sdAbs(u, base) {\n  let s = trim(str(u))\n  if (s == '') { return '' }\n  if (test(s, '^https?://')) { return s }\n  if (!startsWith(s, '/')) { s = '/' + s }\n  return sdRoot(base) + s\n}\n\n// 书目录形如 /190_190931/，取「190_190931」\nfn sdBid(u) {\n  let m = match(str(u), '/([0-9]+_[0-9]+)/', 1)\n  return str(m)\n}\n\n// 封面：/files/article/image/{floor(书码/1000)}/{书码}/{书码}s.jpg\nfn sdCover(u, base) {\n  let id = sdBid(u)\n  if (id == '') { return '' }\n  // 站点封面路径把 23_23808 拆成 23/23808/23808s.jpg（下划线变目录层级，文件名只取后段）\n  let parts = split(id, '_')\n  if (len(parts) < 2) { return '' }\n  let a = str(parts[0])\n  let b = str(parts[1])\n  return sdRoot(base) + '/files/article/image/' + a + '/' + b + '/' + b + 's.jpg'\n}\n\n// ── 目录：all.html 一页铺完整本\n// 页内混着「↓直达页面底部」(href=#bottom) 和页脚链接，它们也能被 href 正则命中，\n// 所以必须同时要求【地址含本书目录段】且【以数字.html 结尾】。\n// ⚠ match 未命中返回空串而不是 null，判断一律用 str(x) == ''。\nfn sdToc(html, bookUrl) {\n  let h = str(html)\n  let b = sdBid(bookUrl)\n  if (b == '') { return [] }\n  let base = sdRoot(bookUrl)\n  let prefix = '/' + b + '/'\n  let q = fromCharCode(39)\n  let res = []\n  let parts = split(h, '<a ')\n  let i = 1\n  let k = 0\n  while (i < len(parts)) {\n    let seg = str(parts[i])\n    i = i + 1\n    let href = str(match(seg, 'href=[' + q + '\"]' + '([^' + q + '\"]+)[' + q + '\"]', 1))\n    let no = match(href, '([0-9]+)\\\\.html$', 1)\n    if (str(no) != '' && indexOf(href, prefix) >= 0) {\n      let title = trim(str(match(seg, '^[^>]*>([^<]*)</a>', 1)))\n      if (title != '') {\n        let u = href\n        if (!test(u, '^https?://')) {\n          if (!startsWith(u, '/')) { u = '/' + u }\n          u = base + u\n        }\n        res[k] = { title: title, url: u }\n        k = k + 1\n      }\n    }\n  }\n  return res\n}\n\n// ── 章节内分页：页内带「第(1/3)页」\n// 最后一页的「下一章」指向目录页（/190_190931/），不能跟随，\n// 分页地址一律按 base + _N.html 自己拼。\nfn sdPageBase(u) {\n  let s = str(u)\n  let m = match(s, '^(.*?)_[0-9]+\\\\.html$', 1)\n  if (str(m) != '') { return str(m) }\n  m = match(s, '^(.*?)\\\\.html$', 1)\n  if (str(m) != '') { return str(m) }\n  return s\n}\n\nfn sdPages(html, cur) {\n  let h = str(html)\n  let tot = match(h, '第\\\\(([0-9]+)/([0-9]+)\\\\)页', 2)\n  let now = match(h, '第\\\\(([0-9]+)/([0-9]+)\\\\)页', 1)\n  if (str(tot) == '' || str(now) == '') { return '' }\n  let total = int(str(tot), 0)\n  let curp = int(str(now), 0)\n  if (total <= 1 || curp >= total || total > 60) { return '' }\n  let base = sdPageBase(str(cur))\n  let out = []\n  let i = curp + 1\n  while (i <= total) {\n    out[len(out)] = base + '_' + str(i) + '.html'\n    i = i + 1\n  }\n  return out\n}\n\n// ── 正文\n// 容器叫 ReadAjax_content，但正文是服务端直出的，不需要执行 JS。\n// 每页夹带「天才一秒记住本站地址…」「亲,记得收藏网址哟」「推荐…新书:<a>…</a>」『加入书签』。\n// 用一条 match 一次取出容器内容，不用 substring（参数语义在表达式层不稳）。\nfn sdText(html) {\n  let h = str(html)\n  let s = str(match(h, 'id=\"chaptercontent\"[^>]*>([\\\\s\\\\S]*?)</div>', 1))\n  if (s == '') { return '' }\n  s = replace(s, '推荐[^<>]{0,12}大神[^<>]{0,20}[:：][\\\\s\\\\S]{0,200}?</a>', '', 'g')\n  s = replace(s, '天才一秒记住本站地址[^<>]{0,90}', '', 'g')\n  s = replace(s, '亲[，,]?记得收藏网址[^<>]{0,40}', '', 'g')\n  s = replace(s, '第[0-9]+章[^<>]{0,60}?第\\\\([0-9]+/[0-9]+\\\\)页[，,]?点击下一页继续阅读[。.]?', '', 'g')\n  s = replace(s, '『加入书签[^』]{0,24}』', '', 'g')\n  s = replace(s, '(<br\\\\s*/?>[ \\\\t\\\\n\\\\r]*){2,}', '\\n', 'g')\n  s = replace(s, '<br\\\\s*/?>', '\\n', 'g')\n  s = replace(s, '</p>', '\\n', 'g')\n  s = replace(s, '<[^>]*>', '', 'g')\n  s = replace(s, '\\r', '', 'g')\n  s = htmlDecode(s)\n  s = replace(s, '&nbsp;', ' ', 'g')\n  s = replace(s, '[ \\\\t]*第[0-9]+章[^\\\\n]{0,60}?第\\\\([0-9]+/[0-9]+\\\\)页[ \\\\t]*', '', 'g')\n  s = replace(s, '[ \\\\t]+', ' ', 'g')\n  s = replace(s, '\\\\n[ \\\\t]+', '\\n', 'g')\n  s = replace(s, '(\\\\n[ \\\\t]*){2,}', '\\n', 'g')\n  // 开头是「序章第(1/2)页」这种标题+分页标记；上面那条只认「第N章」，这里整行删\n  s = replace(s, '^[ \\\\t]*[^\\\\n]*?第\\\\([0-9]+/[0-9]+\\\\)页[ \\\\t]*\\\\n?', '', 'gm')\n  return trim(s)\n}\n",
+ "search": {
+  "url": "= source.url + '/search.php?searchkey=' + urlencode(key)",
+  "list": "div.hot_sale",
+  "fields": {
+   "name": "= trim(sel('p.title@text'))",
+   "author": "= trim(replaceText(first(selAll('p.author@text')), '作者：', ''))",
+   "intro": "= trim(replaceText(sel('p.review@text'), '简介：', ''))",
+   "bookUrl": "= sdAbs(first(selAll('a@href')), source.url)",
+   "coverUrl": "= sdCover(first(selAll('a@href')), source.url)",
+   "lastChapter": "= trim(first(selAll('p.author a@text')))"
+  },
+  "fail": "= page == 1 && key != '' && len(selAll('div.hot_sale')) == 0 ? '没搜到这本书。本站只支持书名检索，请换完整书名再试。' : ''"
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "分类"
+   },
+   {
+    "title": "全部小说",
+    "url": "= source.url + '/xclass/0/' + str(page) + '.html'"
+   },
+   {
+    "title": "玄幻小说",
+    "url": "= source.url + '/xclass/1/' + str(page) + '.html'"
+   },
+   {
+    "title": "修真小说",
+    "url": "= source.url + '/xclass/2/' + str(page) + '.html'"
+   },
+   {
+    "title": "都市小说",
+    "url": "= source.url + '/xclass/3/' + str(page) + '.html'"
+   },
+   {
+    "title": "穿越小说",
+    "url": "= source.url + '/xclass/4/' + str(page) + '.html'"
+   },
+   {
+    "title": "网游小说",
+    "url": "= source.url + '/xclass/5/' + str(page) + '.html'"
+   },
+   {
+    "title": "科幻小说",
+    "url": "= source.url + '/xclass/6/' + str(page) + '.html'"
+   },
+   {
+    "title": "其他小说",
+    "url": "= source.url + '/xclass/7/' + str(page) + '.html'"
+   }
+  ],
+  "list": "div.hot_sale",
+  "fields": {
+   "name": "= trim(sel('p.title@text'))",
+   "author": "= trim(replaceText(first(selAll('p.author@text')), '作者：', ''))",
+   "intro": "= trim(replaceText(sel('p.review@text'), '简介：', ''))",
+   "bookUrl": "= sdAbs(sel('a@href'), source.url)",
+   "coverUrl": "= sdCover(sel('a@href'), source.url)",
+   "lastChapter": "= trim(first(selAll('p.author a@text')))"
+  },
+  "fail": "= page == 1 && len(selAll('div.hot_sale')) == 0 ? '这一页没解析出内容，站点可能在换域名，请稍后再试' : ''"
+ },
+ "detail": {
+  "url": "= book.bookUrl",
+  "fields": {
+   "name": "= trim(sel('header span.title@text', body))",
+   "author": "= trim(match(body, '作者：([^<]*)', 1))",
+   "kind": "= trim(match(body, '类别：([^<]*)', 1))",
+   "coverUrl": "= sel('.synopsisArea_detail img@src', body)",
+   "intro": "= trim(sel('.synopsisArea p.review@text', body))",
+   "status": "= trim(match(body, '状态：([^<]*)', 1))",
+   "updateTime": "= replaceText(trim(match(body, '更新：([^<]*)', 1)), 'T', ' ')",
+   "lastChapter": "= trim(first(selAll('.directoryArea p a@text', body)))",
+   "tocUrl": "= book.bookUrl + 'all.html'"
+  },
+  "fail": "= trim(match(body, '状态：([^<]*)', 1)) == '' ? '详情页没解析出内容，请稍后再试' : ''"
+ },
+ "toc": {
+  "list": "= sdToc(body, book.bookUrl)",
+  "fields": {
+   "title": "$.title",
+   "url": "$.url"
+  },
+  "fail": "= len(sdToc(body, book.bookUrl)) == 0 ? '没取到目录，请稍后再试' : ''"
+ },
+ "content": {
+  "text": "= sdText(body)",
+  "nextUrl": "= sdPages(body, baseUrl)",
+  "batch": 3,
+  "fail": "= sdText(body) == '' ? '这一章在站点上是空的，请从目录换一章' : ''"
+ }
+}

@@ -1,0 +1,59 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "快眼看书",
+ "url": "http://www.xbotaodz.info",
+ "group": "渡",
+ "type": "text",
+ "enabled": true,
+ "comment": "原生（2026-10-16 转写并实测）。⚠️ 源地址用 http://www.xbotaodz.info —— 原兼容源写的 http://www.booksky.cc 现在会 302 跳到这个域，而引擎不保证跟随 302（妙笔阁那次就因此详情页空白），故直接写最终域；booksky.cc 若恢复直连可改回。正文在 #chaptercontent，用 <br> 分段、没有 <p>（原兼容源的 @textNodes 改成 @html 保换行），正文单页无分页。页面里的两处 #center_tip（\"最新网址：www.xbotaodz.info\"）已用 ## 规则整块删除，另保留原源的文字净化。封面在 xbotaodz.info 自己域名上，实测 200 image/jpeg 无防盗链。站点无发现页（原源 enabledExplore=false），故本源只有搜索。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+ },
+ "rate": "20/60000",
+ "search": {
+  "url": "{{source.url}}/modules/article/search.php?searchkey={{urlencode(key)}}",
+  "list": ".librarylist li",
+  "fields": {
+   "name": ".info span:eq(0) a@text",
+   "author": ".info span:eq(1)@text##作者：",
+   "coverUrl": ".pt-ll-l a img@src",
+   "lastChapter": ".last a@text",
+   "bookUrl": ".info span:eq(0) a@href",
+   "updateTime": ".last@text##^最新章节：.*\\(|\\)$"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": ".w-left h1@text",
+   "author": ".novelinfo-l li:eq(0)@text##作者：",
+   "coverUrl": ".novelinfo-r a img@src",
+   "intro": ".novelintro@text##各位书友要是.*",
+   "kind": "[property=\"og:novel:category\"]@content",
+   "status": "[property=\"og:novel:status\"]@content",
+   "lastChapter": "[property=\"og:novel:latest_chapter_name\"]@content"
+  }
+ },
+ "toc": {
+  "list": ".fulldir ul li a",
+  "fields": {
+   "title": "text",
+   "url": "href"
+  }
+ },
+ "content": {
+  "text": "#chaptercontent@html##<div id=\"center_tip\">[\\s\\S]*?</div>",
+  "replace": [
+   {
+    "pattern": "最新网址[：:]\\s*www\\.[a-zA-Z0-9.]+",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "<div id=\"center_tip\">[\\s\\S]*?</div>",
+    "with": "",
+    "flags": "g"
+   }
+  ]
+ }
+}

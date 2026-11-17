@@ -1,0 +1,124 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "拷贝漫画",
+ "url": "https://www.copy4000.com",
+ "type": "comic",
+ "group": "渡·漫画",
+ "comment": "由 yckceo id/200 的 JS 书源转写为原生书源：无 JavaScript、无 WebView。发现页的真实数据在 .exemptComic-box 的 list 属性里（HTML 转义的单引号对象数组），不是 DOM 里的模板占位符。目录与正文都是一次请求返回全部结果。",
+ "enabled": true,
+ "enabledExplore": true,
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Referer": "https://www.copy4000.com/",
+  "Accept": "application/json, text/plain, */*",
+  "Accept-Language": "zh-CN,zh;q=0.9",
+  "Origin": "https://www.copy4000.com"
+ },
+ "lib": "fn htmlList(html) {\n  let raw = match(html, 'exemptComic-box[^>]*list=\"([^\"]+)\"', 1)\n  if str(raw) == '' {\n    return []\n  }\n  // 站点 list 属性是 Python 风格 {'key': 'val'}，值内含单引号时用 &quot; 定界\n  // 按上下文模式替换，避免把值内引号（如 Don't）误伤\n  let s = replaceText(raw, '{&#x27;', '{\"')\n  s = replaceText(s, ', &#x27;', ', \"')\n  s = replaceText(s, '&#x27;:', '\":')\n  s = replaceText(s, ': &#x27;', ': \"')\n  s = replaceText(s, '&#x27;,', '\",')\n  s = replaceText(s, '&#x27;}', '\"}')\n  s = replaceText(s, '&quot;', '\"')\n  s = replaceText(s, '&#x27;', \"'\")\n  s = replaceText(s, '&#39;', \"'\")\n  s = htmlDecode(s)\n  return json(s)\n}\n\nfn tocChapters(p) {\n  if p == null {\n    return []\n  }\n  if p.groups == null {\n    return []\n  }\n  let out = []\n  for g in values(p.groups) {\n    for c in g.chapters {\n      if c.id != null {\n        push(out, c)\n      }\n    }\n  }\n  let asc = 0\n  let desc = 0\n  for c, i in out {\n    if i > 0 {\n      let a = int(match(out[i - 1].name, '(\\d+)', 1), -1)\n      let b = int(match(c.name, '(\\d+)', 1), -1)\n      if a >= 0 && b >= 0 {\n        if a < b {\n          asc = asc + 1\n        }\n        if a > b {\n          desc = desc + 1\n        }\n      }\n    }\n  }\n  if desc > asc {\n    let rev = []\n    for c, i in out {\n      push(rev, out[len(out) - 1 - i])\n    }\n    return rev\n  }\n  return out\n}\n\nfn imagesOf(v) {\n  if v == null {\n    return []\n  }\n  let out = []\n  for x in v {\n    let u = ''\n    if typeOf(x) == 'string' {\n      u = x\n    } else if x != null {\n      u = default(x.url, x.src, '')\n    }\n    if startsWith(u, 'http') {\n      push(out, u)\n    }\n  }\n  return out\n}",
+ "search": {
+  "url": "= source.url + '/api/kb/web/searchcl/comics?offset=' + str((page - 1) * 12) + '&platform=2&limit=12&q=' + urlencode(default(trim(key), '漫')) + '&q_type='",
+  "list": "$.results.list[*]",
+  "fields": {
+   "name": "$.name",
+   "author": "$.author[0].name",
+   "coverUrl": "$.cover",
+   "bookUrl": "{{source.url}}/comic/{{$.path_word}}"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "全部",
+    "url": "{{source.url}}/comics?ordering=-datetime_updated&offset={{(page - 1) * 50}}&limit=50"
+   },
+   {
+    "title": "爱情",
+    "url": "{{source.url}}/comics?theme=aiqing&ordering=-datetime_updated&offset={{(page - 1) * 50}}&limit=50"
+   },
+   {
+    "title": "奇幻",
+    "url": "{{source.url}}/comics?theme=qihuan&ordering=-datetime_updated&offset={{(page - 1) * 50}}&limit=50"
+   },
+   {
+    "title": "热血",
+    "url": "{{source.url}}/comics?theme=rexue&ordering=-datetime_updated&offset={{(page - 1) * 50}}&limit=50"
+   },
+   {
+    "title": "校园",
+    "url": "{{source.url}}/comics?theme=xiaoyuan&ordering=-datetime_updated&offset={{(page - 1) * 50}}&limit=50"
+   },
+   {
+    "title": "悬疑",
+    "url": "{{source.url}}/comics?theme=xuanyi&ordering=-datetime_updated&offset={{(page - 1) * 50}}&limit=50"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/comics?theme=kehuan&ordering=-datetime_updated&offset={{(page - 1) * 50}}&limit=50"
+   },
+   {
+    "title": "治愈",
+    "url": "{{source.url}}/comics?theme=zhiyu&ordering=-datetime_updated&offset={{(page - 1) * 50}}&limit=50"
+   }
+  ],
+  "list": "= htmlList(body)",
+  "fields": {
+   "name": "$.name",
+   "author": "= default($.author[0].name, '')",
+   "coverUrl": "$.cover",
+   "bookUrl": "= source.url + '/comic/' + $.path_word"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": ".comicParticulars-title-right h6@title||.comicParticulars-title-right h6@text",
+   "author": ".comicParticulars-title-right ul li:nth-child(3) a@text",
+   "coverUrl": ".comicParticulars-left-img img@data-src",
+   "intro": ".intro@text",
+   "kind": ".comicParticulars-tag a@text"
+  },
+  "keep": {
+   "path": "= match(book.bookUrl, '/comic/([^/]+)', 1)",
+   "pwd": "= match(body, \"var\\s+(?:cct|ccz)\\s*=\\s*'([^']+)'\", 1)",
+   "dnt": "= match(body, 'id=\"dnt\"[^>]*value=\"([^\"]*)\"', 1)"
+  }
+ },
+ "toc": {
+  "url": "= source.url + '/comicdetail/' + default(book.vars.path, match(book.bookUrl, '/comic/([^/]+)', 1)) + '/chapters'",
+  "headers": {
+   "dnts": "{{default(book.vars.dnt, '9')}}"
+  },
+  "fail": "= data.code != 200 ? default(data.message, '目录接口返回失败') : ''",
+  "let": {
+   "raw": "= data.results",
+   "ccz": "= default(book.vars.pwd, '0p0zzpvv.nmn.oop')",
+   "payload": "= len(default(raw, '')) < 32 ? null : json(fromBytes(decrypt('AES/CBC/PKCS5Padding', hexBytes(replace(raw, '^.{16}', '')), ccz, match(raw, '^(.{16})', 1))))"
+  },
+  "list": "= tocChapters(payload)",
+  "fields": {
+   "title": "$.name",
+   "url": "= source.url + '/comic/' + default(book.vars.path, match(book.bookUrl, '/comic/([^/]+)', 1)) + '/chapter/' + $.id",
+   "isVolume": "= $.type == 2"
+  },
+  "batch": 16
+ },
+ "content": {
+  "let": {
+   "k": "= match(body, \"var\\s+contentKey\\s*=\\s*'([^']+)'\", 1)",
+   "pwd": "= default(match(body, \"var\\s+(?:cct|ccz)\\s*=\\s*'([^']+)'\", 1), book.vars.pwd, '0p0zzpvv.nmn.oop')",
+   "d": "= str(k) == '' ? [] : json(fromBytes(decrypt('AES/CBC/PKCS5Padding', hexBytes(replace(k, '^.{16}', '')), pwd, match(k, '^(.{16})', 1))))"
+  },
+  "fail": "= str(k) == '' ? '章节页没有 contentKey，可能需要登录或页面结构已变化' : (len(imagesOf(d)) == 0 ? '本章没有解析到图片，可能接口结构已变化' : '')",
+  "images": "= imagesOf(d)",
+  "imageDecode": {
+   "algorithm": "AES/CBC/PKCS5Padding",
+   "key": "= pwd",
+   "iv": "= pwd"
+  },
+  "mediaHeaders": {
+   "Referer": "https://www.copy4000.com/",
+   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  },
+  "batch": 16
+ }
+}
