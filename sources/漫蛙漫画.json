@@ -1,0 +1,344 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "漫蛙漫画",
+ "url": "https://manwaxu.cc",
+ "group": "渡·漫画",
+ "type": "comic",
+ "comment": "漫画站，数据全走公开 JSON 接口。图片 CDN 的 /en_images/ 路径是密文，去掉该路径段即同一份明文（源内自动处理），也可在设置里切成本地解密。线路 10 条带自动探活，换域名不用重装。零后端，单文件即用。",
+ "rate": "",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "Accept-Language": "zh-CN,zh;q=0.9,zh-TW;q=0.8",
+  "Accept": "application/json, text/javascript, */*; q=0.01",
+  "X-Requested-With": "XMLHttpRequest"
+ },
+ "scriptLimits": {
+  "requests": 90
+ },
+ "vars": [
+  {
+   "key": "host",
+   "label": "线路",
+   "options": [
+    "https://manwaxu.cc",
+    "https://mwmwbu.cc",
+    "https://manwabb.cc",
+    "https://manwakk.cc",
+    "https://manwann.cc",
+    "https://manwazz.cc",
+    "https://manwayy.cc",
+    "https://manwaqq.cc",
+    "https://manwarr.cc",
+    "https://mwmwff.cc"
+   ],
+   "optionsScript": "hostOptions",
+   "default": "https://manwaxu.cc"
+  },
+  {
+   "key": "imgSource",
+   "label": "图片源",
+   "options": [
+    "https://mwtuwu.cc",
+    "https://tu.mwzu.cc",
+    "https://ce.mwzu.cc"
+   ],
+   "optionsScript": "imgOptions",
+   "default": "https://mwtuwu.cc"
+  },
+  {
+   "key": "sortBy",
+   "label": "排序",
+   "options": [
+    "最新更新",
+    "新作首发",
+    "人气热门"
+   ],
+   "default": "最新更新",
+   "filter": true
+  },
+  {
+   "key": "status",
+   "label": "状态",
+   "options": [
+    "不限",
+    "连载",
+    "完结"
+   ],
+   "default": "不限",
+   "filter": true
+  },
+  {
+   "key": "area",
+   "label": "地区",
+   "options": [
+    "不限",
+    "0",
+    "1",
+    "2"
+   ],
+   "default": "不限",
+   "filter": true
+  },
+  {
+   "key": "tag",
+   "label": "分类",
+   "options": [
+    "不限",
+    "恋爱",
+    "古风",
+    "校园",
+    "玄幻",
+    "悬疑",
+    "耽美",
+    "热血",
+    "霸总",
+    "搞笑",
+    "穿越",
+    "后宫",
+    "科幻",
+    "冒险",
+    "修真",
+    "治愈",
+    "少女"
+   ],
+   "default": "不限",
+   "filter": true
+  },
+  {
+   "key": "pageSize",
+   "label": "每页条数",
+   "options": [
+    "18",
+    "30",
+    "48"
+   ],
+   "default": "30"
+  },
+  {
+   "key": "hotMenus",
+   "label": "热搜词菜单",
+   "options": [
+    "0",
+    "1"
+   ],
+   "default": "0"
+  },
+  {
+   "key": "decrypt",
+   "label": "本地解密（旁路失效时开）",
+   "options": [
+    "0",
+    "1"
+   ],
+   "default": "0"
+  }
+ ],
+ "cache": {
+  "mw_hot": {
+   "url": "{{source.url}}/api/search/hot",
+   "value": "$.data[*].keyword",
+   "ttl": 1800,
+   "when": "= vars.hotMenus == '1'"
+  }
+ },
+ "actions": [
+  {
+   "label": "单章分段测速",
+   "script": "actChapterBench"
+  },
+  {
+   "label": "🚀 测速选最优线路",
+   "script": "actBest"
+  },
+  {
+   "label": "📶 显示各线路延迟",
+   "script": "actPing"
+  },
+  {
+   "label": "切换线路",
+   "script": "actHost"
+  },
+  {
+   "label": "复位主站",
+   "script": "actHostMain"
+  },
+  {
+   "label": "站点体检",
+   "script": "actDoctor"
+  },
+  {
+   "label": "图片源测速",
+   "script": "actImg"
+  },
+  {
+   "label": "切换图片源",
+   "script": "actImgSet"
+  },
+  {
+   "label": "明文旁路自检",
+   "script": "actPlain"
+  },
+  {
+   "label": "解析新域名",
+   "script": "actNewHost"
+  }
+ ],
+ "explore": {
+  "script": "doExplore",
+  "list": "= __items",
+  "fields": {
+   "name": "$.name",
+   "author": "$.author",
+   "kind": "$.kind",
+   "intro": "$.intro",
+   "coverUrl": "$.coverUrl",
+   "bookUrl": "$.bookUrl"
+  },
+  "dynamicMenus": {
+   "script": "menus"
+  },
+  "menus": [
+   {
+    "title": "最新更新",
+    "url": "/api/cate?s=0"
+   },
+   {
+    "title": "新作首发",
+    "url": "/api/cate?s=1"
+   },
+   {
+    "title": "人气热门",
+    "url": "/api/cate?s=2"
+   },
+   {
+    "title": "人气总榜",
+    "url": "/api/rank?sort=0&timeType=0"
+   },
+   {
+    "title": "人气周榜",
+    "url": "/api/rank?sort=0&timeType=2"
+   },
+   {
+    "title": "人气日榜",
+    "url": "/api/rank?sort=0&timeType=3"
+   },
+   {
+    "title": "完结榜",
+    "url": "/api/rank?sort=1&timeType=0"
+   },
+   {
+    "title": "新番榜",
+    "url": "/api/rank?sort=2&timeType=0"
+   },
+   {
+    "title": "恋爱",
+    "url": "/api/cate?t=恋爱"
+   },
+   {
+    "title": "古风",
+    "url": "/api/cate?t=古风"
+   },
+   {
+    "title": "校园",
+    "url": "/api/cate?t=校园"
+   },
+   {
+    "title": "玄幻",
+    "url": "/api/cate?t=玄幻"
+   },
+   {
+    "title": "悬疑",
+    "url": "/api/cate?t=悬疑"
+   },
+   {
+    "title": "耽美",
+    "url": "/api/cate?t=耽美"
+   },
+   {
+    "title": "热血",
+    "url": "/api/cate?t=热血"
+   },
+   {
+    "title": "霸总",
+    "url": "/api/cate?t=霸总"
+   },
+   {
+    "title": "搞笑",
+    "url": "/api/cate?t=搞笑"
+   },
+   {
+    "title": "穿越",
+    "url": "/api/cate?t=穿越"
+   },
+   {
+    "title": "后宫",
+    "url": "/api/cate?t=后宫"
+   },
+   {
+    "title": "科幻",
+    "url": "/api/cate?t=科幻"
+   },
+   {
+    "title": "冒险",
+    "url": "/api/cate?t=冒险"
+   },
+   {
+    "title": "修真",
+    "url": "/api/cate?t=修真"
+   },
+   {
+    "title": "治愈",
+    "url": "/api/cate?t=治愈"
+   },
+   {
+    "title": "少女",
+    "url": "/api/cate?t=少女"
+   }
+  ]
+ },
+ "search": {
+  "script": "doSearch"
+ },
+ "detail": {
+  "script": "doDetail",
+  "keep": {
+   "mwCid": "$.id",
+   "mwTitle": "$.title",
+   "mwTagUp": "$.tagUp",
+   "mwCover": "$.cover"
+  }
+ },
+ "toc": {
+  "script": "doToc",
+  "reverse": false
+ },
+ "coverHeaders": {
+  "Referer": "https://manwaxu.cc/",
+  "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+ },
+ "content": {
+  "script": "doContent",
+  "fetch": {
+   "chapterNeighbors": {
+    "url": "{{source.url}}/api/comic/chapter/info/{{$.chid}}",
+    "headers": {
+     "Accept": "application/json"
+    }
+   }
+  },
+  "images": "$.images",
+  "mediaHeaders": {
+   "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+   "Accept-Language": "zh-CN,zh;q=0.9",
+   "Referer": "https://manwaxu.cc/"
+  },
+  "imageDecode": {
+   "algorithm": "AES/CBC/PKCS7Padding",
+   "key": "0B6666A0-BB59-1381-B746-a0E4C9AC",
+   "keyEncoding": "utf8",
+   "ivPrefixBytes": 16
+  }
+ },
+ "js": "// ===== 漫蛙漫画 轻页原生（v2）=====\n// 站点数据全在 /api/*，游客可读；图片走 CDN 的 /en_images/ 是 AES 密文，\n// 去掉该路径段就是同一份明文图（源内 fixImg 处理）。线路域名会换，故带自动探活。\n\nvar HOSTS = [\"https://manwaxu.cc\", \"https://mwmwbu.cc\", \"https://manwabb.cc\", \"https://manwakk.cc\", \"https://manwann.cc\", \"https://manwazz.cc\", \"https://manwayy.cc\", \"https://manwaqq.cc\", \"https://manwarr.cc\", \"https://mwmwff.cc\"];\nvar IMGS = [\"https://mwtuwu.cc\", \"https://tu.mwzu.cc\", \"https://ce.mwzu.cc\"];\nvar TAGS = [\"恋爱\", \"古风\", \"校园\", \"玄幻\", \"悬疑\", \"耽美\", \"热血\", \"霸总\", \"搞笑\", \"穿越\", \"后宫\", \"科幻\", \"冒险\", \"修真\", \"治愈\", \"少女\"];\nvar SORTS = [\"最新更新\", \"新作首发\", \"人气热门\"]\nRANK_MENUS = [(\"人气总榜\", 0, 0), (\"人气周榜\", 0, 2), (\"人气日榜\", 0, 3), (\"完结榜\", 1, 0), (\"新番榜\", 2, 0)];\n\nvar UA = \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36\";\nvar NOVEL = { status: -1, day: 0, sortId: 0, level: 0 };\nvar VIDEO = { year: 0, typeId: 0, typeId1: 0, area: \"\", lang: \"\", status: -1, day: 0, level: 0 };\n\n// ---------- 变量 ----------\nfunction vget(k, dft) {\n  var v = vars.get(k);\n  return (v === undefined || v === null || v === \"\") ? dft : String(v);\n}\nfunction host() {\n  var h = vget(\"host\", \"\");\n  return h.indexOf(\"http\") === 0 ? h.replace(/\\/+$/, \"\") : \"https://manwaxu.cc\";\n}\nfunction imgBase() {\n  var v = vget(\"imgSource\", \"\");\n  return v.indexOf(\"http\") === 0 ? v.replace(/\\/+$/, \"\") : \"https://mwtuwu.cc\";\n}\nfunction pageSize() {\n  var n = parseInt(vget(\"pageSize\", \"30\"), 10);\n  if (!n || n < 10) n = 30;\n  return n > 100 ? 100 : n;\n}\nfunction decryptOn() { return vget(\"decrypt\", \"0\") === \"1\"; }\n\n// ---------- 请求 ----------\nfunction hdr() {\n  return {\n    \"User-Agent\": UA,\n    \"Accept-Language\": \"zh-CN,zh;q=0.9,zh-TW;q=0.8\",\n    \"Accept\": \"application/json, text/javascript, */*; q=0.01\",\n    \"X-Requested-With\": \"XMLHttpRequest\",\n    \"Referer\": host() + \"/\"\n  };\n}\nfunction getJSON(path, what) {\n  var r = http.get(host() + path, { headers: hdr() });\n  var body = String((r && (r.body || r.content)) || \"\");\n  var j = null;\n  try { j = JSON.parse(body); } catch (e) { j = null; }\n  if (!r || r.ok === false || r.status >= 400) {\n    throw new Error((what || \"接口\") + \" HTTP \" + (r ? r.status : \"?\") + \"：\" + body.slice(0, 60));\n  }\n  if (!j) throw new Error((what || \"接口\") + \" 返回非 JSON：\" + body.slice(0, 60));\n  if (j.code !== 200 && j.code !== 0) {\n    throw new Error((what || \"接口\") + \" code=\" + j.code + \" \" + (j.msg || j.message || \"\"));\n  }\n  return j.data;\n}\nfunction postJSON(path, obj, what) {\n  var h = hdr();\n  h[\"Content-Type\"] = \"application/json;charset=UTF-8\";\n  var r = http.post(host() + path, JSON.stringify(obj), { headers: h });\n  var body = String((r && (r.body || r.content)) || \"\");\n  var j = null;\n  try { j = JSON.parse(body); } catch (e) { j = null; }\n  if (!r || r.ok === false || r.status >= 400) throw new Error((what || \"列表\") + \" HTTP \" + (r ? r.status : \"?\"));\n  if (!j) throw new Error((what || \"列表\") + \" 返回非 JSON：\" + body.slice(0, 60));\n  if (j.code !== 200) throw new Error((what || \"列表\") + \" code=\" + j.code);\n  return j.data;\n}\n\n// ---------- 文本 / 图片 ----------\nfunction unesc(s) {\n  return String(s == null ? \"\" : s)\n    .replace(/<br\\s*\\/?>/gi, \"\\n\").replace(/<[^>]+>/g, \"\")\n    .replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\")\n    .replace(/&quot;/g, '\"').replace(/&#39;/g, \"'\").replace(/&apos;/g, \"'\")\n    .replace(/&ldquo;/g, \"“\").replace(/&rdquo;/g, \"”\").replace(/&lsquo;/g, \"‘\").replace(/&rsquo;/g, \"’\")\n    .replace(/&hellip;/g, \"…\").replace(/&mdash;/g, \"—\").replace(/&ndash;/g, \"–\").replace(/&middot;/g, \"·\")\n    .replace(/&#(\\d+);/g, function (_, n) { return String.fromCharCode(parseInt(n, 10)); });\n}\nfunction fixImg(u) {\n  u = String(u == null ? \"\" : u).trim();\n  if (!u) return \"\";\n  return u.replace(\"/en_images/\", \"/\").replace(/^https?:\\/\\/[^\\/]+/, imgBase());\n}\n\n// ---------- 探活（只回文字，不写 vars） ----------\n// 并发探活：http.all 默认 8 并发，10 条线路约 200ms 出结果，不再串行 1 秒\nfunction probeRace(pool) {\n  var reqs = [];\n  for (var i = 0; i < pool.length; i++) {\n    reqs.push({ url: pool[i] + \"/api/search?type=mh&page=1&pageSize=1&keyword=\" + encodeURIComponent(\"漫\"),\n                headers: { \"User-Agent\": UA, \"Accept\": \"application/json\" }, timeout: 6000 });\n  }\n  var t0 = Date.now();\n  var res = http.all(reqs, { concurrency: 8 });\n  var cost = Math.max(1, Date.now() - t0);\n  var out = [];\n  for (var k = 0; k < pool.length; k++) {\n    var r = res && res[k];\n    var ok = false, why = \"\";\n    try {\n      var j = JSON.parse(String((r && (r.body || \"\")) || \"{}\"));\n      ok = !!(r && r.ok !== false && r.status === 200 && j && j.code === 200);\n      if (!ok) why = \"HTTP\" + (r ? r.status : \"?\");\n    } catch (e) { ok = false; why = \"非 JSON\"; }\n    // 并发下拿不到单条耗时，用整批耗时作上界（同一批发完的总时间），足够排序用\n    out.push({ host: pool[k], ok: ok, ms: ok ? cost : 99999, why: why });\n  }\n  return out;\n}\n// 24 小时内的测速结果直接复用，进发现页不再每次探活\nvar LAT_KEY = \"mw_lat\";\nfunction latCache() {\n  var raw = cache.get(LAT_KEY);\n  if (!raw) return null;\n  try { var o = JSON.parse(raw); return (o && o.t > 0 && Date.now() - o.t < 86400000) ? o : null; } catch (e) { return null; }\n}\nfunction latSave(order, ms) {\n  try { cache.put(LAT_KEY, JSON.stringify({ t: Date.now(), order: order, ms: ms })); } catch (e) {}\n}\n\nfunction probeOnce(h) {\n  var t0 = Date.now();\n  try {\n    var r = http.get(h + \"/api/search?type=mh&page=1&pageSize=1&keyword=\" + encodeURIComponent(\"漫\"),\n                     { headers: { \"User-Agent\": UA, \"Accept\": \"application/json\" }, timeout: 6000 });\n    var j = JSON.parse(String((r && (r.body || r.content)) || \"{}\"));\n    if (r && r.status === 200 && j && j.code === 200) return { host: h, ok: true, ms: Date.now() - t0 };\n    return { host: h, ok: false, ms: Date.now() - t0, why: \"HTTP\" + (r ? r.status : \"?\") + \"/code\" + (j ? j.code : \"?\") };\n  } catch (e) {\n    return { host: h, ok: false, ms: Date.now() - t0, why: e.message.slice(0, 40) };\n  }\n}\nfunction probePool(pool) {\n  var res = probeRace(pool);\n  var live = 0;\n  for (var i = 0; i < res.length; i++) if (res[i].ok) live++;\n  // http.all 若不可用（老宿主/接口缺失）会整批失败，此时退回串行，逐条拿真实毫秒\n  if (live > 0) return res;\n  var out = [];\n  for (var j = 0; j < pool.length; j++) out.push(probeOnce(pool[j]));\n  return out;\n}\n// 选项脚本：活线路按耗时排前面，死的直接不出现；全部失败时返回原池，但**不**选死线\nfunction hostOptions() {\n  var c = latCache();\n  if (c && c.order && c.order.length) {\n    var cached = c.order.slice();\n    if (cached.indexOf(host()) < 0) cached.unshift(host());\n    return cached;\n  }\n  var res = probePool(HOSTS).filter(function (x) { return x.ok; });\n  res.sort(function (a, b) { return a.ms - b.ms; });\n  var list = res.map(function (x) { return x.host; });\n  // 当前线路保底：探活抖动或偶发 5xx 时不至于把自己选掉\n  if (list.indexOf(host()) < 0) list.unshift(host());\n  // 国内网络下各线路延迟差 3-5 倍，测到更快就自动切过去（老线路明显更慢时切，避免抖动来回跳）\n  var cur = host();\n  var curMs = 0, bestMs = 0;\n  for (var i = 0; i < res.length; i++) {\n    if (res[i].host === cur) curMs = res[i].ms;\n    if (!bestMs) bestMs = res[i].ms;\n  }\n  if (bestMs && res.length && res[0].host !== cur && (!curMs || curMs > bestMs * 1.6)) {\n    vars.set(\"host\", res[0].host);\n  }\n  latSave(list, null);\n  return list.length ? list : HOSTS.slice(0, 1);\n}\nfunction imgOptions() {\n  var res = probePool(IMGS).filter(function (x) { return x.ok; });\n  res.sort(function (a, b) { return a.ms - b.ms; });\n  var list = res.map(function (x) { return x.host; });\n  if (list.indexOf(imgBase()) < 0) list.unshift(imgBase());\n  return list.length ? list : IMGS.slice(0, 1);\n}\n\n// ---------- 字段映射 ----------\nfunction mapItem(x) {\n  var url = String(x.url || x.link || (\"/comic/\" + x.id));\n  if (url.indexOf(\"http\") !== 0) url = host() + url;\n  return {\n    name: unesc(x.title || x.name || \"\"),\n    author: unesc(x.author || \"\"),\n    kind: unesc(x.tags || x.tag || x.cName || \"\"),\n    intro: unesc(x.intro || x.description || \"\"),\n    coverUrl: fixImg(x.cover || x.pic || \"\"),\n    bookUrl: url,\n    lastChapter: unesc(x.lastChapter || x.chapterName || \"\")\n  };\n}\nfunction cidOf(u) {\n  var m = String(u || \"\").match(/\\/comic\\/(\\d+)/);\n  return m ? m[1] : String(u || \"\").replace(/\\D/g, \"\");\n}\nfunction chidOf(u) {\n  var m = String(u || \"\").match(/\\/comic\\/\\d+\\/(\\d+)/);\n  return m ? m[1] : \"\";\n}\n\n// ---------- 搜索 ----------\nfunction doSearch(ctx) {\n  ctx = ctx || {};\n  var kw = String(ctx.key || ctx.keyword || \"\").trim();\n  if (!kw) return [];\n  var f = ctx.field || \"keyword\";\n  var d = getJSON(\"/api/search?type=mh&page=\" + (ctx.page || 1) + \"&pageSize=\" + pageSize() +\n                  \"&\" + f + \"=\" + encodeURIComponent(kw), \"搜索\");\n  var list = d.list || [];\n  var out = [];\n  for (var i = 0; i < list.length; i++) out.push(mapItem(list[i]));\n  return out;\n}\n\n// ---------- 发现 ----------\nfunction sortId(s) {\n  var i = SORTS.indexOf(String(s || \"\"));\n  if (i === 0) return 0;\n  if (i === 1) return 1;\n  if (i === 2) return 3;\n  return 0;\n}\nfunction doExplore(ctx) {\n  ctx = ctx || {};\n  var pg = parseInt(ctx.page || 1, 10) || 1;\n  var sort = sortId(vget(\"sortBy\", SORTS[0]));\n  // 发现页点分类：优先用菜单标题，其次用筛选变量\n  var sort = sortId(vget(\"sortBy\", SORTS[0]));\n  var menuTitle = (ctx.menu && (ctx.menu.title || ctx.menu.name)) || ctx.title || \"\";\n  var menuTag = menuTitle ? menuTagFor(menuTitle) : \"\";\n  var tag = menuTag || vget(\"tag\", \"不限\");\n  if (tag === \"不限\") tag = \"\";\n  var sortOverride = -1;\n  if (menuTitle) { var si = SORTS.indexOf(menuTitle); if (si >= 0) sortOverride = sortId(menuTitle); }\n  var area = vget(\"area\", \"不限\");\n  if (area === \"不限\") area = \"\";\n  var status = vget(\"status\", \"不限\");\n\n  // 站点 /api/cate 的 tag 字段服务端不生效，分类走搜索接口的 tags\n  if (tag) {\n    var s = getJSON(\"/api/search?type=mh&page=\" + pg + \"&pageSize=\" + pageSize() +\n                    \"&tags=\" + encodeURIComponent(tag), \"分类\");\n    var sl = s.list || [];\n    var so = [];\n    for (var i = 0; i < sl.length; i++) so.push(mapItem(sl[i]));\n    return so;\n  }\n\n  var body = {\n    page: { page: pg, pageSize: pageSize() },\n    category: \"comic\",\n    sort: sortOverride >= 0 ? sortOverride : sort,\n    comic: {\n      status: status === \"完结\" ? 0 : (status === \"连载\" ? 1 : -1),\n      day: 0,\n      tag: \"\",\n      level: 0,\n      areaId: parseInt(area, 10) || 0\n    },\n    video: VIDEO,\n    novel: NOVEL\n  };\n  var d = postJSON(\"/api/cate\", body, menuTitle || vget(\"sortBy\", SORTS[0]) || \"列表\");\n  var list = d.list || [];\n  var out = [];\n  for (var k = 0; k < list.length; k++) out.push(mapItem(list[k]));\n  return out;\n}\n\n// ---------- 详情 ----------\nfunction doDetail(ctx) {\n  ctx = ctx || {};\n  var cid = cidOf(ctx.book && (ctx.book.bookUrl || ctx.book.tocUrl));\n  if (!cid) throw new Error(\"无法识别书籍 ID：\" + ((ctx.book && ctx.book.bookUrl) || \"\"));\n  var d = getJSON(\"/api/comic/\" + cid, \"详情\") || {};\n  var st = d.status;\n  var extra = [];\n  if (d.cName || d.cid) extra.push(\"分类：\" + unesc(d.cName || d.cid));\n  if (d.editTime) extra.push(\"最近编辑：\" + d.editTime);\n  var intro = unesc(d.intro || d.description || \"\");\n  if (extra.length) intro = intro + \"\\n\\n\" + extra.join(\"　\");\n  return {\n    name: unesc(d.title || \"\"),\n    author: unesc(d.author || \"\"),\n    kind: unesc(d.tags || \"\"),\n    intro: intro,\n    coverUrl: fixImg(d.cover || d.banner || \"\"),\n    status: st === 1 ? \"连载中\" : (st === 0 ? \"已完结\" : \"\"),\n    tocUrl: host() + \"/comic/\" + cid\n  };\n}\n\n// ---------- 目录 ----------\nfunction doToc(ctx) {\n  ctx = ctx || {};\n  var cid = cidOf((ctx.book && (ctx.book.bookUrl || ctx.book.tocUrl)) || \"\");\n  if (!cid) throw new Error(\"目录阶段拿不到书籍 ID\");\n  var d = getJSON(\"/api/comic/\" + cid + \"/chapters\", \"目录\") || {};\n  var list = d.list || [];\n  var out = [];\n  for (var i = 0; i < list.length; i++) {\n    var c = list[i];\n    var t = unesc(c.title || (\"第\" + c.sortId + \"话\"));\n    if (c.picCount) t = t + \"（\" + c.picCount + \"P）\";\n    if (c.isVip === true || c.coin > 0) t = \"[锁] \" + t;\n    out.push({ title: t, url: host() + \"/comic/\" + cid + \"/\" + c.id, isVip: c.isVip === true });\n  }\n  return out;\n}\n\n// ---------- 正文 ----------\nfunction doContent(ctx) {\n  ctx = ctx || {};\n  var chid = chidOf(ctx.chapter && ctx.chapter.url);\n  if (!chid) throw new Error(\"无法识别章节 ID：\" + ((ctx.chapter && ctx.chapter.url) || \"\"));\n  var imgs = [];\n  var seen = {};\n  var page = 1;\n  var totalPages = 1;\n  while (page <= 40) {\n    var d = getJSON(\"/api/comic/image/\" + chid + \"?page=\" + page + \"&page_size=100\" +\n                    \"&image_source=\" + encodeURIComponent(imgBase()), \"章节图片\");\n    var list = (d && d.images) || [];\n    for (var i = 0; i < list.length; i++) {\n      var u = fixImg(list[i] && (list[i].url || list[i]));\n      if (u && !seen[u]) { seen[u] = 1; imgs.push(u); }\n    }\n    var pg = (d && d.pagination) || {};\n    totalPages = parseInt(pg.total_pages || 1, 10) || 1;\n    if (page >= totalPages || list.length === 0) break;\n    page++;\n  }\n  if (!imgs.length) throw new Error(\"该章没有取到图片（id=\" + chid + \"）\");\n  var html = [];\n  for (var k = 0; k < imgs.length; k++) html.push('<p><img src=\"' + imgs[k] + '\"/></p>');\n  return {\n    title: unesc((ctx.chapter && ctx.chapter.title) || \"\"),\n    images: imgs,\n    text: html.join(\"\\n\")\n  };\n}\n\n// 站内热搜词，当成「搜索」菜单\nfunction hotKeywords(ctx) {\n  var d = getJSON(\"/api/search/hot\", \"热搜\");\n  var arr = (d && d.list) || d || [];\n  var lines = [];\n  for (var i = 0; i < arr.length && i < 30; i++) {\n    var kw = arr[i].keyword || arr[i].name || arr[i];\n    if (kw) lines.push(String(kw).replace(/::/g, \" \") + \"::/api/search/hot#\" + encodeURIComponent(kw));\n  }\n  return lines.join(\"\\n\");\n}\n\n// ---------- 设置页动作 ----------\n\n// 自适应测速：并发打全部线路，写缓存并直接切最快；输出一行结论\n\nfunction actHost(ctx) {\n  var pool = hostOptions();\n  var cur = host();\n  var idx = -1;\n  for (var i = 0; i < pool.length; i++) if (pool[i] === cur) idx = i;\n  var next = pool[(idx + 1) % pool.length];\n  vars.set(\"host\", next);\n  return \"线路 → \" + next + \"（可用池 \" + pool.length + \" 条）\";\n}\nfunction actHostMain(ctx) {\n  vars.set(\"host\", HOSTS[0]);\n  return \"复位 \" + HOSTS[0];\n}\nfunction actImg(ctx) {\n  var res = probePool(IMGS);\n  var lines = [];\n  for (var i = 0; i < res.length; i++) {\n    var x = res[i];\n    lines.push((x.host === imgBase() ? \"* \" : \"  \") + x.host.replace(\"https://\", \"\") + \"  \" +\n               (x.ok ? \"通 \" + x.ms + \"ms\" : \"断 \" + (x.why || \"\")));\n  }\n  return \"当前图片源：\" + imgBase() + \"\\n\" + lines.join(\"\\n\");\n}\nfunction actImgSet(ctx) {\n  var pool = imgOptions();\n  var cur = imgBase();\n  var idx = -1;\n  for (var i = 0; i < pool.length; i++) if (pool[i] === cur) idx = i;\n  var next = pool[(idx + 1) % pool.length];\n  vars.set(\"imgSource\", next);\n  return \"图片源 → \" + next;\n}\nfunction actDoctor(ctx) {\n  var r = [];\n  function step(name, fn) {\n    try { r.push(name + \" 通 \" + fn()); } catch (e) { r.push(name + \" 断 \" + e.message.slice(0, 80)); }\n  }\n  step(\"热搜\", function () { var d = getJSON(\"/api/search/hot\", \"热搜\"); return ((d && d.list) || d || []).length + \" 条\"; });\n  step(\"搜索\", function () { var d = getJSON(\"/api/search?type=mh&page=1&pageSize=2&keyword=\" + encodeURIComponent(\"漫\"), \"搜索\"); return ((d.list) || []).length + \" 条\"; });\n  step(\"列表\", function () {\n    var d = postJSON(\"/api/cate\", {\n      page: { page: 1, pageSize: 2 }, category: \"comic\", sort: 0,\n      comic: { status: -1, day: 0, tag: \"\", level: 0, areaId: 0 }, video: VIDEO, novel: NOVEL\n    }, \"列表\");\n    return ((d.list) || []).length + \" 条\";\n  });\n  step(\"详情\", function () { var d = getJSON(\"/api/comic/94397\", \"详情\"); return unesc(d.title || \"\"); });\n  step(\"目录\", function () { var d = getJSON(\"/api/comic/94397/chapters\", \"目录\"); return ((d.list) || []).length + \" 章\"; });\n  step(\"图片接口\", function () {\n    var first = (getJSON(\"/api/comic/94397/chapters\", \"目录\").list || [])[0] || {};\n    var d = getJSON(\"/api/comic/image/\" + first.id + \"?page=1&page_size=100&image_source=\" + encodeURIComponent(imgBase()), \"图片\");\n    return ((d.images) || []).length + \" 张\";\n  });\n  r.push(\"线路：\" + host());\n  r.push(\"图片源：\" + imgBase());\n  r.push(\"本地解密：\" + (decryptOn() ? \"开\" : \"关（走 /en_images/ 明文旁路）\"));\n  return r.join(\"\\n\");\n}\nfunction actPlain(ctx) {\n  // 检查两件事：①图片明文旁路是否有效 ②首图本机是否读得到（首图失败＝阅读页第一页空白）\n  var base = imgBase();\n  var d = getJSON(\"/api/comic/image/28535?page=1&page_size=100&image_source=\" + encodeURIComponent(base), \"图片\");\n  var list = (d && d.images) || [];\n  if (!list.length) return \"没取到样图，跳过\";\n  var u = String((list[0] && list[0].url) || list[0]);\n  var plain = fixImg(u).replace(\"/en_images/\", \"/\").replace(/\\/{2,}/g, \"/\").replace(\"https:/\", \"https://\");\n  var first = http.get(plain, { headers: { \"User-Agent\": UA, \"Referer\": base + \"/\", \"Accept\": \"image/*\" } });\n  var size = String((first && first.body) || \"\").length;\n  var head = String((first && first.body) || \"\").slice(0, 4);\n  var isImg = first && first.status === 200 && (/^RIFF|^\\uFF\\uD8|^\\u0089PNG|^GIF8/.test(head));\n  return \"首图 \" + (plain.split(\"/\").pop()) + \" → HTTP\" + (first && first.status) + \" / \" + size + \"B\\n\" +\n         \"头 \" + JSON.stringify(head) + (isImg ? \"（图片头正常）\" : \"（不是图片）\") + \"\\n\" +\n         \"图片源 \" + base + (isImg ? \"\" : \"  → 换「切换图片源」再试\");\n}\nfunction actNewHost(ctx) {\n  var seeds = [\"https://mwmw.cc\", \"https://mwmw1.cc\", \"https://manwalu.cc\", \"https://manwa.xin\"];\n  var found = [];\n  for (var i = 0; i < seeds.length; i++) {\n    try {\n      var r = http.get(seeds[i] + \"/\", { headers: { \"User-Agent\": UA } });\n      var body = String((r && r.body) || \"\");\n      var re = /atob\\(\\s*[\"']([A-Za-z0-9+/=]{8,})[\"']\\s*\\)/g;\n      var m;\n      while ((m = re.exec(body)) !== null) {\n        var url = \"\";\n        try { url = decodeURIComponent(escape(base64Decode(m[1]))); } catch (e) { url = \"\"; }\n        if (url && url.indexOf(\"http\") === 0 && found.indexOf(url) < 0) found.push(url);\n      }\n      var re2 = /https?:\\/\\/[a-z0-9-]+\\.(?:cc|com|net|vip|xin)(?=[^a-z0-9-])/gi;\n      while ((m = re2.exec(body)) !== null) {\n        if (found.indexOf(m[0]) < 0) found.push(m[0]);\n      }\n    } catch (e) { /* 种子站打不开就算了 */ }\n  }\n  found = found.filter(function (x) { return /^https?:\\/\\/[a-z0-9.-]+(:\\d+)?$/i.test(x); });\n  if (!found.length) return \"没解析出新域名：\\n\" + seeds.join(\"\\n\") + \"\\n（可在电脑上跑 manwa_scan.py 更新线路池）\";\n  var live = [];\n  for (var k = 0; k < found.length; k++) {\n    if (!/^https?:\\/\\/[a-z0-9.-]+(:\\d+)?$/i.test(found[k])) continue;\n    var x = probeOnce(found[k]);\n    if (x.ok) live.push(found[k]);\n  }\n  return \"解析到 \" + found.length + \" 个候选，可用 \" + live.length + \" 个：\\n\" + live.join(\"\\n\");\n}\n// ===== 热搜词 / 排行榜 / 单章分段测速 =====\nvar HOT_KEY = \"mw_hot\";\n\n// 热搜词当分类用：进发现页时取一次（cache 存 30 分钟），点词即搜\nfunction hotItems() {\n  var raw = cache.get(HOT_KEY);\n  var list = [];\n  if (raw) { try { list = JSON.parse(raw); } catch (e) { list = []; } }\n  if (!list || !list.length) {\n    try {\n      var d = getJSON(\"/api/search/hot\", \"热搜\");\n      var arr = (d && d.list) || d || [];\n      for (var i = 0; i < arr.length && i < 40; i++) {\n        var kw = arr[i] && (arr[i].keyword || arr[i].name || arr[i]);\n        if (kw && kw.indexOf(\"::\") < 0) list.push(String(kw));\n      }\n      cache.put(HOT_KEY, JSON.stringify(list));\n    } catch (e) { list = []; }\n  }\n  return list;\n}\n\n// 排行榜：/api/rank 是真榜单，sort=0人气/1完结/2新番，timeType=0总榜/1月榜/2周榜/3日榜\nvar RANK_GROUPS = [\n  [\"人气总榜\", 0, 0], [\"人气周榜\", 0, 2], [\"人气日榜\", 0, 3],\n  [\"完结榜\", 1, 0], [\"新番榜\", 2, 0]\n];\nfunction doRank(ctx) {\n  ctx = ctx || {};\n  var title = String((ctx.menu && (ctx.menu.title || ctx.menu.name)) || ctx.title || \"\");\n  var sort = 0, time = 0, found = false;\n  for (var i = 0; i < RANK_GROUPS.length; i++) {\n    if (RANK_GROUPS[i][0] === title) { sort = RANK_GROUPS[i][1]; time = RANK_GROUPS[i][2]; found = true; }\n  }\n  if (!found) sort = 0;\n  var pg = parseInt(ctx.page || 1, 10) || 1;\n  var d = getJSON(\"/api/rank?page=\" + pg + \"&pageSize=\" + pageSize() + \"&sort=\" + sort + \"&timeType=\" + time, \"排行榜\") || {};\n  var arr = d.list || [], out = [];\n  for (var j = 0; j < arr.length; j++) out.push(mapItem(arr[j]));\n  return out;\n}\n\n// 单章分段测速：把「站点慢」和「宿主并发/解密慢」分开\nfunction actChapterBench(ctx) {\n  var t0 = Date.now();\n  var d = getJSON(\"/api/comic/image/1350435?page=1&page_size=100&image_source=\" + encodeURIComponent(imgBase()), \"图片列表\");\n  var list = (d && d.images) || [];\n  var tList = Date.now() - t0;\n  if (!list.length) return \"样章没取到图片\";\n  var urls = [];\n  for (var i = 0; i < list.length; i++) urls.push(fixImg(list[i] && (list[i].url || list[i])));\n  var t1 = Date.now();\n  var r = http.get(urls[0], { headers: { \"User-Agent\": UA, \"Referer\": host() + \"/\" } });\n  var firstMs = Date.now() - t1;\n  var firstLen = String((r && r.body) || \"\").length;\n  var t2 = Date.now();\n  var n = 0;\n  for (var k = 1; k < urls.length && k <= 5; k++) {\n    var rr = http.get(urls[k], { headers: { \"User-Agent\": UA, \"Referer\": host() + \"/\" } });\n    if (rr && rr.status === 200) n++;\n  }\n  var seqMs = Date.now() - t2;\n  var avg = n ? Math.round(seqMs / n) : 0;\n  return \"章节 \" + list.length + \" 张 / 列表 \" + tList + \"ms\\n\" +\n         \"首图 \" + firstMs + \"ms \" + firstLen + \"B\\n\" +\n         \"其后 \" + n + \" 张串行 \" + seqMs + \"ms（均 \" + avg + \"ms/张）\\n\" +\n         \"估算全章串行 \" + Math.round(firstMs + avg * (list.length - 1)) + \"ms\\n\" +\n         (firstMs < 1000 && avg * list.length > 20000\n            ? \"→ 单张不慢、全章慢：瓶颈在宿主并发，去「其他设置-兼容与诊断」把图片并发调到 8/12\"\n            : \"→ 单张与全章同量级：站点侧延迟，正常\");\n}\n\n// 发现页固定分类：主列表 3 档排序 + 16 个题材（题材走搜索接口的 tags）\nfunction menus(ctx) {\n  var lines = [];\n  for (var i = 0; i < SORTS.length; i++) lines.push(SORTS[i] + \"::/api/cate\");\n  for (var j = 0; j < TAGS.length; j++) lines.push(TAGS[j] + \"::/api/cate\");\n  return lines.join(\"\\n\");\n}\n// 分类条目的地址：排序条目 /api/cate，题材条目 /api/cate（按 *_menuTag 选择），都只做标记，真正请求在 doExplore\nfunction menuTagFor(title) {\n  for (var i = 0; i < SORTS.length; i++) if (SORTS[i] === title) return \"\";\n  for (var j = 0; j < TAGS.length; j++) if (TAGS[j] === title) return TAGS[j];\n  return \"\";\n}\nfunction base64Decode(s) {\n  var chars = \"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\";\n  var out = \"\", i = 0, buf = 0, bits = 0;\n  for (i = 0; i < s.length; i++) {\n    var c = chars.indexOf(s.charAt(i));\n    if (c < 0) continue;\n    buf = (buf << 6) | c; bits += 6;\n    if (bits >= 8) { bits -= 8; out += String.fromCharCode((buf >> bits) & 0xFF); }\n  }\n  return out;\n}\n\n// ===== 精确延迟探测（国内直连口径）=====\n// probeRace 并发拿不到单条毫秒，只能用整批总时长糊弄排序。\n// 这里改成：并发筛可用 → 串行精确测延迟。10 条线路串行约 1 秒，换来真实数据。\nfunction hostProbeExact(h, timeoutMs) {\n  var t0 = Date.now();\n  try {\n    var r = http.get(h + \"/api/search?type=mh&page=1&pageSize=1&keyword=\" + encodeURIComponent(\"漫\"),\n      { headers: { \"User-Agent\": UA, \"Accept\": \"application/json\" }, timeout: timeoutMs || 6000 });\n    var ms = Date.now() - t0;\n    var j = null;\n    try { j = JSON.parse(String((r && (r.body || r.content)) || \"{}\")); } catch (e) { j = null; }\n    if (r && r.status === 200 && j && j.code === 200) return { host: h, ok: true, ms: ms };\n    var why = \"\";\n    if (r && r.status === 403) why = \"403 被拦\";\n    else if (r && r.status === 429) why = \"429 限流\";\n    else if (r && r.status) why = \"HTTP \" + r.status;\n    else if (!j) why = \"非 JSON\";\n    else why = \"code \" + (j.code || \"?\");\n    return { host: h, ok: false, ms: ms, why: why };\n  } catch (e) {\n    return { host: h, ok: false, ms: Date.now() - t0, why: String(e.message || e).slice(0, 20) };\n  }\n}\n\n// 串行精确测全部线路。10 条 × ~100ms ≈ 1 秒，值得。\nfunction hostProbeAll() {\n  var out = [];\n  for (var i = 0; i < HOSTS.length; i++) out.push(hostProbeExact(HOSTS[i], 6000));\n  return out;\n}\n\n// 延迟分级（实测 63–134ms；300ms 以上算慢）\nfunction hostGrade(ms) {\n  if (ms <= 100) return \"🟢 快\";\n  if (ms <= 300) return \"🟡 中\";\n  return \"🔴 慢\";\n}\n\n// 📶 延迟排序 + 一键切最快（带延迟显示）\nfunction actPing(ctx) {\n  if (typeof ui !== \"undefined\" && ui && ui.toast) ui.toast(\"正在精确测 \" + HOSTS.length + \" 条线路…\");\n  var t0 = Date.now();\n  var res = hostProbeAll();\n  var cost = Math.max(1, Date.now() - t0);\n  var ok = [], i;\n  for (i = 0; i < res.length; i++) if (res[i].ok) ok.push(res[i]);\n  ok.sort(function (a, b) { return a.ms - b.ms; });\n  if (ok.length) latSave(ok.map(function (x) { return x.host; }), null);\n\n  var cur = host();\n  var lines = [];\n  for (i = 0; i < res.length; i++) {\n    var x = res[i];\n    var name = x.host.replace(\"https://\", \"\");\n    var mark = x.host === cur ? \"▶ \" : \"  \";\n    if (x.ok) {\n      var ratio = ok.length ? x.ms / ok[0].ms : 1;\n      lines.push(mark + name + \"  \" + x.ms + \"ms  \" + hostGrade(x.ms) +\n        (ratio > 1.05 ? \"  \" + ratio.toFixed(1) + \"x\" : \"\"));\n    } else {\n      lines.push(mark + name + \"  ⛔ \" + (x.why || \"\"));\n    }\n  }\n  var head;\n  if (ok.length) {\n    head = \"📶 延迟排序｜可用 \" + ok.length + \"/\" + res.length + \"｜国内直连｜测速耗时 \" + cost + \"ms\\n最快 \" +\n      ok[0].host.replace(\"https://\", \"\") + \" \" + ok[0].ms + \"ms \" + hostGrade(ok[0].ms) +\n      \"｜当前 \" + cur.replace(\"https://\", \"\") + \"\\n\";\n  } else {\n    head = \"❌ \" + res.length + \" 条线路全不通（测速耗时 \" + cost + \"ms）\\n\";\n  }\n  return head + lines.join(\"\\n\");\n}\n\n// 🚀 测速并自动切到最快\nfunction actBest(ctx) {\n  if (typeof ui !== \"undefined\" && ui && ui.toast) ui.toast(\"正在测速 \" + HOSTS.length + \" 条线路…\");\n  var t0 = Date.now();\n  var res = hostProbeAll();\n  var cost = Math.max(1, Date.now() - t0);\n  var ok = [], i;\n  for (i = 0; i < res.length; i++) if (res[i].ok) ok.push(res[i]);\n  ok.sort(function (a, b) { return a.ms - b.ms; });\n  if (!ok.length) {\n    var why0 = [];\n    for (i = 0; i < res.length && i < 4; i++) {\n      why0.push(res[i].host.replace(\"https://\", \"\") + \" \" + (res[i].why || \"不通\"));\n    }\n    return \"❌ \" + HOSTS.length + \" 条线路全不通（\" + cost + \"ms）\\n\" + why0.join(\"\\n\") +\n      \"\\n换网络或稍后重试。\";\n  }\n  latSave(ok.map(function (x) { return x.host; }), null);\n  var cur = host();\n  var curMs = 0, curOk = false;\n  for (i = 0; i < res.length; i++) if (res[i].host === cur) { curMs = res[i].ms; curOk = res[i].ok; }\n  vars.set(\"host\", ok[0].host);\n\n  var note;\n  if (cur === ok[0].host) note = \"当前已是最快线路\";\n  else if (!curOk) note = \"原线路不通，已切到 \" + ok[0].host.replace(\"https://\", \"\");\n  else note = \"已切到 \" + ok[0].host.replace(\"https://\", \"\") + \"（\" + curMs + \"ms → \" + ok[0].ms +\n    \"ms，快 \" + ((1 - ok[0].ms / Math.max(1, curMs)) * 100).toFixed(0) + \"%）\";\n\n  var tail = [];\n  for (i = 0; i < ok.length && i < 3; i++) tail.push(ok[i].host.replace(\"https://\", \"\") + \" \" + ok[i].ms + \"ms\");\n  return \"🚀 \" + note + \"\\n可用 \" + ok.length + \"/\" + res.length + \"｜测速耗时 \" + cost + \"ms\" +\n    \"\\n前三：\" + tail.join(\" / \");\n}\n"
+}

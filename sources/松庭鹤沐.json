@@ -1,0 +1,695 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "松庭鹤沐",
+ "group": "渡",
+ "url": "https://bookshelf.html5.qq.com",
+ "type": "text",
+ "rate": "30/10000",
+ "comment": "QQ阅读(qbread)榜单源 · 轻页原生书源（sourceFormat=native）。\n由 @share-html 的兼容版《松庭鹤沐》按 harmony-book-source-engine 的《公共书源规则开发文档》重写：发现/搜索/详情/目录/正文全部改成声明式规则 + 表达式，不再使用 @js:/<js> 脚本。\n一级 = 大类（46 个）；二级 = 该大类的「全部」+ 278 个子分类，全部取自接口 subcategory 字段（count>0），原源里 8 个无效子类（现实 6 个、纯爱 2 个）与若干改名分类已按接口对齐；随后逐个实测，把返回空列表或报错的 6 个分类去掉（中国军事、世界史、区域经济、马克思哲学、伊斯兰教、家装策略秘籍），现存 324 个可点分类。\nsub 参数必须百分号编码；地址写根相对 /qbread/...，由书源地址补全。\n分页：接口按 20 对齐，写 start=(page-1)*20、count=20。\n正文：ads-read 接口要求 POST，且必须带固定 Q-GUID 头（缺失或换成随机值均返回 401），请求体由表达式拼装；书号从书籍变量的 bookId 读取（详情阶段 keep），章节号从 chapter.url 里的 seq 取。\n搜索：newopensearch 接口的 start/end 是结果下标，写 start=(page-1)*20、end=page*20-1（原源写的 start=page-1 是错的，第 2 页会重复第 1 页）。搜索结果的 bid 与 qbread 的 resourceID 不同源，原源用 <js>1100000000+parseInt(bid)</js> 换算，本版把它写成表达式 bookid=1100000000+int(bid)，实测可取到详情。\n封面：榜单/详情接口有 picurl；搜索接口只有书号，按站点的 cover/<末三位>/<bid>/b_<bid>.jpg 规则拼。\n正文换行：接口用 CRLF + 两个空格分段，replace 规则把 \\r\\n[ \\t]* 换成真正的换行；替换值必须是换行符本身，写成字面 \\n 会把每一段都显示成“\\n”开头的文字。\n章节失败的提示：目录/正文都加了 retry 1；正文为空（下架、试读、接口调整）时用 fail 报出原因，不再只显示一句“章节获取失败”。\n已知限制：① 正文依赖 QQ 阅读私有接口与固定 Q-GUID，随时可能失效；② 付费/受限章节接口会返回 ret≠0，源里用 fail 直接报出接口文案；③ 本版在 Node 回归里跑通了五个阶段（真实接口），并抽 220 本书逐本核对目录与 3 个位置的正文；未在真机轻页内逐项验收。维护日期：2026-10-22\n\n2026-10-22 v2（我这边）修改：① 封面仍用数值目录（实测该站 cover/001/ 是 404、cover/1/ 才是 200），但改成 match 分组再 int，避开 substring 参数语义不稳；② replace 显式 flags=g；③ kind 只留分类，不再重复字数/状态；④ rate 10/10000 → 30/10000；⑤ Q-GUID 提到 vars，失效可直接改；⑥ content 的三重 bookId 回退收进 lib 的 bidOf()（注意：content.let 是拿到响应后才求值，body 在请求前就要用，不能引用 let）。\n⑦ 每个阶段都补了 headers：引擎的请求只读阶段 headers（顶层 headers 在回放里不生效，实测「incorrect referer」），两处都留着最稳。\n· 注意：正文接口的 BookID 必须是**字符串**，写成数字会回 400 invalid Request Param（实测）。\n⑧ 分组按约定改为「渡」（type=text 的小说源）。\n⑨ 按「常用子类」精简：每个分组保留「全部」+ 接口 count≥100 的子类（99 个），删掉 185 个内容很少的子类；子类清单可由 /qbread/api/rank/list 的 subcategory 复核。\n⑩ 再去掉「只剩全部」的分组 21 个（悬疑侦探、现实、纯爱、心理、出版军事、政治、出版历史、社科、养生、投资、经济、亲子、两性、哲学、宗教、传记、科普、自然、美食、休闲、时尚），这些组的子类 count 都 < 100；需要时可用搜索查找其中的书。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 10; MI 8 Build/QKQ1.190828.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.101 Mobile Safari/537.36",
+  "Referer": "https://bookshelf.html5.qq.com/qbread"
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "都市"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1505&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "都市生活",
+    "url": "/qbread/api/rank/list?groupid=1505&start={{(page-1)*20}}&count=20&sub=%E9%83%BD%E5%B8%82%E7%94%9F%E6%B4%BB"
+   },
+   {
+    "title": "异术超能",
+    "url": "/qbread/api/rank/list?groupid=1505&start={{(page-1)*20}}&count=20&sub=%E5%BC%82%E6%9C%AF%E8%B6%85%E8%83%BD"
+   },
+   {
+    "title": "娱乐明星",
+    "url": "/qbread/api/rank/list?groupid=1505&start={{(page-1)*20}}&count=20&sub=%E5%A8%B1%E4%B9%90%E6%98%8E%E6%98%9F"
+   },
+   {
+    "title": "商战职场",
+    "url": "/qbread/api/rank/list?groupid=1505&start={{(page-1)*20}}&count=20&sub=%E5%95%86%E6%88%98%E8%81%8C%E5%9C%BA"
+   },
+   {
+    "title": "青春校园",
+    "url": "/qbread/api/rank/list?groupid=1505&start={{(page-1)*20}}&count=20&sub=%E9%9D%92%E6%98%A5%E6%A0%A1%E5%9B%AD"
+   },
+   {
+    "title": "玄幻"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1501&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "东方玄幻",
+    "url": "/qbread/api/rank/list?groupid=1501&start={{(page-1)*20}}&count=20&sub=%E4%B8%9C%E6%96%B9%E7%8E%84%E5%B9%BB"
+   },
+   {
+    "title": "异世大陆",
+    "url": "/qbread/api/rank/list?groupid=1501&start={{(page-1)*20}}&count=20&sub=%E5%BC%82%E4%B8%96%E5%A4%A7%E9%99%86"
+   },
+   {
+    "title": "高武世界",
+    "url": "/qbread/api/rank/list?groupid=1501&start={{(page-1)*20}}&count=20&sub=%E9%AB%98%E6%AD%A6%E4%B8%96%E7%95%8C"
+   },
+   {
+    "title": "王朝争霸",
+    "url": "/qbread/api/rank/list?groupid=1501&start={{(page-1)*20}}&count=20&sub=%E7%8E%8B%E6%9C%9D%E4%BA%89%E9%9C%B8"
+   },
+   {
+    "title": "仙侠"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1504&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "幻想修仙",
+    "url": "/qbread/api/rank/list?groupid=1504&start={{(page-1)*20}}&count=20&sub=%E5%B9%BB%E6%83%B3%E4%BF%AE%E4%BB%99"
+   },
+   {
+    "title": "神话修真",
+    "url": "/qbread/api/rank/list?groupid=1504&start={{(page-1)*20}}&count=20&sub=%E7%A5%9E%E8%AF%9D%E4%BF%AE%E7%9C%9F"
+   },
+   {
+    "title": "现代修真",
+    "url": "/qbread/api/rank/list?groupid=1504&start={{(page-1)*20}}&count=20&sub=%E7%8E%B0%E4%BB%A3%E4%BF%AE%E7%9C%9F"
+   },
+   {
+    "title": "古典仙侠",
+    "url": "/qbread/api/rank/list?groupid=1504&start={{(page-1)*20}}&count=20&sub=%E5%8F%A4%E5%85%B8%E4%BB%99%E4%BE%A0"
+   },
+   {
+    "title": "修真文明",
+    "url": "/qbread/api/rank/list?groupid=1504&start={{(page-1)*20}}&count=20&sub=%E4%BF%AE%E7%9C%9F%E6%96%87%E6%98%8E"
+   },
+   {
+    "title": "奇幻"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1502&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "史诗奇幻",
+    "url": "/qbread/api/rank/list?groupid=1502&start={{(page-1)*20}}&count=20&sub=%E5%8F%B2%E8%AF%97%E5%A5%87%E5%B9%BB"
+   },
+   {
+    "title": "现代魔法",
+    "url": "/qbread/api/rank/list?groupid=1502&start={{(page-1)*20}}&count=20&sub=%E7%8E%B0%E4%BB%A3%E9%AD%94%E6%B3%95"
+   },
+   {
+    "title": "剑与魔法",
+    "url": "/qbread/api/rank/list?groupid=1502&start={{(page-1)*20}}&count=20&sub=%E5%89%91%E4%B8%8E%E9%AD%94%E6%B3%95"
+   },
+   {
+    "title": "另类幻想",
+    "url": "/qbread/api/rank/list?groupid=1502&start={{(page-1)*20}}&count=20&sub=%E5%8F%A6%E7%B1%BB%E5%B9%BB%E6%83%B3"
+   },
+   {
+    "title": "历史"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1506&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "架空历史",
+    "url": "/qbread/api/rank/list?groupid=1506&start={{(page-1)*20}}&count=20&sub=%E6%9E%B6%E7%A9%BA%E5%8E%86%E5%8F%B2"
+   },
+   {
+    "title": "秦汉三国",
+    "url": "/qbread/api/rank/list?groupid=1506&start={{(page-1)*20}}&count=20&sub=%E7%A7%A6%E6%B1%89%E4%B8%89%E5%9B%BD"
+   },
+   {
+    "title": "两宋元明",
+    "url": "/qbread/api/rank/list?groupid=1506&start={{(page-1)*20}}&count=20&sub=%E4%B8%A4%E5%AE%8B%E5%85%83%E6%98%8E"
+   },
+   {
+    "title": "两晋隋唐",
+    "url": "/qbread/api/rank/list?groupid=1506&start={{(page-1)*20}}&count=20&sub=%E4%B8%A4%E6%99%8B%E9%9A%8B%E5%94%90"
+   },
+   {
+    "title": "历史传记",
+    "url": "/qbread/api/rank/list?groupid=1506&start={{(page-1)*20}}&count=20&sub=%E5%8E%86%E5%8F%B2%E4%BC%A0%E8%AE%B0"
+   },
+   {
+    "title": "军事"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1507&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "抗战烽火",
+    "url": "/qbread/api/rank/list?groupid=1507&start={{(page-1)*20}}&count=20&sub=%E6%8A%97%E6%88%98%E7%83%BD%E7%81%AB"
+   },
+   {
+    "title": "战争幻想",
+    "url": "/qbread/api/rank/list?groupid=1507&start={{(page-1)*20}}&count=20&sub=%E6%88%98%E4%BA%89%E5%B9%BB%E6%83%B3"
+   },
+   {
+    "title": "科幻空间"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1509&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "末世危机",
+    "url": "/qbread/api/rank/list?groupid=1509&start={{(page-1)*20}}&count=20&sub=%E6%9C%AB%E4%B8%96%E5%8D%B1%E6%9C%BA"
+   },
+   {
+    "title": "时空穿梭",
+    "url": "/qbread/api/rank/list?groupid=1509&start={{(page-1)*20}}&count=20&sub=%E6%97%B6%E7%A9%BA%E7%A9%BF%E6%A2%AD"
+   },
+   {
+    "title": "进化变异",
+    "url": "/qbread/api/rank/list?groupid=1509&start={{(page-1)*20}}&count=20&sub=%E8%BF%9B%E5%8C%96%E5%8F%98%E5%BC%82"
+   },
+   {
+    "title": "未来世界",
+    "url": "/qbread/api/rank/list?groupid=1509&start={{(page-1)*20}}&count=20&sub=%E6%9C%AA%E6%9D%A5%E4%B8%96%E7%95%8C"
+   },
+   {
+    "title": "星际文明",
+    "url": "/qbread/api/rank/list?groupid=1509&start={{(page-1)*20}}&count=20&sub=%E6%98%9F%E9%99%85%E6%96%87%E6%98%8E"
+   },
+   {
+    "title": "超级科技",
+    "url": "/qbread/api/rank/list?groupid=1509&start={{(page-1)*20}}&count=20&sub=%E8%B6%85%E7%BA%A7%E7%A7%91%E6%8A%80"
+   },
+   {
+    "title": "游戏竞技"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1510&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "虚拟网游",
+    "url": "/qbread/api/rank/list?groupid=1510&start={{(page-1)*20}}&count=20&sub=%E8%99%9A%E6%8B%9F%E7%BD%91%E6%B8%B8"
+   },
+   {
+    "title": "游戏异界",
+    "url": "/qbread/api/rank/list?groupid=1510&start={{(page-1)*20}}&count=20&sub=%E6%B8%B8%E6%88%8F%E5%BC%82%E7%95%8C"
+   },
+   {
+    "title": "电子竞技",
+    "url": "/qbread/api/rank/list?groupid=1510&start={{(page-1)*20}}&count=20&sub=%E7%94%B5%E5%AD%90%E7%AB%9E%E6%8A%80"
+   },
+   {
+    "title": "游戏系统",
+    "url": "/qbread/api/rank/list?groupid=1510&start={{(page-1)*20}}&count=20&sub=%E6%B8%B8%E6%88%8F%E7%B3%BB%E7%BB%9F"
+   },
+   {
+    "title": "武侠"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1503&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "传统武侠",
+    "url": "/qbread/api/rank/list?groupid=1503&start={{(page-1)*20}}&count=20&sub=%E4%BC%A0%E7%BB%9F%E6%AD%A6%E4%BE%A0"
+   },
+   {
+    "title": "武侠幻想",
+    "url": "/qbread/api/rank/list?groupid=1503&start={{(page-1)*20}}&count=20&sub=%E6%AD%A6%E4%BE%A0%E5%B9%BB%E6%83%B3"
+   },
+   {
+    "title": "体育"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1511&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "篮球运动",
+    "url": "/qbread/api/rank/list?groupid=1511&start={{(page-1)*20}}&count=20&sub=%E7%AF%AE%E7%90%83%E8%BF%90%E5%8A%A8"
+   },
+   {
+    "title": "足球运动",
+    "url": "/qbread/api/rank/list?groupid=1511&start={{(page-1)*20}}&count=20&sub=%E8%B6%B3%E7%90%83%E8%BF%90%E5%8A%A8"
+   },
+   {
+    "title": "轻小说"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1512&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "衍生同人",
+    "url": "/qbread/api/rank/list?groupid=1512&start={{(page-1)*20}}&count=20&sub=%E8%A1%8D%E7%94%9F%E5%90%8C%E4%BA%BA"
+   },
+   {
+    "title": "原生幻想",
+    "url": "/qbread/api/rank/list?groupid=1512&start={{(page-1)*20}}&count=20&sub=%E5%8E%9F%E7%94%9F%E5%B9%BB%E6%83%B3"
+   },
+   {
+    "title": "搞笑吐槽",
+    "url": "/qbread/api/rank/list?groupid=1512&start={{(page-1)*20}}&count=20&sub=%E6%90%9E%E7%AC%91%E5%90%90%E6%A7%BD"
+   },
+   {
+    "title": "短篇"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1515&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "短篇小说",
+    "url": "/qbread/api/rank/list?groupid=1515&start={{(page-1)*20}}&count=20&sub=%E7%9F%AD%E7%AF%87%E5%B0%8F%E8%AF%B4"
+   },
+   {
+    "title": "现代言情"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1524&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "婚恋情缘",
+    "url": "/qbread/api/rank/list?groupid=1524&start={{(page-1)*20}}&count=20&sub=%E5%A9%9A%E6%81%8B%E6%83%85%E7%BC%98"
+   },
+   {
+    "title": "豪门世家",
+    "url": "/qbread/api/rank/list?groupid=1524&start={{(page-1)*20}}&count=20&sub=%E8%B1%AA%E9%97%A8%E4%B8%96%E5%AE%B6"
+   },
+   {
+    "title": "娱乐明星",
+    "url": "/qbread/api/rank/list?groupid=1524&start={{(page-1)*20}}&count=20&sub=%E5%A8%B1%E4%B9%90%E6%98%8E%E6%98%9F"
+   },
+   {
+    "title": "都市生活",
+    "url": "/qbread/api/rank/list?groupid=1524&start={{(page-1)*20}}&count=20&sub=%E9%83%BD%E5%B8%82%E7%94%9F%E6%B4%BB"
+   },
+   {
+    "title": "都市异能",
+    "url": "/qbread/api/rank/list?groupid=1524&start={{(page-1)*20}}&count=20&sub=%E9%83%BD%E5%B8%82%E5%BC%82%E8%83%BD"
+   },
+   {
+    "title": "商战职场",
+    "url": "/qbread/api/rank/list?groupid=1524&start={{(page-1)*20}}&count=20&sub=%E5%95%86%E6%88%98%E8%81%8C%E5%9C%BA"
+   },
+   {
+    "title": "民国情缘",
+    "url": "/qbread/api/rank/list?groupid=1524&start={{(page-1)*20}}&count=20&sub=%E6%B0%91%E5%9B%BD%E6%83%85%E7%BC%98"
+   },
+   {
+    "title": "古代言情"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1523&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "经商种田",
+    "url": "/qbread/api/rank/list?groupid=1523&start={{(page-1)*20}}&count=20&sub=%E7%BB%8F%E5%95%86%E7%A7%8D%E7%94%B0"
+   },
+   {
+    "title": "古代情缘",
+    "url": "/qbread/api/rank/list?groupid=1523&start={{(page-1)*20}}&count=20&sub=%E5%8F%A4%E4%BB%A3%E6%83%85%E7%BC%98"
+   },
+   {
+    "title": "穿越奇情",
+    "url": "/qbread/api/rank/list?groupid=1523&start={{(page-1)*20}}&count=20&sub=%E7%A9%BF%E8%B6%8A%E5%A5%87%E6%83%85"
+   },
+   {
+    "title": "古典架空",
+    "url": "/qbread/api/rank/list?groupid=1523&start={{(page-1)*20}}&count=20&sub=%E5%8F%A4%E5%85%B8%E6%9E%B6%E7%A9%BA"
+   },
+   {
+    "title": "宫闱宅斗",
+    "url": "/qbread/api/rank/list?groupid=1523&start={{(page-1)*20}}&count=20&sub=%E5%AE%AB%E9%97%B1%E5%AE%85%E6%96%97"
+   },
+   {
+    "title": "女尊王朝",
+    "url": "/qbread/api/rank/list?groupid=1523&start={{(page-1)*20}}&count=20&sub=%E5%A5%B3%E5%B0%8A%E7%8E%8B%E6%9C%9D"
+   },
+   {
+    "title": "女频悬疑侦探"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1518&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "推理侦探",
+    "url": "/qbread/api/rank/list?groupid=1518&start={{(page-1)*20}}&count=20&sub=%E6%8E%A8%E7%90%86%E4%BE%A6%E6%8E%A2"
+   },
+   {
+    "title": "仙侠奇缘"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1517&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "古典仙侠",
+    "url": "/qbread/api/rank/list?groupid=1517&start={{(page-1)*20}}&count=20&sub=%E5%8F%A4%E5%85%B8%E4%BB%99%E4%BE%A0"
+   },
+   {
+    "title": "仙侣奇缘",
+    "url": "/qbread/api/rank/list?groupid=1517&start={{(page-1)*20}}&count=20&sub=%E4%BB%99%E4%BE%A3%E5%A5%87%E7%BC%98"
+   },
+   {
+    "title": "武侠情缘",
+    "url": "/qbread/api/rank/list?groupid=1517&start={{(page-1)*20}}&count=20&sub=%E6%AD%A6%E4%BE%A0%E6%83%85%E7%BC%98"
+   },
+   {
+    "title": "玄幻言情"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1516&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "东方玄幻",
+    "url": "/qbread/api/rank/list?groupid=1516&start={{(page-1)*20}}&count=20&sub=%E4%B8%9C%E6%96%B9%E7%8E%84%E5%B9%BB"
+   },
+   {
+    "title": "异世大陆",
+    "url": "/qbread/api/rank/list?groupid=1516&start={{(page-1)*20}}&count=20&sub=%E5%BC%82%E4%B8%96%E5%A4%A7%E9%99%86"
+   },
+   {
+    "title": "异能超术",
+    "url": "/qbread/api/rank/list?groupid=1516&start={{(page-1)*20}}&count=20&sub=%E5%BC%82%E8%83%BD%E8%B6%85%E6%9C%AF"
+   },
+   {
+    "title": "魔法幻情",
+    "url": "/qbread/api/rank/list?groupid=1516&start={{(page-1)*20}}&count=20&sub=%E9%AD%94%E6%B3%95%E5%B9%BB%E6%83%85"
+   },
+   {
+    "title": "异族恋情",
+    "url": "/qbread/api/rank/list?groupid=1516&start={{(page-1)*20}}&count=20&sub=%E5%BC%82%E6%97%8F%E6%81%8B%E6%83%85"
+   },
+   {
+    "title": "西方奇幻",
+    "url": "/qbread/api/rank/list?groupid=1516&start={{(page-1)*20}}&count=20&sub=%E8%A5%BF%E6%96%B9%E5%A5%87%E5%B9%BB"
+   },
+   {
+    "title": "浪漫青春"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1522&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "青春校园",
+    "url": "/qbread/api/rank/list?groupid=1522&start={{(page-1)*20}}&count=20&sub=%E9%9D%92%E6%98%A5%E6%A0%A1%E5%9B%AD"
+   },
+   {
+    "title": "青春纯爱",
+    "url": "/qbread/api/rank/list?groupid=1522&start={{(page-1)*20}}&count=20&sub=%E9%9D%92%E6%98%A5%E7%BA%AF%E7%88%B1"
+   },
+   {
+    "title": "青春疼痛",
+    "url": "/qbread/api/rank/list?groupid=1522&start={{(page-1)*20}}&count=20&sub=%E9%9D%92%E6%98%A5%E7%96%BC%E7%97%9B"
+   },
+   {
+    "title": "叛逆成长",
+    "url": "/qbread/api/rank/list?groupid=1522&start={{(page-1)*20}}&count=20&sub=%E5%8F%9B%E9%80%86%E6%88%90%E9%95%BF"
+   },
+   {
+    "title": "女频科幻空间"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1519&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "时空穿梭",
+    "url": "/qbread/api/rank/list?groupid=1519&start={{(page-1)*20}}&count=20&sub=%E6%97%B6%E7%A9%BA%E7%A9%BF%E6%A2%AD"
+   },
+   {
+    "title": "末世危机",
+    "url": "/qbread/api/rank/list?groupid=1519&start={{(page-1)*20}}&count=20&sub=%E6%9C%AB%E4%B8%96%E5%8D%B1%E6%9C%BA"
+   },
+   {
+    "title": "星际恋歌",
+    "url": "/qbread/api/rank/list?groupid=1519&start={{(page-1)*20}}&count=20&sub=%E6%98%9F%E9%99%85%E6%81%8B%E6%AD%8C"
+   },
+   {
+    "title": "未来世界",
+    "url": "/qbread/api/rank/list?groupid=1519&start={{(page-1)*20}}&count=20&sub=%E6%9C%AA%E6%9D%A5%E4%B8%96%E7%95%8C"
+   },
+   {
+    "title": "女频游戏竞技"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1520&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "网游情缘",
+    "url": "/qbread/api/rank/list?groupid=1520&start={{(page-1)*20}}&count=20&sub=%E7%BD%91%E6%B8%B8%E6%83%85%E7%BC%98"
+   },
+   {
+    "title": "电子竞技",
+    "url": "/qbread/api/rank/list?groupid=1520&start={{(page-1)*20}}&count=20&sub=%E7%94%B5%E5%AD%90%E7%AB%9E%E6%8A%80"
+   },
+   {
+    "title": "游戏异界",
+    "url": "/qbread/api/rank/list?groupid=1520&start={{(page-1)*20}}&count=20&sub=%E6%B8%B8%E6%88%8F%E5%BC%82%E7%95%8C"
+   },
+   {
+    "title": "小说"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1688&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "情感",
+    "url": "/qbread/api/rank/list?groupid=1688&start={{(page-1)*20}}&count=20&sub=%E6%83%85%E6%84%9F"
+   },
+   {
+    "title": "社会",
+    "url": "/qbread/api/rank/list?groupid=1688&start={{(page-1)*20}}&count=20&sub=%E7%A4%BE%E4%BC%9A"
+   },
+   {
+    "title": "侦探/悬疑/推理",
+    "url": "/qbread/api/rank/list?groupid=1688&start={{(page-1)*20}}&count=20&sub=%E4%BE%A6%E6%8E%A2%2F%E6%82%AC%E7%96%91%2F%E6%8E%A8%E7%90%86"
+   },
+   {
+    "title": "作品集",
+    "url": "/qbread/api/rank/list?groupid=1688&start={{(page-1)*20}}&count=20&sub=%E4%BD%9C%E5%93%81%E9%9B%86"
+   },
+   {
+    "title": "历史",
+    "url": "/qbread/api/rank/list?groupid=1688&start={{(page-1)*20}}&count=20&sub=%E5%8E%86%E5%8F%B2"
+   },
+   {
+    "title": "科幻",
+    "url": "/qbread/api/rank/list?groupid=1688&start={{(page-1)*20}}&count=20&sub=%E7%A7%91%E5%B9%BB"
+   },
+   {
+    "title": "世界名著",
+    "url": "/qbread/api/rank/list?groupid=1688&start={{(page-1)*20}}&count=20&sub=%E4%B8%96%E7%95%8C%E5%90%8D%E8%91%97"
+   },
+   {
+    "title": "武侠",
+    "url": "/qbread/api/rank/list?groupid=1688&start={{(page-1)*20}}&count=20&sub=%E6%AD%A6%E4%BE%A0"
+   },
+   {
+    "title": "励志"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1690&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "成功/激励",
+    "url": "/qbread/api/rank/list?groupid=1690&start={{(page-1)*20}}&count=20&sub=%E6%88%90%E5%8A%9F%2F%E6%BF%80%E5%8A%B1"
+   },
+   {
+    "title": "心灵与修养",
+    "url": "/qbread/api/rank/list?groupid=1690&start={{(page-1)*20}}&count=20&sub=%E5%BF%83%E7%81%B5%E4%B8%8E%E4%BF%AE%E5%85%BB"
+   },
+   {
+    "title": "人际交往",
+    "url": "/qbread/api/rank/list?groupid=1690&start={{(page-1)*20}}&count=20&sub=%E4%BA%BA%E9%99%85%E4%BA%A4%E5%BE%80"
+   },
+   {
+    "title": "人生哲学",
+    "url": "/qbread/api/rank/list?groupid=1690&start={{(page-1)*20}}&count=20&sub=%E4%BA%BA%E7%94%9F%E5%93%B2%E5%AD%A6"
+   },
+   {
+    "title": "口才/演讲/辩论",
+    "url": "/qbread/api/rank/list?groupid=1690&start={{(page-1)*20}}&count=20&sub=%E5%8F%A3%E6%89%8D%2F%E6%BC%94%E8%AE%B2%2F%E8%BE%A9%E8%AE%BA"
+   },
+   {
+    "title": "青少年励志",
+    "url": "/qbread/api/rank/list?groupid=1690&start={{(page-1)*20}}&count=20&sub=%E9%9D%92%E5%B0%91%E5%B9%B4%E5%8A%B1%E5%BF%97"
+   },
+   {
+    "title": "人在职场",
+    "url": "/qbread/api/rank/list?groupid=1690&start={{(page-1)*20}}&count=20&sub=%E4%BA%BA%E5%9C%A8%E8%81%8C%E5%9C%BA"
+   },
+   {
+    "title": "女性励志",
+    "url": "/qbread/api/rank/list?groupid=1690&start={{(page-1)*20}}&count=20&sub=%E5%A5%B3%E6%80%A7%E5%8A%B1%E5%BF%97"
+   },
+   {
+    "title": "文学"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1692&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "文集",
+    "url": "/qbread/api/rank/list?groupid=1692&start={{(page-1)*20}}&count=20&sub=%E6%96%87%E9%9B%86"
+   },
+   {
+    "title": "中国现当代随笔",
+    "url": "/qbread/api/rank/list?groupid=1692&start={{(page-1)*20}}&count=20&sub=%E4%B8%AD%E5%9B%BD%E7%8E%B0%E5%BD%93%E4%BB%A3%E9%9A%8F%E7%AC%94"
+   },
+   {
+    "title": "中国现当代诗歌",
+    "url": "/qbread/api/rank/list?groupid=1692&start={{(page-1)*20}}&count=20&sub=%E4%B8%AD%E5%9B%BD%E7%8E%B0%E5%BD%93%E4%BB%A3%E8%AF%97%E6%AD%8C"
+   },
+   {
+    "title": "文化"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1461&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "文学",
+    "url": "/qbread/api/rank/list?groupid=1461&start={{(page-1)*20}}&count=20&sub=%E6%96%87%E5%AD%A6"
+   },
+   {
+    "title": "管理"
+   },
+   {
+    "title": "全部",
+    "url": "/qbread/api/rank/list?groupid=1689&start={{(page-1)*20}}&count=20&sub="
+   },
+   {
+    "title": "一般管理学",
+    "url": "/qbread/api/rank/list?groupid=1689&start={{(page-1)*20}}&count=20&sub=%E4%B8%80%E8%88%AC%E7%AE%A1%E7%90%86%E5%AD%A6"
+   },
+   {
+    "title": "市场/营销",
+    "url": "/qbread/api/rank/list?groupid=1689&start={{(page-1)*20}}&count=20&sub=%E5%B8%82%E5%9C%BA%2F%E8%90%A5%E9%94%80"
+   }
+  ],
+  "list": "$.rows[*]",
+  "fields": {
+   "name": "= trim(replace($.resourceName, '（.*', ''))",
+   "author": "$.author",
+   "bookUrl": "= source.url + '/qbread/api/novel/intro-info?bookid=' + $.resourceID",
+   "coverUrl": "$.picurl",
+   "intro": "$.summary",
+   "kind": "= $.subject",
+   "wordCount": "= round(num($.contentsize) / 10000, 1) + '万字'",
+   "status": "= $.isfinish ? '已完结' : '连载中'",
+   "updateTime": "= formatDate(num($.lastUpdatetime) * 1000, 'yyyy-MM-dd')"
+  },
+  "headers": {
+   "User-Agent": "Mozilla/5.0 (Linux; Android 10; MI 8 Build/QKQ1.190828.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.101 Mobile Safari/537.36",
+   "Referer": "https://bookshelf.html5.qq.com/qbread"
+  }
+ },
+ "search": {
+  "url": "https://newopensearch.reader.qq.com/wechat?keyword={{urlencode(key)}}&start={{(page-1)*20}}&end={{page*20-1}}",
+  "list": "$.booklist[*]",
+  "fields": {
+   "name": "$.title",
+   "author": "$.author",
+   "bookUrl": "= source.url + '/qbread/api/novel/intro-info?bookid=' + (1100000000 + int($.bid))",
+   "coverUrl": "= 'https://wfqqreader-1252317822.image.myqcloud.com/cover/' + int(match($.bid, '(\\\\d{3})$', 1)) + '/' + $.bid + '/b_' + $.bid + '.jpg'",
+   "intro": "$.intro",
+   "kind": "= join(map(split($.categoryInfoV4, ','), x => match(x, ':(.*?):.*$', 1)), ' ')",
+   "wordCount": "= round(num($.totalWords) / 10000, 1) + '万字'",
+   "lastChapter": "$.updateInfo",
+   "status": "= test($.updateInfo, '完结') ? '已完结' : '连载中'"
+  },
+  "headers": {
+   "User-Agent": "Mozilla/5.0 (Linux; Android 10; MI 8 Build/QKQ1.190828.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.101 Mobile Safari/537.36",
+   "Referer": "https://bookshelf.html5.qq.com/qbread"
+  }
+ },
+ "detail": {
+  "let": {
+   "b": "= data.data.bookInfo"
+  },
+  "fail": "= data && data.ret != 0 ? 'QQ阅读没有这本书的可读版本（搜索结果可能来自其它书库）' : ''",
+  "fields": {
+   "name": "= b.resourceName",
+   "author": "= b.author",
+   "coverUrl": "= b.picurl",
+   "intro": "= (b.tag ? '🏷️ ' + replace(b.tag, '\\|', '、') + '\\n\\n' : '') + b.summary",
+   "kind": "= b.userscore + '分 ' + b.subject + ' ' + (b.isfinish ? '已完结' : '连载中')",
+   "wordCount": "= round(num(b.contentsize) / 10000, 1) + '万字'",
+   "status": "= b.isfinish ? '已完结' : '连载中'",
+   "lastChapter": "= b.lastSerialname + ' • ' + formatDate(num(b.lastUpdatetime) * 1000, 'yyyy-MM-dd')",
+   "updateTime": "= formatDate(num(b.lastUpdatetime) * 1000, 'yyyy-MM-dd')",
+   "tocUrl": "= source.url + '/qbread/api/book/all-chapter?bookId=' + b.resourceID"
+  },
+  "keep": {
+   "bookId": "= b.resourceID"
+  },
+  "headers": {
+   "User-Agent": "Mozilla/5.0 (Linux; Android 10; MI 8 Build/QKQ1.190828.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.101 Mobile Safari/537.36",
+   "Referer": "https://bookshelf.html5.qq.com/qbread"
+  }
+ },
+ "toc": {
+  "retry": 1,
+  "url": "= default(book.tocUrl, source.url + '/qbread/api/book/all-chapter?bookId=' + default(book.vars.bookId, match(book.bookUrl, 'bookid=(\\d+)', 1), match(book.tocUrl, 'bookId=(\\d+)', 1)))",
+  "list": "$.rows[*]",
+  "fail": "= data == null ? '目录接口没有返回内容' : data.ret != 0 ? '目录接口返回 ' + data.ret + '：' + data.errMsg : ''",
+  "fields": {
+   "title": "$.serialName",
+   "url": "= 'https://novel.html5.qq.com/be-api/content/ads-read?bookId=' + default(book.vars.bookId, match(book.bookUrl, 'bookid=(\\d+)', 1), match(book.tocUrl, 'bookId=(\\d+)', 1)) + '&seq=' + $.serialID",
+   "isVip": "= $.isFree != true",
+   "isPay": "= $.isFree != true",
+   "tag": "= $.isFree ? '' : '付费'"
+  },
+  "headers": {
+   "User-Agent": "Mozilla/5.0 (Linux; Android 10; MI 8 Build/QKQ1.190828.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.101 Mobile Safari/537.36",
+   "Referer": "https://bookshelf.html5.qq.com/qbread"
+  }
+ },
+ "content": {
+  "retry": 1,
+  "url": "https://novel.html5.qq.com/be-api/content/ads-read",
+  "method": "POST",
+  "headers": {
+   "User-Agent": "Mozilla/5.0 (Linux; Android 10; MI 8 Build/QKQ1.190828.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/83.0.4103.101 Mobile Safari/537.36",
+   "Referer": "https://bookshelf.html5.qq.com/qbread",
+   "Content-Type": "application/json",
+   "Q-GUID": "{{vars.guid}}"
+  },
+  "body": "= {Scene: 'chapter', ContentAnchorBatch: [{BookID: bidOf(book.vars.bookId, chapter.url, book.bookUrl), ChapterSeqNo: [int(default(match(chapter.url, 'seq=(\\\\d+)', 1), 1))]}]}",
+  "fail": "= data == null ? '正文接口没有返回内容' : data.ret != 0 ? '正文接口返回 ' + data.ret + '：' + data.errMsg : trim(join(default(get(get(data.data, 'Content'), 0).Content, []), '')) ? '' : '这一章没有取到正文：可能已下架，或接口改了参数'",
+  "text": "= join(default(get(get(data.data, 'Content'), 0).Content, []), '\\n')",
+  "replace": [
+   {
+    "pattern": "\\r\\n[ \\t]*",
+    "with": "\n",
+    "flags": "g"
+   }
+  ]
+ },
+ "vars": [
+  {
+   "key": "guid",
+   "label": "Q-GUID（正文接口用，失效时换一个）",
+   "default": "4aa27c7cf2d9aca3359656ea186488cb"
+  }
+ ],
+ "lib": "fn bidOf(v, cu, bu) { return default(v, match(str(cu), 'bookId=(\\\\d+)', 1), match(str(bu), 'bookid=(\\\\d+)', 1)) }"
+}

@@ -1,0 +1,303 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "爱漫客栈",
+ "url": "https://www.mkzhan.com",
+ "group": "渡·漫画",
+ "comment": "轻页原生｜格式：原生（B 档：21 处表达式 + lib 纯计算，无例外申报）｜依据：2026-10-16 公共文档 / 轻页 4.0.921。链路＝详情 comic/info（798 B）→ 目录 chapter/v1（JSON）→ 正文 chapter/content（JSON），三段全免鉴权，不解析 HTML 正文、不含 @js:、不走 webView、无登录面板。优化申报：已做＝全 JSON 链路、图片协议改写、9 平台行/50 胶囊、按分类 URL 反推上下文标签；未做＝①作者名（免鉴权链只有 author_id，补齐需 detail.fetch，本机 4.0.921 镜像未接入该代码路径且老引擎引用未定义名会抛错）②详情/目录响应复用（引擎缺口 R1，本源已改用不同地址规避，不存在重复请求）③VIP 标记（内容实际可读，标 VIP 会让阅读器弹锁）。",
+ "type": "comic",
+ "enabled": true,
+ "enabledExplore": true,
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36",
+  "Accept-Language": "zh-CN,zh;q=0.9"
+ },
+ "let": {
+  "api": "= 'https://comic.mkzcdn.com'"
+ },
+ "lib": "fn cidOf(u) {\n  return replace(u, '[^0-9]', '')\n}\nfn themeName(id) {\n  let names = ['', '霸总', '修真', '恋爱', '校园', '冒险', '搞笑', '生活', '热血', '架空', '后宫', '成人', '玄幻', '悬疑', '恐怖', '灵异', '动作', '科幻', '战争', '古风', '穿越', '竞技', '体育', '励志', '同人', '历史', '真人']\n  let i = int(id, 0)\n  if i > 0 && i < len(names) {\n    return names[i]\n  }\n  return ''\n}\nfn themeList(ids) {\n  let out = []\n  for id in split(ids, ',') {\n    let n = themeName(id)\n    if len(n) > 0 {\n      out = push(out, n)\n    }\n  }\n  return join(out, ' ')\n}\nfn finishName(v) {\n  if v == '2' {\n    return '已完结'\n  }\n  if v == '1' {\n    return '连载中'\n  }\n  return ''\n}\nfn audienceName(v) {\n  if v == '1' {\n    return '少年'\n  }\n  if v == '2' {\n    return '少女'\n  }\n  if v == '3' {\n    return '青年'\n  }\n  if v == '4' {\n    return '少儿'\n  }\n  return ''\n}\nfn urlTags(u) {\n  let out = []\n  let t = match(u, 'theme_id=([0-9]+)', 1)\n  if len(t) > 0 {\n    out = push(out, themeName(t))\n  }\n  let f = match(u, 'finish=([0-9]+)', 1)\n  if len(f) > 0 {\n    out = push(out, finishName(f))\n  }\n  let g = match(u, 'audience=([0-9]+)', 1)\n  if len(g) > 0 {\n    out = push(out, audienceName(g))\n  }\n  if contains(u, 'is_free=1') {\n    out = push(out, '免费')\n  }\n  if contains(u, 'is_vip=1') {\n    out = push(out, 'VIP')\n  }\n  if contains(u, 'is_fee=1') {\n    out = push(out, '付费')\n  }\n  if contains(u, 'copyright=1') {\n    out = push(out, '独家')\n  }\n  if contains(u, 'copyright=2') {\n    out = push(out, '合作')\n  }\n  if contains(u, 'update') {\n    out = push(out, '最近更新')\n  }\n  return out\n}\nfn tags(count, rank, author, url) {\n  let out = []\n  let c = replace(count, '[:：]\\\\s*', '')\n  if len(c) > 0 {\n    out = push(out, c)\n  }\n  if len(rank) > 0 {\n    out = push(out, '第' + rank + '名')\n  }\n  let a = replaceText(author, '作者：', '')\n  if len(a) > 0 {\n    out = push(out, a)\n  }\n  if len(url) > 0 {\n    out = concat(out, urlTags(url))\n  }\n  return join(out, ' ')\n}",
+ "search": {
+  "url": "= source.url + '/search/?keyword=' + urlencode(key) + '&page=' + page",
+  "list": ".search-comic-list .common-comic-item",
+  "fields": {
+   "name": ".comic__title a@text",
+   "bookUrl": "class.cover@href",
+   "coverUrl": "img@data-src",
+   "intro": ".comic-feature@text",
+   "lastChapter": ".comic-update a@text",
+   "kind": "= tags(sel('.comic-count@text'), '', '', baseUrl)",
+   "author": ".comic-author a@text"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "热门榜单"
+   },
+   {
+    "title": "人气榜",
+    "url": "/top/popularity/"
+   },
+   {
+    "title": "月票榜",
+    "url": "/top/ticket/"
+   },
+   {
+    "title": "收藏榜",
+    "url": "/top/collection/"
+   },
+   {
+    "title": "上升榜",
+    "url": "/top/ascension/"
+   },
+   {
+    "title": "新作榜",
+    "url": "/top/latest/"
+   },
+   {
+    "title": "最近更新",
+    "url": "/update/"
+   },
+   {
+    "title": "特色榜单"
+   },
+   {
+    "title": "独家榜",
+    "url": "/top/exclusive/"
+   },
+   {
+    "title": "合作榜",
+    "url": "/top/cooperation/"
+   },
+   {
+    "title": "评分榜",
+    "url": "/top/score/"
+   },
+   {
+    "title": "热评榜",
+    "url": "/top/comment/"
+   },
+   {
+    "title": "VIP人气榜",
+    "url": "/top/popularity/vip/"
+   },
+   {
+    "title": "付费人气榜",
+    "url": "/top/popularity/pay/"
+   },
+   {
+    "title": "打赏榜",
+    "url": "/top/gratuity/"
+   },
+   {
+    "title": "题材·情感"
+   },
+   {
+    "title": "霸总",
+    "url": "/category/?order=2&theme_id=1&page={{page}}"
+   },
+   {
+    "title": "恋爱",
+    "url": "/category/?order=2&theme_id=3&page={{page}}"
+   },
+   {
+    "title": "校园",
+    "url": "/category/?order=2&theme_id=4&page={{page}}"
+   },
+   {
+    "title": "搞笑",
+    "url": "/category/?order=2&theme_id=6&page={{page}}"
+   },
+   {
+    "title": "生活",
+    "url": "/category/?order=2&theme_id=7&page={{page}}"
+   },
+   {
+    "title": "后宫",
+    "url": "/category/?order=2&theme_id=10&page={{page}}"
+   },
+   {
+    "title": "同人",
+    "url": "/category/?order=2&theme_id=24&page={{page}}"
+   },
+   {
+    "title": "真人",
+    "url": "/category/?order=2&theme_id=26&page={{page}}"
+   },
+   {
+    "title": "题材·热血"
+   },
+   {
+    "title": "热血",
+    "url": "/category/?order=2&theme_id=8&page={{page}}"
+   },
+   {
+    "title": "冒险",
+    "url": "/category/?order=2&theme_id=5&page={{page}}"
+   },
+   {
+    "title": "动作",
+    "url": "/category/?order=2&theme_id=16&page={{page}}"
+   },
+   {
+    "title": "竞技",
+    "url": "/category/?order=2&theme_id=21&page={{page}}"
+   },
+   {
+    "title": "战争",
+    "url": "/category/?order=2&theme_id=18&page={{page}}"
+   },
+   {
+    "title": "励志",
+    "url": "/category/?order=2&theme_id=23&page={{page}}"
+   },
+   {
+    "title": "题材·幻想"
+   },
+   {
+    "title": "玄幻",
+    "url": "/category/?order=2&theme_id=12&page={{page}}"
+   },
+   {
+    "title": "修真",
+    "url": "/category/?order=2&theme_id=2&page={{page}}"
+   },
+   {
+    "title": "架空",
+    "url": "/category/?order=2&theme_id=9&page={{page}}"
+   },
+   {
+    "title": "穿越",
+    "url": "/category/?order=2&theme_id=20&page={{page}}"
+   },
+   {
+    "title": "古风",
+    "url": "/category/?order=2&theme_id=19&page={{page}}"
+   },
+   {
+    "title": "科幻",
+    "url": "/category/?order=2&theme_id=17&page={{page}}"
+   },
+   {
+    "title": "悬疑",
+    "url": "/category/?order=2&theme_id=13&page={{page}}"
+   },
+   {
+    "title": "恐怖",
+    "url": "/category/?order=2&theme_id=14&page={{page}}"
+   },
+   {
+    "title": "灵异",
+    "url": "/category/?order=2&theme_id=15&page={{page}}"
+   },
+   {
+    "title": "受众"
+   },
+   {
+    "title": "全部",
+    "url": "/category/?order=2&page={{page}}"
+   },
+   {
+    "title": "少年",
+    "url": "/category/?order=2&audience=1&page={{page}}"
+   },
+   {
+    "title": "少女",
+    "url": "/category/?order=2&audience=2&page={{page}}"
+   },
+   {
+    "title": "青年",
+    "url": "/category/?order=2&audience=3&page={{page}}"
+   },
+   {
+    "title": "少儿",
+    "url": "/category/?order=2&audience=4&page={{page}}"
+   },
+   {
+    "title": "进度"
+   },
+   {
+    "title": "全部",
+    "url": "/category/?order=2&page={{page}}"
+   },
+   {
+    "title": "连载中",
+    "url": "/category/?order=2&finish=1&page={{page}}"
+   },
+   {
+    "title": "已完结",
+    "url": "/category/?order=2&finish=2&page={{page}}"
+   },
+   {
+    "title": "资费"
+   },
+   {
+    "title": "全部",
+    "url": "/category/?order=2&page={{page}}"
+   },
+   {
+    "title": "免费",
+    "url": "/category/?order=2&is_free=1&page={{page}}"
+   },
+   {
+    "title": "VIP",
+    "url": "/category/?order=2&is_vip=1&page={{page}}"
+   },
+   {
+    "title": "付费",
+    "url": "/category/?order=2&is_fee=1&page={{page}}"
+   },
+   {
+    "title": "版权"
+   },
+   {
+    "title": "独家",
+    "url": "/category/?order=2&copyright=1&page={{page}}"
+   },
+   {
+    "title": "合作",
+    "url": "/category/?order=2&copyright=2&page={{page}}"
+   }
+  ],
+  "list": "= len(selAll('.top-list__box-item@html')) > 0 ? (len(selAll('.top-list__box:first .top-list__box-item@html')) > 0 ? selAll('.top-list__box:first .top-list__box-item@html') : selAll('.top-list__box-item@html')) : selAll('.common-comic-item@html')",
+  "fields": {
+   "name": ".comic__title a@text",
+   "bookUrl": ".comic__title a@href",
+   "coverUrl": "img@data-src",
+   "intro": ".comic-feature@text",
+   "lastChapter": ".comic-update a@text",
+   "kind": "= tags(sel('.comic-count@text'), sel('span.tag@text'), '', baseUrl)",
+   "author": ".comic-author a@text"
+  }
+ },
+ "detail": {
+  "url": "= api + '/comic/info/?comic_id=' + cidOf(book.bookUrl)",
+  "fail": "= data.code == '200' ? '' : default(data.message, '详情接口异常')",
+  "keep": {
+   "cid": "= cidOf(book.bookUrl)"
+  },
+  "fields": {
+   "name": "= data.data.title",
+   "author": "= default(book.author, '')",
+   "coverUrl": "= data.data.cover ? replace(data.data.cover, '^http:', 'https:') + '!cover-400' : ''",
+   "intro": "= data.data.content",
+   "kind": "= join(compact([themeList(data.data.theme_id), data.data.chapter_number ? data.data.chapter_number + '话' : '']), ' ')",
+   "status": "= finishName(data.data.finish)",
+   "lastChapter": "= default(data.data.chapter_title, '')",
+   "updateTime": "= data.data.chapter_start_time ? formatDate(num(data.data.chapter_start_time) * 1000, 'yyyy-MM-dd') : ''"
+  }
+ },
+ "toc": {
+  "url": "= api + '/chapter/v1/?comic_id=' + cidOf(book.bookUrl)",
+  "fail": "= data.code == '200' ? '' : default(data.message, '目录接口异常')",
+  "list": "$.data[*]",
+  "fields": {
+   "title": "$.title",
+   "url": "= api + '/chapter/content/?comic_id=' + cidOf(book.bookUrl) + '&chapter_id=' + $.chapter_id"
+  }
+ },
+ "content": {
+  "images": "= map(default(data.data, []), x => replace(x.image, '^http:', 'https:'))",
+  "fail": "= len(default(data.data, [])) == 0 ? '本话暂无可读内容（未发布 / 已下架）' : ''"
+ }
+}

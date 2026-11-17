@@ -1,0 +1,153 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "海棠文学",
+ "url": "https://m.haitangwx.com",
+ "group": "渡",
+ "type": "text",
+ "enabled": true,
+ "enabledExplore": true,
+ "rate": "30/10000",
+ "comment": "海棠文学（杰奇系 GBK 站）· 轻页原生 v3（2026-11-04 目录去掉页尾空条目）。搜索 POST /s.php 必须按 GBK 编码提交（实测 UTF-8 百分号编码一律「没有找到」，GBK 才有结果），charset=gbk 不能删。目录 /{分类}/{id}/，章节 /{分类}/{id}/{cid}.html，目录分页 .showpage。正文 #nr，已用 lib clean() 归一化为一段一行。\n· 【目录修复 2026-11-01】章节列表在 section#zjlb 里的 ul.lb（class=\"lb fk\"），原 class.lb@li@a 真机匹配不到 → ul.lb@li@a||class.lb@li@a。\n· 【封面】http→https。\n· 【列表封面 2026-11-01】改为 img@src##^http://##https://（逐项取属性；sel() 是整页第一个图，不能用）。\n· 【目录尾条目 2026-11-04】ul.lb 末尾有一句「本页章节列表结束！」的 <a class=\"last tb\">（无 href），原 ul.lb@li@a 会当成第 41 章 → 改 ul.lb@li@a[href]。若真机目录变空说明属性选择器不被支持，回滚成 ul.lb@li@a。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 11; Pixel 3 XL) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.4988.0 Mobile Safari/537.36"
+ },
+ "lib": "fn clean(html) {\n  let t = stripHtml(html)\n  let out = []\n  for line in split(t, '\\n') {\n    let s = trim(line)\n    if (s != '') { push(out, s) }\n  }\n  return join(out, '\\n')\n}\n",
+ "explore": {
+  "menus": [
+   {
+    "title": "海棠 · 榜单"
+   },
+   {
+    "title": "总点击",
+    "url": "/top/allvisit_{{page}}/"
+   },
+   {
+    "title": "月点击",
+    "url": "/top/monthvisit_{{page}}/"
+   },
+   {
+    "title": "周点击",
+    "url": "/top/weekvisit_{{page}}/"
+   },
+   {
+    "title": "海棠 · 分类"
+   },
+   {
+    "title": "校园言情",
+    "url": "/sort/1_{{page}}/"
+   },
+   {
+    "title": "都市言情",
+    "url": "/sort/2_{{page}}/"
+   },
+   {
+    "title": "古代言情",
+    "url": "/sort/3_{{page}}/"
+   },
+   {
+    "title": "罗曼史",
+    "url": "/sort/4_{{page}}/"
+   },
+   {
+    "title": "耽美",
+    "url": "/sort/5_{{page}}/"
+   },
+   {
+    "title": "百合",
+    "url": "/sort/6_{{page}}/"
+   },
+   {
+    "title": "同人",
+    "url": "/sort/7_{{page}}/"
+   },
+   {
+    "title": "奇幻玄幻",
+    "url": "/sort/8_{{page}}/"
+   },
+   {
+    "title": "网游竞技",
+    "url": "/sort/9_{{page}}/"
+   },
+   {
+    "title": "科幻异能",
+    "url": "/sort/10_{{page}}/"
+   },
+   {
+    "title": "恐怖灵异",
+    "url": "/sort/11_{{page}}/"
+   },
+   {
+    "title": "惊悚推理",
+    "url": "/sort/12_{{page}}/"
+   },
+   {
+    "title": "武侠仙侠",
+    "url": "/sort/13_{{page}}/"
+   },
+   {
+    "title": "历史军事",
+    "url": "/sort/14_{{page}}/"
+   },
+   {
+    "title": "穿越重生",
+    "url": "/sort/15_{{page}}/"
+   },
+   {
+    "title": "综合其他",
+    "url": "/sort/16_{{page}}/"
+   },
+   {
+    "title": "完本",
+    "url": "/full/{{page}}/"
+   }
+  ],
+  "list": "class.list@ul",
+  "fields": {
+   "name": "a.1@text##\\_.*",
+   "bookUrl": "a.1@href",
+   "author": "a.2@text",
+   "intro": "span.2@text##\\s+## ",
+   "coverUrl": "img@src##^http://##https://"
+  }
+ },
+ "search": {
+  "url": "/s.php",
+  "method": "POST",
+  "charset": "gbk",
+  "body": "s={{key}}&type=articlename",
+  "headers": {
+   "Content-Type": "application/x-www-form-urlencoded"
+  },
+  "list": "class.fk@li",
+  "fields": {
+   "name": "a.1@text##\\_.*",
+   "bookUrl": "a.1@href",
+   "author": "a.2@text",
+   "kind": "a.0@text##\\[|\\]"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "class.xx@li.0@text##\\_.*",
+   "author": "class.xx@a.1@text",
+   "kind": "class.xx@a.0@text##小说",
+   "lastChapter": "class.xx@a.2@text##正文\\s",
+   "coverUrl": "= replace(sel('class.xsfm@img@src'), '^http://', 'https://')",
+   "intro": "class.jianjie@text",
+   "tocUrl": "class.gengduo@a@href"
+  }
+ },
+ "toc": {
+  "list": "ul.lb@li@a[href]",
+  "fields": {
+   "title": "@text",
+   "url": "@href"
+  },
+  "nextUrl": "= unique(map(filter(map(selAll('class.showpage@a@href'), u => [u, default(int(match(u, '_(\\\\d+)\\\\/?$', 1)), 1)]), p => p[1] > default(int(match(baseUrl, '_(\\\\d+)\\\\/?$', 1)), 1)), p => p[0]))"
+ },
+ "content": {
+  "url": "= chapter.url",
+  "text": "= clean(replace(sel('id.nr@html'), '&nbsp;', ' '))"
+ }
+}

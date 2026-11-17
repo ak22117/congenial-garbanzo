@@ -1,0 +1,227 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "爱丽丝屋",
+ "url": "https://xn--vcsx64d.alicesw2.buzz",
+ "group": "渡",
+ "type": "text",
+ "enabled": true,
+ "enabledExplore": true,
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+ },
+ "comment": "原生（2026-10-16 转写并实测）。⚠️ 源地址改用 https://xn--vcsx64d.alicesw2.buzz —— 原兼容源的 bookSourceUrl 与 jsLib 里那两个 als1004.space 域名已全部不可达（实测直接失败），只有 variable 里存的 alicesw2.buzz 活着。原源的 jsLib 域名切换面板（自定义/镜像/主站/测延迟/网页登录）在原生格式下跑不了 JS，改成 vars.site 在书源设置页里选。发现页 35 个菜单（榜单 6 + 分类 29）均带 ?page={{page}} 可下滑加载；搜索 /search.html?q=&p=。目录：源里 tocUrl 原来指向「最新章节」的章节页，而章节页的目录是 JS 弹层（静态 HTML 里 .mulu_list 为 0）→ 目录必然为空；已改为详情页「查看所有章节」指向的 /other/chapters/id/<书号>.html（实测 255 章一页全给，无分页）。\n封面：列表页（最新/榜单/分类/原创/搜索 五个模板均实测 0 张书封，且封面是哈希路径推不出）站点没给，所以列表卡片只能空着；封面只在详情页（.pic img → img.321cdn.com，实测 200 image/webp、无需 Referer），已加 og:image 兜底。",
+ "rate": "30/10000",
+ "vars": [
+  {
+   "key": "site",
+   "label": "域名",
+   "filter": false,
+   "default": "https://xn--vcsx64d.alicesw2.buzz",
+   "options": [
+    "https://xn--vcsx64d.alicesw2.buzz"
+   ]
+  }
+ ],
+ "explore": {
+  "menus": [
+   {
+    "title": "榜单"
+   },
+   {
+    "title": "最新",
+    "url": "{{source.url}}/all/order/update_time+desc.html?page={{page}}"
+   },
+   {
+    "title": "原创",
+    "url": "{{source.url}}/original.html?page={{page}}"
+   },
+   {
+    "title": "总榜",
+    "url": "{{source.url}}/other/rank_hits/order/hits.html?page={{page}}"
+   },
+   {
+    "title": "月榜",
+    "url": "{{source.url}}/other/rank_hits/order/hits_month.html?page={{page}}"
+   },
+   {
+    "title": "周榜",
+    "url": "{{source.url}}/other/rank_hits/order/hits_week.html?page={{page}}"
+   },
+   {
+    "title": "日榜",
+    "url": "{{source.url}}/other/rank_hits/order/hits_day.html?page={{page}}"
+   },
+   {
+    "title": "分类"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/lists/71.html?page={{page}}"
+   },
+   {
+    "title": "经典",
+    "url": "{{source.url}}/lists/79.html?page={{page}}"
+   },
+   {
+    "title": "奇幻",
+    "url": "{{source.url}}/lists/75.html?page={{page}}"
+   },
+   {
+    "title": "系统",
+    "url": "{{source.url}}/lists/69.html?page={{page}}"
+   },
+   {
+    "title": "武侠",
+    "url": "{{source.url}}/lists/68.html?page={{page}}"
+   },
+   {
+    "title": "乱伦",
+    "url": "{{source.url}}/lists/65.html?page={{page}}"
+   },
+   {
+    "title": "都市",
+    "url": "{{source.url}}/lists/64.html?page={{page}}"
+   },
+   {
+    "title": "乡村",
+    "url": "{{source.url}}/lists/63.html?page={{page}}"
+   },
+   {
+    "title": "同人",
+    "url": "{{source.url}}/lists/73.html?page={{page}}"
+   },
+   {
+    "title": "玄幻",
+    "url": "{{source.url}}/lists/62.html?page={{page}}"
+   },
+   {
+    "title": "校园",
+    "url": "{{source.url}}/lists/61.html?page={{page}}"
+   },
+   {
+    "title": "穿越",
+    "url": "{{source.url}}/lists/70.html?page={{page}}"
+   },
+   {
+    "title": "反差",
+    "url": "{{source.url}}/lists/22.html?page={{page}}"
+   },
+   {
+    "title": "凌辱",
+    "url": "{{source.url}}/lists/46.html?page={{page}}"
+   },
+   {
+    "title": "堕落",
+    "url": "{{source.url}}/lists/18.html?page={{page}}"
+   },
+   {
+    "title": "纯爱",
+    "url": "{{source.url}}/lists/19.html?page={{page}}"
+   },
+   {
+    "title": "伪娘",
+    "url": "{{source.url}}/lists/52.html?page={{page}}"
+   },
+   {
+    "title": "萝莉",
+    "url": "{{source.url}}/lists/48.html?page={{page}}"
+   },
+   {
+    "title": "熟女",
+    "url": "{{source.url}}/lists/56.html?page={{page}}"
+   },
+   {
+    "title": "正太",
+    "url": "{{source.url}}/lists/50.html?page={{page}}"
+   },
+   {
+    "title": "明星",
+    "url": "{{source.url}}/lists/72.html?page={{page}}"
+   },
+   {
+    "title": "NTR",
+    "url": "{{source.url}}/lists/54.html?page={{page}}"
+   },
+   {
+    "title": "媚黑",
+    "url": "{{source.url}}/lists/53.html?page={{page}}"
+   },
+   {
+    "title": "调教",
+    "url": "{{source.url}}/lists/58.html?page={{page}}"
+   },
+   {
+    "title": "言情",
+    "url": "{{source.url}}/lists/59.html?page={{page}}"
+   },
+   {
+    "title": "百合",
+    "url": "{{source.url}}/lists/47.html?page={{page}}"
+   },
+   {
+    "title": "耽美",
+    "url": "{{source.url}}/lists/82.html?page={{page}}"
+   },
+   {
+    "title": "重口",
+    "url": "{{source.url}}/lists/21.html?page={{page}}"
+   },
+   {
+    "title": "其他",
+    "url": "{{source.url}}/lists/57.html?page={{page}}"
+   }
+  ],
+  "list": ".rec_rullist ul",
+  "fields": {
+   "name": "a:eq(1)@text",
+   "author": "li:eq(4)@text",
+   "kind": "a:eq(0)@text##小说",
+   "lastChapter": "a:eq(2)@text",
+   "bookUrl": "a:eq(1)@href",
+   "wordCount": "li:eq(5)@text",
+   "updateTime": "li:eq(6)@text"
+  }
+ },
+ "search": {
+  "url": "{{vars.site}}/search.html?q={{urlencode(key)}}&p={{page}}",
+  "list": ".list-group-item",
+  "fields": {
+   "name": "a:eq(0)@text##^\\d+\\.\\s*",
+   "author": "a:eq(1)@text",
+   "bookUrl": "a:eq(0)@href",
+   "intro": "p.content-txt@text",
+   "kind": ".text-muted:eq(-1) a@text##\\#",
+   "updateTime": ".timedesc@text##.+时间.",
+   "status": "h5 small@text##\\[|\\]"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": ".novel_title@text",
+   "author": ".novel_info a:eq(0)@text",
+   "kind": ".novel_info p:eq(1)@text##.+：",
+   "coverUrl": "meta[property=\"og:image\"]@content||.pic img@data-src||.pic img@src",
+   "intro": ".jianjie p@html",
+   "lastChapter": ".novel_info p:eq(-1) a@text",
+   "wordCount": "= tyWord(info)",
+   "status": ".novel_info p:eq(4)@text##.+：",
+   "tocUrl": "= source.url + '/other/chapters/id/' + str(match(book.bookUrl, '/novel/([0-9]+)', 1)) + '.html'"
+  },
+  "let": {
+   "info": ".novel_info@text"
+  }
+ },
+ "toc": {
+  "list": ".mulu_list li a",
+  "fields": {
+   "title": "text",
+   "url": "href"
+  },
+  "url": "= source.url + '/other/chapters/id/' + str(match(book.bookUrl, '/novel/([0-9]+)', 1)) + '.html'"
+ },
+ "content": {
+  "text": ".read-content@html"
+ },
+ "lib": "// 从详情信息段里抓「N万字」（站点 p 顺序会变，不写死行号）\nfn tyWord(s) {\n  let m = match(str(s), '([0-9.]+)\\\\u4e07', 1)\n  if (m == '') { return '' }\n  return m + '万字'\n}\n"
+}

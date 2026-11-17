@@ -1,0 +1,116 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "未来天王",
+ "url": "http://www.weilaitianwang.cc",
+ "group": "渡",
+ "type": "text",
+ "comment": "未来天王原生版（2026-11-08 复测）。主域已迁：www.weilaitianwang.info 现在只返 301 跳到 www.weilaitianwang.cc，客户端不跟跨域跳转就报“无法连接 → 请检查网络或代理”。本版直连 .cc，实测 search / 7 个分类 / 详情 / 目录 / 正文 / 封面全部 200。目录 #list 前 12 条是“最新章节”倒序，第 13 条起才是正文正序，故 list 用 dd:gt(11)，不要再加 reverse。排行榜 /paihangbang/、小说大全 /xiaoshuodaquan/ 仍是另一套结构，未纳入。\n【字段矩阵 2026-11-10】搜索/分类页：author ✅（.s4）、coverUrl ✅（由 /58_58083/ 推导 58/58083/58083s.jpg，实测可下载）、lastChapter ✅、updateTime ✅；**搜索页无 intro**（行内只有 s1/s2/s4/s3/s6 五列，无描述节点），intro 仅详情页 #intro 提供。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36",
+  "Referer": "http://www.weilaitianwang.cc/"
+ },
+ "lib": "// 未来天王 · 原生（2026-11-08 实测）\n// 主域已从 .info 迁到 .cc：.info 只返回 301，客户端不跟随跨域跳转就会报\"无法连接\"\nfn yxAbs(u) {\n  let s = trim(str(u))\n  if (s == '') { return '' }\n  if (indexOf(s, 'http') == 0) { return s }\n  if (indexOf(s, '//') == 0) { return 'http:' + s }\n  return 'http://www.weilaitianwang.cc' + s\n}\nfn yxCover(h) {\n  let m = match(str(h), '([0-9]+)_([0-9]+)', 2)\n  if (m == null) { return '' }\n  let id = str(m)\n  return 'http://www.weilaitianwang.cc/files/article/image/' + str(floor(int(id, 0) / 1000)) + '/' + id + '/' + id + 's.jpg'\n}\n// 站点把换行存成字面量（反斜杠+n），用 split/join 全局还原\nfn yxFixLines(t) {\n  let bs = fromCharCode(92)\n  let nl = fromCharCode(10)\n  t = join(split(t, bs + 'r' + bs + 'n'), nl)\n  t = join(split(t, bs + 'n'), nl)\n  t = join(split(t, bs + 'r'), '')\n  t = join(split(t, fromCharCode(13)), '')\n  return t\n}\n// 简介：<br> 转换行 + 去标签\nfn yxLines(h) {\n  let s = str(h)\n  let bs = fromCharCode(92)\n  let nl = fromCharCode(10)\n  s = replace(s, '<br' + bs + 's*/?>', nl, 'g')\n  s = replace(s, '<[^>]*>', '', 'g')\n  s = htmlDecode(s)\n  s = yxFixLines(s)\n  s = replace(s, nl + nl + nl, nl + nl, 'g')\n  return trim(s)\n}\n// 正文：先切掉 center_tip，再去标签、清广告整行\nfn yxBody(h) {\n  let s = str(h)\n  let a = indexOf(s, '<div id=\"center_tip\">')\n  if (a >= 0) { s = substring(s, 0, a) }\n  let bs = fromCharCode(92)\n  let nl = fromCharCode(10)\n  s = replace(s, '<br' + bs + 's*/?>', nl, 'g')\n  s = replace(s, '<' + bs + '/' + bs + 's*(p|div|dd|li|ul|ol|h[1-6]|tr|section)' + bs + 's*>', nl, 'g')\n  s = replace(s, '<[^>]*>', '', 'g')\n  s = htmlDecode(s)\n  s = yxFixLines(s)\n  s = replace(s, '[^' + nl + ']*https?://[^' + nl + ']*', '', 'g')\n  s = replace(s, '[^' + nl + ']*天才一秒记住[^' + nl + ']*', '', 'g')\n  s = replace(s, '[^' + nl + ']*最快更新[^' + nl + ']*', '', 'g')\n  s = replace(s, '[^' + nl + ']*最新网址[^' + nl + ']*', '', 'g')\n  s = replace(s, '[^' + nl + ']*请记住本站[^' + nl + ']*', '', 'g')\n  s = replace(s, nl + nl + nl, nl + nl, 'g')\n  s = replace(s, nl + nl + nl, nl + nl, 'g')\n  s = replace(s, '[ \\t]+\\n', nl, 'g')\n  return trim(s)\n}",
+ "search": {
+  "url": "= '/search.html?name=' + urlencode(key)",
+  "list": ".novelslist2 li:gt(0)",
+  "fields": {
+   "name": ".s2 a@text",
+   "bookUrl": ".s2 a@href",
+   "lastChapter": ".s3 a@text",
+   "author": ".s4@text",
+   "updateTime": ".s6@text",
+   "coverUrl": "= yxCover(sel('.s2 a@href'))"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "玄幻奇幻",
+    "url": "/xuanhuanxiaoshuo/"
+   },
+   {
+    "title": "修真仙侠",
+    "url": "/xiuzhenxiaoshuo/"
+   },
+   {
+    "title": "都市青春",
+    "url": "/dushixiaoshuo/"
+   },
+   {
+    "title": "历史穿越",
+    "url": "/chuanyuexiaoshuo/"
+   },
+   {
+    "title": "网游竞技",
+    "url": "/wangyouxiaoshuo/"
+   },
+   {
+    "title": "科幻灵异",
+    "url": "/kehuanxiaoshuo/"
+   },
+   {
+    "title": "其它小说",
+    "url": "/qitaxiaoshuo/"
+   }
+  ],
+  "list": ".l ul li",
+  "fields": {
+   "name": ".s2 a@text",
+   "bookUrl": ".s2 a@href",
+   "lastChapter": ".s3 a@text",
+   "author": ".s4@text",
+   "updateTime": ".s5@text",
+   "coverUrl": "= yxCover(sel('.s2 a@href'))"
+  }
+ },
+ "detail": {
+  "let": {
+   "iRaw": "#intro@html"
+  },
+  "fields": {
+   "name": "meta[property=\"og:novel:book_name\"]@content",
+   "author": "meta[property=\"og:novel:author\"]@content",
+   "kind": "meta[property=\"og:novel:category\"]@content",
+   "coverUrl": "= yxAbs(sel('meta[property=\"og:image\"]@content'))",
+   "lastChapter": "meta[property=\"og:novel:latest_chapter_name\"]@content",
+   "updateTime": "meta[property=\"og:novel:update_time\"]@content",
+   "intro": "= yxLines(iRaw)"
+  }
+ },
+ "toc": {
+  "list": "#list dd:gt(11)",
+  "fields": {
+   "title": "a@text",
+   "url": "a@href"
+  }
+ },
+ "content": {
+  "let": {
+   "raw": "#content@html"
+  },
+  "text": "= yxBody(raw)",
+  "replace": [
+   {
+    "pattern": "天才一秒记住本站地址.*",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": ".*https?://.*",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": ".*最快更新.*",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": ".*最新网址.*",
+    "with": "",
+    "flags": "g"
+   }
+  ]
+ }
+}

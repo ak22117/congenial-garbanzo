@@ -1,0 +1,74 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "漫畫狗",
+ "url": "https://dogemanga.com",
+ "type": "comic",
+ "group": "渡·漫画",
+ "comment": "由 yckceo 图源 id/664 转写为原生格式。搜索/发现使用站内卡片；目录取详情页 .site-selector option 的 value；正文取 .site-reader__image 的 data-page-image-url，并带 Referer。",
+ "enabled": true,
+ "enabledExplore": true,
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  "Referer": "https://dogemanga.com/"
+ },
+ "search": {
+  "url": "{{source.url}}/?q={{urlencode(key)}}&o={{(page - 1) * 12}}",
+  "list": ".site-card",
+  "fields": {
+   "name": ".site-card__manga-title@text",
+   "author": ".card-subtitle a@text",
+   "coverUrl": "img@src",
+   "intro": ".site-card__brief@text",
+   "bookUrl": ".site-card__manga-title@href",
+   "kind": "= match(item, '連載完結|連載中', 1)",
+   "lastChapter": ".list-group-item:first a@text"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "热门排行",
+    "url": "{{source.url}}/?s=0"
+   },
+   {
+    "title": "最新连载",
+    "url": "{{source.url}}/?s=1"
+   }
+  ],
+  "list": ".site-card",
+  "fields": {
+   "name": ".site-card__manga-title@text",
+   "author": ".card-subtitle a@text",
+   "coverUrl": "img@src",
+   "intro": ".site-card__brief@text",
+   "bookUrl": ".site-card__manga-title@href",
+   "kind": "= match(item, '連載完結|連載中', 1)",
+   "lastChapter": ".list-group-item:first a@text"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": ".site-card__manga-title@text",
+   "author": "h4 a@text",
+   "coverUrl": ".site-manga__cover-image@src",
+   "intro": ".site-card__brief@text",
+   "kind": "= match(body, '連載完結|連載中', 1)",
+   "lastChapter": ".site-manga-thumbnail__link:first@text"
+  }
+ },
+ "toc": {
+  "list": ".site-selector option[value]",
+  "reverse": true,
+  "fields": {
+   "title": "@text",
+   "url": "@value"
+  }
+ },
+ "content": {
+  "images": ".site-reader__image@data-page-image-url",
+  "mediaHeaders": {
+   "Referer": "https://dogemanga.com/"
+  }
+ }
+}

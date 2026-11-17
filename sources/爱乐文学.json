@@ -1,0 +1,362 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "爱乐文学",
+ "url": "https://www.ailewx.com",
+ "group": "渡",
+ "type": "text",
+ "comment": "爱乐文学（原生，2026-10-17 转写并逐阶段实测）\n· 搜索：POST {{source.url}}/search.html?searchtype=all&searchkey=（★参数放在查询串、不带 body）。\n  实测：参数塞 body 时服务端不解析（直接回搜索首页、0 结果，调试报告可复现）；放查询串则正常 302 到\n  /search/<id>/1.html。另外必须带 Referer，否则提示「找不到您要搜索的内容」。\n· 发现：71 条菜单（4 分组 + 67 分类/榜单）。一条书 = .novelslist2 dl（dt 封面 / dd0 书名 / dd1 作者 / dd2 简介 / dd3 最新章节 / .uptime 更新日期）。\n· 详情：#info（h1 书名、p0 作者、p2 最后更新、p3 最新更新）；#intro p0 简介；#fmimg img 封面（img.ailewx.com 独立域）。\n· 目录：站点 #list 里有两个 <dt>（① 最新章节预览 ② 正文完整目录），原 jsLib 按“含正文的 dt”切分；\n  原生不能跑 JS → lib aileToc() 用「切 #list → 按 <dt 切分取最后一段 → 截到 </dl> → 用相对锚点两次 matchAll」复刻，\n  同样免疫预览块长度变化。目录单页，无分页。\n· 正文：#content@html，已移植原源的章末推广句净化。\n· 原 loginUrl/jsLib 的交互面板（复制群号等）原生跑不了 JS，已丢弃；群号记这里：官方群 1126698568，友链群 963153401。\n· ⚠ 发现/搜索页不提供状态与字数（只有搜索结果页的 .book_other 里有），故发现页字段里没有 status。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "Cookie": "Hm_lvt_7fcb840f05292022d7891ede141cc33d=1625028707"
+ },
+ "lib": "// 目录：站点 #list 里有两个 <dt>（① 最新章节预览倒序 ② 正文完整正序）。\n// 原生不能跑 JS，用「切出 #list → 按 <dt 切分取最后一段 → 截到 </dl> → 取 dd 里的链接」复刻。\n// 关键：正文那个 dt 里还夹着一个「TXT下载」的绝对链接，若用 replace+split 拼行会被它污染；\n// 所以 href 与标题都只用 /xiaoshuo/<书号>/<章号>.html 这个相对锚点匹配，两次 matchAll 天然对齐。\nfn aileToc(html) {\n  let h = str(html)\n  let i = indexOf(h, 'id=\"list\"')\n  let s = i >= 0 ? substring(h, i, len(h)) : h\n  let parts = split(s, '<dt')\n  let tail = str(parts[len(parts) - 1])\n  let j = indexOf(tail, '</dl>')\n  if (j >= 0) { tail = substring(tail, 0, j) }\n  let hrefs = matchAll(tail, '<a href=\"(/xiaoshuo/[0-9]+/[0-9]+[.]html)\"', 1)\n  let titles = matchAll(tail, 'href=\"/xiaoshuo/[0-9]+/[0-9]+[.]html\"[^>]*>([^<]*)</a>', 1)\n  let out = []\n  let k = 0\n  while (k < len(hrefs) && k < len(titles)) {\n    let t = trim(str(titles[k]))\n    if (t != '') { push(out, { title: t, url: str(hrefs[k]) }) }\n    k = k + 1\n  }\n  return out\n}",
+ "explore": {
+  "menus": [
+   {
+    "title": "📚 全部小说"
+   },
+   {
+    "title": "🐉 玄幻",
+    "url": "{{source.url}}/store/0_1_0_{{page}}.html"
+   },
+   {
+    "title": "⚔️ 武侠",
+    "url": "{{source.url}}/store/0_2_0_{{page}}.html"
+   },
+   {
+    "title": "🏙 都市",
+    "url": "{{source.url}}/store/0_3_0_{{page}}.html"
+   },
+   {
+    "title": "📜 历史",
+    "url": "{{source.url}}/store/0_4_0_{{page}}.html"
+   },
+   {
+    "title": "🎮 游戏",
+    "url": "{{source.url}}/store/0_5_0_{{page}}.html"
+   },
+   {
+    "title": "🚀 科幻",
+    "url": "{{source.url}}/store/0_6_0_{{page}}.html"
+   },
+   {
+    "title": "👻 悬疑",
+    "url": "{{source.url}}/store/0_7_0_{{page}}.html"
+   },
+   {
+    "title": "🎌 二次元",
+    "url": "{{source.url}}/store/0_8_0_{{page}}.html"
+   },
+   {
+    "title": "📕 经典",
+    "url": "{{source.url}}/store/0_9_0_{{page}}.html"
+   },
+   {
+    "title": "🏯 古言",
+    "url": "{{source.url}}/store/0_10_0_{{page}}.html"
+   },
+   {
+    "title": "💗 现言",
+    "url": "{{source.url}}/store/0_11_0_{{page}}.html"
+   },
+   {
+    "title": "✨ 幻想",
+    "url": "{{source.url}}/store/0_12_0_{{page}}.html"
+   },
+   {
+    "title": "🌸 校园",
+    "url": "{{source.url}}/store/0_13_0_{{page}}.html"
+   },
+   {
+    "title": "🌐 网缘",
+    "url": "{{source.url}}/store/0_14_0_{{page}}.html"
+   },
+   {
+    "title": "🌌 星空",
+    "url": "{{source.url}}/store/0_15_0_{{page}}.html"
+   },
+   {
+    "title": "👺 灵异",
+    "url": "{{source.url}}/store/0_16_0_{{page}}.html"
+   },
+   {
+    "title": "🌀 次元",
+    "url": "{{source.url}}/store/0_17_0_{{page}}.html"
+   },
+   {
+    "title": "💕 美文",
+    "url": "{{source.url}}/store/0_18_0_{{page}}.html"
+   },
+   {
+    "title": "🏆 排行榜单"
+   },
+   {
+    "title": "🔥 总点击",
+    "url": "{{source.url}}/store/allvisit_0_0_{{page}}.html"
+   },
+   {
+    "title": "🌙 月点击",
+    "url": "{{source.url}}/store/monthvisit_0_0_{{page}}.html"
+   },
+   {
+    "title": "📅 周点击",
+    "url": "{{source.url}}/store/weekvisit_0_0_{{page}}.html"
+   },
+   {
+    "title": "☀️ 日点击",
+    "url": "{{source.url}}/store/dayvisit_0_0_{{page}}.html"
+   },
+   {
+    "title": "⭐ 总推荐",
+    "url": "{{source.url}}/store/allvote_0_0_{{page}}.html"
+   },
+   {
+    "title": "🌟 月推荐",
+    "url": "{{source.url}}/store/monthvote_0_0_{{page}}.html"
+   },
+   {
+    "title": "🔆 周推荐",
+    "url": "{{source.url}}/store/weekvote_0_0_{{page}}.html"
+   },
+   {
+    "title": "💫 日推荐",
+    "url": "{{source.url}}/store/dayvote_0_0_{{page}}.html"
+   },
+   {
+    "title": "💖 收藏",
+    "url": "{{source.url}}/store/goodnum_0_0_{{page}}.html"
+   },
+   {
+    "title": "📊 字数",
+    "url": "{{source.url}}/store/size_0_0_{{page}}.html"
+   },
+   {
+    "title": "🆕 入库",
+    "url": "{{source.url}}/store/postdate_0_0_{{page}}.html"
+   },
+   {
+    "title": "🔄 更新",
+    "url": "{{source.url}}/store/lastupdate_0_0_{{page}}.html"
+   },
+   {
+    "title": "🌱 新书",
+    "url": "{{source.url}}/store/goodnew_0_0_{{page}}.html"
+   },
+   {
+    "title": "📖 全部连载"
+   },
+   {
+    "title": "🐉 玄幻",
+    "url": "{{source.url}}/store/0_1_1_{{page}}.html"
+   },
+   {
+    "title": "⚔️ 武侠",
+    "url": "{{source.url}}/store/0_2_1_{{page}}.html"
+   },
+   {
+    "title": "🏙 都市",
+    "url": "{{source.url}}/store/0_3_1_{{page}}.html"
+   },
+   {
+    "title": "📜 历史",
+    "url": "{{source.url}}/store/0_4_1_{{page}}.html"
+   },
+   {
+    "title": "🎮 游戏",
+    "url": "{{source.url}}/store/0_5_1_{{page}}.html"
+   },
+   {
+    "title": "🚀 科幻",
+    "url": "{{source.url}}/store/0_6_1_{{page}}.html"
+   },
+   {
+    "title": "👻 悬疑",
+    "url": "{{source.url}}/store/0_7_1_{{page}}.html"
+   },
+   {
+    "title": "🎌 二次元",
+    "url": "{{source.url}}/store/0_8_1_{{page}}.html"
+   },
+   {
+    "title": "📕 经典",
+    "url": "{{source.url}}/store/0_9_1_{{page}}.html"
+   },
+   {
+    "title": "🏯 古言",
+    "url": "{{source.url}}/store/0_10_1_{{page}}.html"
+   },
+   {
+    "title": "💗 现言",
+    "url": "{{source.url}}/store/0_11_1_{{page}}.html"
+   },
+   {
+    "title": "✨ 幻想",
+    "url": "{{source.url}}/store/0_12_1_{{page}}.html"
+   },
+   {
+    "title": "🌸 校园",
+    "url": "{{source.url}}/store/0_13_1_{{page}}.html"
+   },
+   {
+    "title": "🌐 网缘",
+    "url": "{{source.url}}/store/0_14_1_{{page}}.html"
+   },
+   {
+    "title": "🌌 星空",
+    "url": "{{source.url}}/store/0_15_1_{{page}}.html"
+   },
+   {
+    "title": "👺 灵异",
+    "url": "{{source.url}}/store/0_16_1_{{page}}.html"
+   },
+   {
+    "title": "🌀 次元",
+    "url": "{{source.url}}/store/0_17_1_{{page}}.html"
+   },
+   {
+    "title": "💕 美文",
+    "url": "{{source.url}}/store/0_18_1_{{page}}.html"
+   },
+   {
+    "title": "✅ 全部完结"
+   },
+   {
+    "title": "🐉 玄幻",
+    "url": "{{source.url}}/store/0_1_2_{{page}}.html"
+   },
+   {
+    "title": "⚔️ 武侠",
+    "url": "{{source.url}}/store/0_2_2_{{page}}.html"
+   },
+   {
+    "title": "🏙 都市",
+    "url": "{{source.url}}/store/0_3_2_{{page}}.html"
+   },
+   {
+    "title": "📜 历史",
+    "url": "{{source.url}}/store/0_4_2_{{page}}.html"
+   },
+   {
+    "title": "🎮 游戏",
+    "url": "{{source.url}}/store/0_5_2_{{page}}.html"
+   },
+   {
+    "title": "🚀 科幻",
+    "url": "{{source.url}}/store/0_6_2_{{page}}.html"
+   },
+   {
+    "title": "👻 悬疑",
+    "url": "{{source.url}}/store/0_7_2_{{page}}.html"
+   },
+   {
+    "title": "🎌 二次元",
+    "url": "{{source.url}}/store/0_8_2_{{page}}.html"
+   },
+   {
+    "title": "📕 经典",
+    "url": "{{source.url}}/store/0_9_2_{{page}}.html"
+   },
+   {
+    "title": "🏯 古言",
+    "url": "{{source.url}}/store/0_10_2_{{page}}.html"
+   },
+   {
+    "title": "💗 现言",
+    "url": "{{source.url}}/store/0_11_2_{{page}}.html"
+   },
+   {
+    "title": "✨ 幻想",
+    "url": "{{source.url}}/store/0_12_2_{{page}}.html"
+   },
+   {
+    "title": "🌸 校园",
+    "url": "{{source.url}}/store/0_13_2_{{page}}.html"
+   },
+   {
+    "title": "🌐 网缘",
+    "url": "{{source.url}}/store/0_14_2_{{page}}.html"
+   },
+   {
+    "title": "🌌 星空",
+    "url": "{{source.url}}/store/0_15_2_{{page}}.html"
+   },
+   {
+    "title": "👺 灵异",
+    "url": "{{source.url}}/store/0_16_2_{{page}}.html"
+   },
+   {
+    "title": "🌀 次元",
+    "url": "{{source.url}}/store/0_17_2_{{page}}.html"
+   },
+   {
+    "title": "💕 美文",
+    "url": "{{source.url}}/store/0_18_2_{{page}}.html"
+   }
+  ],
+  "list": ".novelslist2 dl",
+  "fields": {
+   "name": "dd:eq(0) a:eq(0)@text",
+   "author": "dd:eq(1)@text##^作者：##",
+   "coverUrl": "dt a img@src",
+   "intro": "dd:eq(2)@text",
+   "lastChapter": "dd:eq(3) a@text",
+   "updateTime": ".uptime@text",
+   "bookUrl": "dd:eq(0) a:eq(0)@href"
+  }
+ },
+ "search": {
+  "url": "{{source.url}}/search.html?searchtype=all&searchkey={{urlencode(key)}}",
+  "method": "POST",
+  "headers": {
+   "Content-Type": "application/x-www-form-urlencoded",
+   "Referer": "{{source.url}}/"
+  },
+  "list": "#sitembox dl",
+  "fields": {
+   "name": "dd:eq(0) a:eq(0)@text##\\(.*|（.*|免费阅读|最新章节",
+   "author": ".book_other:eq(0) span:eq(0)@text",
+   "status": ".book_other:eq(0) span:eq(1)@text",
+   "kind": ".book_other:eq(0) span:eq(2)@text",
+   "wordCount": ".book_other:eq(0) span:eq(3)@text",
+   "lastChapter": ".book_other:eq(1) a@text",
+   "updateTime": ".book_other:eq(1) span@text",
+   "intro": ".book_des@text",
+   "coverUrl": "dt a img@src",
+   "bookUrl": "dd:eq(0) a:eq(0)@href"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "#info h1@text##\\(.*|（.*|免费阅读|最新章节",
+   "author": "#info p:eq(0) a@text",
+   "coverUrl": "#fmimg img@src",
+   "intro": "#intro p:eq(0)@text",
+   "updateTime": "#info p:eq(2)@text##最后更新：",
+   "lastChapter": "#info p:eq(3) a@text"
+  }
+ },
+ "toc": {
+  "list": "= aileToc(body)",
+  "fields": {
+   "title": "$.title",
+   "url": "$.url"
+  }
+ },
+ "content": {
+  "text": "#content@html",
+  "replace": [
+   {
+    "pattern": "因某些原.*突然出现大量.*到回家的路！|喜欢.*更新速度最快。|您可以在百度.*查找最新章节！|.*最新章节地址.*|.*全文阅读地址.*|.*txt下载地址.*|.*手机阅读.*|为了方便下次阅.*下次打开书架即可看到！|喜欢.*请向你的朋友.*|本章未完.*后面更精彩！|喜欢.*?全网最快。|请记住本站.*?最快。",
+    "with": "",
+    "flags": "g"
+   }
+  ]
+ },
+ "actions": [
+  {
+   "label": "📖 打开爱乐文学首页",
+   "open": "https://www.ailewx.com/"
+  }
+ ]
+}

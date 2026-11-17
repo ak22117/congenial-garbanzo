@@ -1,0 +1,148 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "混混小说",
+ "url": "https://www.hunhun.cc",
+ "group": "渡",
+ "type": "text",
+ "rate": "20/10000",
+ "comment": "混混小说网（hunhun.cc，UTF-8，PHP 模板站，免费无登录；2026-10-17 原生转写）\n· 全站实测通（探索/搜索/详情/目录/章节各页 200），Cloudflare 边缘但无盾、无 Cookie 要求。\n· 列表（搜索/发现）结构一致：dl → h3 a 书名、dd.book_other 四行固定为 作者/状态/更新时间/最新章节。\n  字段用 :eq(0..3) 定位（顺序固定，已对真页面复算）；搜索页书名带 [类别] 前缀，用 ##^[(].{2,4}[)] 去掉。\n· kind 用 lib hhKind(sel(...)) 取方括号里的类别：sel() 在发现页字段实测可用；\n  若搜索阶段不可用则该项为空（不影响书名/地址，安全失败）。\n· 详情整页带 og:novel:*，直接取 meta 最稳；封面 img-thumbnail（相对路径）+ og:image 兜底。\n· 目录在详情页，.book_list2 一页 100 章、共 3~4 页。站点分页没有「下一页」链接（模板里那条被注释掉了），\n  故 nextUrl 用 lib hhTocNext(body, source.url)：读 1/N 判尾、从 active 页码推出 index_{n+1}.html。\n  已在真页面复算：index_1 → index_2 ✅、末页返回空 ✅。顺序翻页（未改成并发列表）。\n· 正文 chapter 内分页：第(1/3)页，续页是同名 _2.html。nextContentUrl 用 lib hhNextArt：\n  只放行 *_N.html，命中「下一章」（xxx.html）时返回空，避免把下一章拼进正文（真页面复算 ✅）。\n· 正文净化 ##第[(][0-9]+/[0-9]+[)]页|&nbsp; 去页标记与 nbsp。\n· 原 sources 的 exploreUrl 里有 3 个只有标题的分组项（分类/排行/完本），原生 menus 需要 url，故只保留 18 个真实菜单。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "zh-CN,zh;q=0.9"
+ },
+ "lib": "// 目录/正文的分页地址拼绝对路径（结果是 // 开头时补 https:）\nfn hhAbs(u, base) {\n  let s = str(u)\n  if (s == '') { return '' }\n  if (match(s, '^(https?://)', 1) != '') { return s }\n  if (match(s, '^//', 1) != '') { return 'https:' + s }\n  if (match(s, '^/', 1) != '') { return str(base) + s }\n  return str(base) + '/' + s\n}\n// 搜索结果的书名带 [类别] 前缀，取方括号里的类别；没有方括号返回空\nfn hhKind(s) {\n  let t = str(s)\n  if (substring(t, 0, 1) != '[') { return '' }\n  let a = split(t, ']')\n  if (len(a) < 1) { return '' }\n  let x = str(a[0])\n  if (len(x) < 2) { return '' }\n  return substring(x, 1, len(x))\n}\n// 目录分页：站点只有数字页码、没有下一页链接，从 active 页码推出 index_{n+1}.html，读 1/N 判尾\nfn hhTocNext(html, base) {\n  let h = str(html)\n  let cur = match(h, 'page-item[^>]*active[^>]*>[^<]*<a[^>]*href=\"([^\"]+)\"', 1)\n  let tot = match(h, 'page-link[^>]*>([0-9]+)/([0-9]+)<', 2)\n  if (cur == '' || tot == '') { return '' }\n  let n = int(match(cur, 'index_([0-9]+)[.]html', 1), 0)\n  let t = int(tot, 0)\n  if (n < 1 || t < 2 || n >= t) { return '' }\n  return hhAbs(replace(cur, '[0-9]+[.]html$', str(n + 1) + '.html', 'g'), base)\n}\n// 章内续页：只放行 *_N.html；命中「下一章」时返回空，避免把下一章拼进正文\nfn hhNextArt(html, base) {\n  let href = match(str(html), 'id=\"next\"[^>]*href=\"([^\"]+)\"', 1)\n  if (href == '') { return '' }\n  if (match(href, '_[0-9]+[.]html$', 1) == '') { return '' }\n  return hhAbs(href, base)\n}",
+ "explore": {
+  "menus": [
+   {
+    "title": "玄幻",
+    "url": "{{source.url}}/list1/{{page}}.html"
+   },
+   {
+    "title": "武侠",
+    "url": "{{source.url}}/list2/{{page}}.html"
+   },
+   {
+    "title": "都市",
+    "url": "{{source.url}}/list3/{{page}}.html"
+   },
+   {
+    "title": "历史",
+    "url": "{{source.url}}/list4/{{page}}.html"
+   },
+   {
+    "title": "网游",
+    "url": "{{source.url}}/list5/{{page}}.html"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/list6/{{page}}.html"
+   },
+   {
+    "title": "言情",
+    "url": "{{source.url}}/list7/{{page}}.html"
+   },
+   {
+    "title": "其他",
+    "url": "{{source.url}}/list8/{{page}}.html"
+   },
+   {
+    "title": "总榜",
+    "url": "{{source.url}}/top/all_0_{{page}}.html"
+   },
+   {
+    "title": "周榜",
+    "url": "{{source.url}}/top/week_0_{{page}}.html"
+   },
+   {
+    "title": "月榜",
+    "url": "{{source.url}}/top/month_0_{{page}}.html"
+   },
+   {
+    "title": "全部完本",
+    "url": "{{source.url}}/full/0_{{page}}.html"
+   },
+   {
+    "title": "玄幻完本",
+    "url": "{{source.url}}/full/1_{{page}}.html"
+   },
+   {
+    "title": "武侠完本",
+    "url": "{{source.url}}/full/2_{{page}}.html"
+   },
+   {
+    "title": "都市完本",
+    "url": "{{source.url}}/full/3_{{page}}.html"
+   },
+   {
+    "title": "历史完本",
+    "url": "{{source.url}}/full/4_{{page}}.html"
+   },
+   {
+    "title": "网游完本",
+    "url": "{{source.url}}/full/5_{{page}}.html"
+   },
+   {
+    "title": "科幻完本",
+    "url": "{{source.url}}/full/6_{{page}}.html"
+   },
+   {
+    "title": "言情完本",
+    "url": "{{source.url}}/full/7_{{page}}.html"
+   },
+   {
+    "title": "其他完本",
+    "url": "{{source.url}}/full/8_{{page}}.html"
+   }
+  ],
+  "list": "dl",
+  "fields": {
+   "name": "h3 a@text##^[[](玄幻|武侠|都市|历史|网游|科幻|言情|其他).",
+   "author": "dd.book_other:eq(0) span@text",
+   "coverUrl": "img@src",
+   "lastChapter": "dd.book_other:eq(3) a@text",
+   "bookUrl": "h3 a@href",
+   "status": "dd.book_other:eq(1)@text##^[^：]*：",
+   "updateTime": "dd.book_other:eq(2)@text##^[^：]*："
+  }
+ },
+ "search": {
+  "url": "{{source.url}}/search.php?q={{urlencode(key)}}&p={{page}}",
+  "list": "dl",
+  "fields": {
+   "name": "h3 a@text##^[[](玄幻|武侠|都市|历史|网游|科幻|言情|其他).",
+   "author": "dd.book_other:eq(0) span@text",
+   "coverUrl": "img@src",
+   "lastChapter": "dd.book_other:eq(3) a@text",
+   "bookUrl": "h3 a@href",
+   "status": "dd.book_other:eq(1)@text##^[^：]*：",
+   "updateTime": "dd.book_other:eq(2)@text##^[^：]*：",
+   "kind": "= hhKind(sel(\"h3 a@text\"))"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "meta[property=\"og:novel:book_name\"]@content||h1@text",
+   "author": "meta[property=\"og:novel:author\"]@content",
+   "coverUrl": "img.img-thumbnail@src||meta[property=\"og:image\"]@content",
+   "intro": "#intro_pc@text##简介：|您要是觉得[^<]*",
+   "kind": "meta[property=\"og:novel:category\"]@content##小说",
+   "status": "meta[property=\"og:novel:status\"]@content",
+   "lastChapter": "meta[property=\"og:novel:latest_chapter_name\"]@content",
+   "updateTime": "meta[property=\"og:novel:update_time\"]@content"
+  }
+ },
+ "toc": {
+  "list": ".book_list2 li",
+  "fields": {
+   "title": "a@text",
+   "url": "a@href"
+  },
+  "nextUrl": "= hhTocNext(body, source.url)"
+ },
+ "content": {
+  "text": "article@html##第[(][0-9]+/[0-9]+[)]页|&nbsp;",
+  "nextContentUrl": "= hhNextArt(body, source.url)"
+ }
+}

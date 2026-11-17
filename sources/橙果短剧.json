@@ -1,0 +1,150 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "橙果短剧",
+ "url": "https://11.phvhknat.cc",
+ "group": "渡·影视",
+ "type": "video",
+ "coverDecode": {
+  "algorithm": "AES/CBC/PKCS7Padding",
+  "key": "f5d965df75336270",
+  "keyEncoding": "utf8",
+  "iv": "39376236303339346162633266626531"
+ },
+ "comment": "已知限制：原创、漫剧、搜索不支持分页（/page-2 实测 404），全量走「片库索引」；封面是 AES-128-CBC 密文，需 coverDecode；播放地址为 m3u8+auth_key 时效签名，切集重取即可。验收范围：回放（真实站点：列表 16 条、搜索「霸总」30 条、目录 4 集、m3u8 200/26 分片可下、封面 298838 字节解出合法 JPEG、解析 27ms）。真机未验。维护日期：2026-11-08。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
+  "Accept": "text/html,application/xhtml+xml",
+  "Accept-Language": "zh-CN,zh;q=0.9"
+ },
+ "vars": [
+  {
+   "key": "mirror",
+   "label": "线路域名（默认 11.phvhknat.cc；换线路后分类/搜索/分页跟着变）",
+   "options": [
+    "11.phvhknat.cc",
+    "snbxyhye.cc",
+    "jmgowudtw.cc"
+   ],
+   "default": "11.phvhknat.cc"
+  },
+  {
+   "key": "custom",
+   "label": "自定义域名（留空 = 用上面的线路；可填 host 或 https://host）",
+   "default": ""
+  },
+  {
+   "key": "nsfw",
+   "label": "成人分类（AI短剧 / AI魔改 / AI漫剧）",
+   "options": [
+    "全部显示（默认）",
+    "隐藏"
+   ],
+   "default": "全部显示（默认）"
+  },
+  {
+   "key": "browse",
+   "label": "片库索引（全部剧库）",
+   "options": [
+    "显示（默认）",
+    "隐藏"
+   ],
+   "default": "显示（默认）"
+  },
+  {
+   "key": "nsfwKey",
+   "label": "成人解锁口令（填 18 = 强制显示上面两项）",
+   "default": ""
+  }
+ ],
+ "let": {
+  "mirrorRaw": "= trim(default(vars.custom, '')) == '' ? default(vars.mirror, source.url) : trim(default(vars.custom, ''))",
+  "server": "= startsWith(mirrorRaw, 'http') ? replace(mirrorRaw, '/+$', '') : 'https://' + replace(mirrorRaw, '/+$', '')",
+  "nsfwForce": "= trim(default(vars.nsfwKey, '')) == '18'",
+  "aiShow": "= nsfwForce || default(vars.nsfw, '') != '隐藏'",
+  "browseShow": "= nsfwForce || default(vars.browse, '') != '隐藏'"
+ },
+ "actions": [
+  {
+   "label": "= '线路 ' + replace(server, 'https://', '') + ' ｜ 成人分类：' + (aiShow ? '全部显示' : '已隐藏') + '（点此自检）'",
+   "url": "{{server}}/",
+   "message": "= '线路正常：' + server + ' ｜ 成人分类：' + (aiShow ? '全部显示' : '已隐藏（填口令 18 或把下拉改回「全部显示（默认）」即可显示）')"
+  }
+ ],
+ "explore": {
+  "menus": [
+   {
+    "title": "原创短剧",
+    "url": "= server + '/yuanchuang'"
+   },
+   {
+    "title": "魔改短剧",
+    "when": "= aiShow",
+    "url": "= page > 1 ? server + '/mogai/page-' + page : server + '/mogai'"
+   },
+   {
+    "title": "漫剧",
+    "when": "= aiShow",
+    "url": "= server + '/manju'"
+   },
+   {
+    "title": "真人短剧",
+    "url": "= page > 1 ? server + '/zhenren/page-' + page : server + '/zhenren'"
+   },
+   {
+    "title": "AI短剧",
+    "when": "= aiShow",
+    "url": "= page > 1 ? server + '/aiduanju/page-' + page : server + '/aiduanju'"
+   },
+   {
+    "title": "片库索引",
+    "when": "= browseShow",
+    "url": "= page > 1 ? server + '/browse/page-' + page : server + '/browse'"
+   }
+  ],
+  "list": "= dramasOf(body)",
+  "fields": {
+   "name": "= split(item, '\\t')[0]",
+   "bookUrl": "= absUrl(split(item, '\\t')[1], baseUrl)",
+   "coverUrl": "= split(item, '\\t')[2]",
+   "type": "video"
+  }
+ },
+ "search": {
+  "url": "= server + '/search/' + urlencode(key)",
+  "list": "= dramasOf(body)",
+  "fields": {
+   "name": "= split(item, '\\t')[0]",
+   "bookUrl": "= absUrl(split(item, '\\t')[1], baseUrl)",
+   "coverUrl": "= split(item, '\\t')[2]",
+   "type": "video"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "h1@text",
+   "intro": "= nuxtIntro != '' ? nuxtIntro : default(sel('meta[name=description]@content'), '')",
+   "type": "video",
+   "coverUrl": "= coverOf(body)"
+  },
+  "let": {
+   "nuxtIntro": "= introOf(body)"
+  }
+ },
+ "toc": {
+  "list": "= unique(matchAll(body, 'href=\"(/play/' + match(book.bookUrl, '/drama/([^/?#]+)', 1) + '/[0-9]+)\"', 1))",
+  "fields": {
+   "title": "= '第' + match(item, '/([0-9]+)$', 1) + '集'",
+   "url": "= absUrl(item, baseUrl)"
+  }
+ },
+ "content": {
+  "let": {
+   "m": "= match(body, '\"(https:[^\"]+m3u8[^\"]*)\"', 1)",
+   "key": "= match(body, '\"(https:[^\"]+m3u8\\\\?auth_key[^\"]*)\"', 1)"
+  },
+  "video": "= startsWith(key, 'http') ? replaceText(json('\"' + key + '\"'), '\\\\u002F', '/') : (startsWith(m, 'http') ? replaceText(json('\"' + m + '\"'), '\\\\u002F', '/') : '')",
+  "fail": "= m == '' && key == '' ? '播放页未找到 m3u8 地址' : ''"
+ },
+ "lib": "fn deval(n, v) {\n  let k = 0\n  while k < 10 {\n    if typeOf(v) != 'number' { return v }\n    v = n[v]\n    k = k + 1\n  }\n  return v\n}\n\nfn dramasOf(body) {\n  let raw = match(body, 'id=\"__NUXT_DATA__\"[^>]*>([\\s\\S]*?)</script>', 1)\n  let n = json(raw)\n  let out = []\n  if n == null { return out }\n  let seen = []\n  let i = 0\n  while i < len(n) {\n    let v = n[i]\n    if typeOf(v) == 'map' && get(v, 'cover') != null && get(v, 'title') != null {\n      let rk = get(v, 'detail_route')\n      if rk == null { rk = get(v, 'route') }\n      if rk != null {\n        let route = str(deval(n, rk))\n        if route != '' && indexOf(join(seen, '|'), route) < 0 {\n          push(seen, route)\n          let name = str(deval(n, get(v, 'title')))\n          let cov = deval(n, get(v, 'cover'))\n          let cover = ''\n          if typeOf(cov) == 'map' { cover = str(deval(n, get(cov, 'url'))) } else { cover = str(deval(n, cov)) }\n          push(out, name + '\\t' + route + '\\t' + cover)\n        }\n      }\n    }\n    i = i + 1\n  }\n  return out\n}\n\nfn coverOf(body) {\n  let raw = match(body, 'id=\"__NUXT_DATA__\"[^>]*>([\\s\\S]*?)</script>', 1)\n  let n = json(raw)\n  if n == null { return '' }\n  let i = 0\n  while i < len(n) {\n    let v = n[i]\n    if typeOf(v) == 'map' && get(v, 'cover') != null && get(v, 'intro') != null {\n      let c = deval(n, get(v, 'cover'))\n      if typeOf(c) == 'map' { return str(deval(n, get(c, 'url'))) }\n      return str(deval(n, c))\n    }\n    i = i + 1\n  }\n  return ''\n}\n\nfn introOf(body) {\n  let raw = match(body, 'id=\"__NUXT_DATA__\"[^>]*>([\\s\\S]*?)</script>', 1)\n  let n = json(raw)\n  if n == null { return '' }\n  let i = 0\n  while i < len(n) {\n    let v = n[i]\n    if typeOf(v) == 'map' && get(v, 'cover') != null && get(v, 'intro') != null {\n      let t = str(deval(n, get(v, 'intro')))\n      if t != '' { return t }\n    }\n    i = i + 1\n  }\n  return ''\n}\n"
+}
