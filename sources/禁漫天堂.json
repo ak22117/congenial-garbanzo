@@ -1,0 +1,330 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "禁漫天堂",
+ "url": "https://abandon.bomei.cc",
+ "group": "渡·漫画",
+ "type": "comic",
+ "comment": "【2026-11-10 修复：线路换域】旧 *.yyc2mhau.cc 全部超时（DNS 被污染到 Facebook 网段），新线路改为 *.bomei.cc（从发布页 jmtt2.net 的 JS 算法取得：词表随机词 + .bomei.cc）。实测 abandon/ability/able/above/abroad/absence.bomei.cc 均返回 200，/comic/all、/novel/all、/mv/all 各 40 条卡片且结构（jm-card / jm-vcard）未变。\n\n—— 原 comment ——\n【2026-11-10 检测：DNS 被污染】源内 4 条线路（abandon/ability/able/above.yyc2mhau.cc）全部超时 10s+。解析出的 IP 为 157.240.7.5、199.96.62.21 等，其中 157.240.x.x 属 Facebook 网段，明显非站点真实 IP。需从发布页 jmtt1.net 获取新线路。\n\n—— 原 comment ——\nv1.4 · 2026-11-03 瘦身 + 列表作者补齐（漫画列表卡不带作者，逐本回详情取，最多 12 本）。2026-11-01 原生重构（sourceFormat=native，脚本阶段 + js 函数库）。发现页按「漫画 / 小说 / 视频」三个**分组**组织（没有 url 的菜单条目就是分组标题），顶部下拉切分组、下面一排标签选分类；分类地址带 {{page}}，翻页交给引擎。三模式不再靠开关：按 URL 段（/comic/ /novel/ /mv/）自动判型，每本书各自声明 type，搜索一次合并三类结果。正文图是整文件 AES-128-CBC 加密（密钥/IV 为站点前端常量），用 content.imageDecode 解密，并先验文件魔数——少数已是明文的图（旧 CDN / 广告位）原样放行；封面同密钥，用顶层 coverDecode。视频把 /mv/embed 两层 packer 混淆静态解出 /media/m3u8 直链交给原生播放器（带倍速/进度），videoPage 用原站网页做回退。⚠️ 已知限制：①站内搜索按整词命中（单字常无结果），搜索会把三类各自前 20 条合并返回；②「最近更新」/comic/newest 是跨类型按天流，服务端各页同内容，只取第 1 页；③分类分页是 /x/all/{code}/{N}（不是 /page/N，写错会一直回第 1 页）；④榜单走 /rank/board 接口（视频无榜单）；⑤图片地址带 auth_key（约 1 天时效），过期后重开本章即可刷新；⑥【站点侧限制，不是规则丢图】当天刚发布的漫画，游客打开只给 2 页预览（同日实测：10-31 新书 = 2 页，10-30 = 14 页，10-28 = 17~20 页，更早的整章完整）；同一章节换 UA / 加 Referer / 带 Cookie / 关接口探测均仍是 2 页，站点无付费墙文案、无懒加载参数，属内容侧对游客的预览限制。线路：*.yyc2mhau.cc 任意单词子域同源（站点用词表轮换），本源内置 6 条，点「📶 线路自检并切换」按实测延时自动选通；发布页 jmtt1.net 只放导航不放内容，所以不作线路。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "zh-CN,zh;q=0.9"
+ },
+ "coverHeaders": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+  "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+ },
+ "coverDecode": {
+  "algorithm": "AES/CBC/PKCS7Padding",
+  "key": "66356439363564663735333336323730",
+  "keyEncoding": "hex",
+  "iv": "39376236303339346162633266626531"
+ },
+ "mediaHeaders": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+  "Referer": "https://abandon.bomei.cc/"
+ },
+ "rate": "10/10000",
+ "scriptLimits": {
+  "requests": 40
+ },
+ "vars": [
+  {
+   "key": "host",
+   "label": "线路（*.bomei.cc 同源，2026-11-10 更新：旧 yyc2mhau.cc 已全部失效）",
+   "options": [
+    "https://abandon.bomei.cc",
+    "https://ability.bomei.cc",
+    "https://able.bomei.cc",
+    "https://above.bomei.cc",
+    "https://abroad.bomei.cc",
+    "https://absence.bomei.cc"
+   ],
+   "default": "https://abandon.bomei.cc"
+  }
+ ],
+ "actions": [
+  {
+   "label": "🩺 五阶段自检",
+   "script": "actSelfCheck"
+  },
+  {
+   "label": "📶 线路自检并切换",
+   "script": "actLineCheck"
+  },
+  {
+   "label": "🎬 视频链自检",
+   "script": "actVideoCheck"
+  }
+ ],
+ "js": "// ===== 禁漫天堂（jmtt1 / 18mh 新版 jm-* 前端）轻页原生 v1 =====\n// 结构：工具 -> 线路 -> 请求 -> 列表解析 -> 五阶段 -> 图片解密 -> 分支自检 -> 视频链\n// 约束：QuickJS（无 DOM / cheerio / Node），只做字符串与正则；请求走 http.*\n// 三模式不靠开关：URL 段 /comic/ /novel/ /mv/ 决定类型，每本书各自声明 type\n\n// ---------- 工具 ----------\nvar ENT = { amp: '&', lt: '<', gt: '>', quot: '\"', apos: \"'\", ldquo: '\\u201c', rdquo: '\\u201d', lsquo: '\\u2018', rsquo: '\\u2019', hellip: '\\u2026', mdash: '\\u2014', ndash: '\\u2013', middot: '\\u00b7', nbsp: ' ', ensp: ' ' };\nfunction unesc(s) {\n  return String(s == null ? '' : s).replace(/&#x([0-9a-fA-F]+);|&#(\\d+);|&([a-zA-Z]+);/g, function (all, h, d, n) {\n    if (h) return String.fromCharCode(parseInt(h, 16));\n    if (d) return String.fromCharCode(parseInt(d, 10));\n    return ENT[n] != null ? ENT[n] : all;\n  });\n}\nfunction clean(s) {\n  return unesc(String(s == null ? '' : s).replace(/<[^>]*>/g, ' '))\n    .replace(/\\s+/g, ' ').replace(/^\\s+|\\s+$/g, '');\n}\nfunction pick(s, re, i) {\n  var m = String(s == null ? '' : s).match(re);\n  return m ? clean(m[typeof i === 'number' ? i : 1]) : '';\n}\nfunction nOf(v) {\n  var n = parseInt(v, 10);\n  return (n > 0 ? n : 1);\n}\n// 段类型：只有三类\nfunction segOf(url) {\n  var u = String(url || '');\n  if (/\\/novel(\\/|_)/.test(u)) return 'novel';\n  if (/\\/mv(\\/|$|\\?)/.test(u)) return 'mv';\n  return 'comic';\n}\nfunction segType(seg) {\n  if (seg === 'novel') return 'text';\n  if (seg === 'mv') return 'video';\n  return 'comic';\n}\n\n// ---------- 线路 ----------\n// *.bomei.cc 任意单词子域同源（站点发布页词表随机取词）。\n// 2026-11-01 时旧后缀 yyc2mhau.cc 可用，2026-11-10 已全部失效，故换成 bomei.cc\nvar HOSTS = [\n  'https://abandon.bomei.cc',\n  'https://ability.bomei.cc',\n  'https://able.bomei.cc',\n  'https://above.bomei.cc',\n  'https://abroad.bomei.cc',\n  'https://absence.bomei.cc'\n];\nfunction hostOf() {\n  var h = '';\n  try { h = String(vars.get('host') || ''); } catch (e) { h = ''; }\n  h = h.replace(/\\/+$/, '');\n  if (/^https?:\\/\\//.test(h)) return h;\n  return HOSTS[0];\n}\nfunction jmAbs(u) {\n  u = unesc(String(u == null ? '' : u)).replace(/^\\s+|\\s+$/g, '');\n  if (!u) return '';\n  if (/^https?:\\/\\//i.test(u)) return u;\n  if (u.indexOf('//') === 0) return 'https:' + u;\n  return hostOf() + (u.charAt(0) === '/' ? u : '/' + u);\n}\nfunction hdr() {\n  return {\n    'User-Agent': 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',\n    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',\n    'Accept-Language': 'zh-CN,zh;q=0.9',\n    'Referer': hostOf() + '/'\n  };\n}\n\n// ---------- 请求 ----------\nvar RETRYABLE = /2300999|2300016|2300056|http\\/?2|framing layer|timeout|reset/i;\nfunction jmGet(path, desc) {\n  var url = jmAbs(path);\n  var r = null, why = '';\n  for (var i = 0; i < 2; i++) {\n    try { r = http.get(url, { headers: hdr() }); } catch (e) { r = { ok: false, status: 0, body: '', error: String((e && e.message) || e) }; }\n    if (r && r.ok && r.status === 200 && String(r.body || '').length > 0) break;\n    why = String((r && r.error) || '');\n    if (i === 0 && (r && r.status === 200 || RETRYABLE.test(why))) { try { sleep(250); } catch (e2) {} continue; }\n    break;\n  }\n  var code = r && r.status;\n  if (!r || !r.ok || code !== 200) {\n    throw new Error((desc || '请求') + '失败：' + (code ? 'HTTP ' + code : '网络错误') + (why ? '（' + why + '）' : '') + '\\n线路 ' + hostOf());\n  }\n  var text = String(r.body || '');\n  if (!text.length) throw new Error((desc || '请求') + '返回空内容\\n线路 ' + hostOf());\n  if (/Just a moment|Attention Required|cf-browser-verification/i.test(text.slice(0, 3000))) {\n    throw new Error((desc || '请求') + '被人机验证拦截\\n换线路再试');\n  }\n  return text;\n}\n\n// ---------- 列表解析 ----------\n// 真封面都在 /upload_01/upload/ 或 /upload_01/ads/；/hc237/、/static/、/upload-images/ 是广告\nfunction isCover(u) {\n  var s = String(u || '');\n  if (!/^https?:\\/\\//i.test(s)) return false;\n  if (/\\/hc237\\//i.test(s) || /\\/upload-images\\//i.test(s) || /\\/(static|templates)\\//i.test(s)) return false;\n  return /\\/upload(_\\d+)?\\/(upload|ads)\\//i.test(s);\n}\nfunction firstSrc(seg) {\n  var m = String(seg || '').match(/data-src=\"([^\"]+)\"/);\n  if (!m) m = String(seg || '').match(/\\ssrc=\"(https?:\\/\\/[^\"]+)\"/);\n  return m ? unesc(m[1]) : '';\n}\n\n// 网格卡 li.jm-card（漫画/小说）、li.jm-vcard（视频）\nfunction pCards(html, seg, host) {\n  var h = String(html || '');\n  // 只在书封墙里解析，避开页脚推荐位\n  var wall = h;\n  var wi = h.indexOf('data-jm-feed-wall');\n  if (wi >= 0) {\n    var end = h.indexOf('class=\"pager', wi);\n    if (end < 0) end = h.length;\n    wall = h.slice(wi, end);\n  }\n  var out = [], seen = {}, re = /<li class=\"jm-(?:card|vcard)[^\"]*\"[^>]*>[\\s\\S]*?<\\/li>/g, m;\n  while ((m = re.exec(wall)) !== null) {\n    var segHtml = m[0];\n    var lm = segHtml.match(/href=\"(\\/comic\\/detail\\/\\d+|\\/novel\\/detail\\/\\d+|\\/mv\\/detail\\/\\d+)\"/);\n    if (!lm) continue;\n    var url = lm[1];\n    var key = url.split('/').pop();\n    if (seen[key]) continue;\n    seen[key] = 1;\n    var name = '';\n    var nm = segHtml.match(/class=\"jm-(?:card|vcard)__link\"[^>]*>([\\s\\S]*?)<\\/a>/);\n    if (nm) name = clean(nm[1]);\n    if (!name) { var im = segHtml.match(/alt=\"([^\"]{1,200})\"/); if (im) name = clean(im[1]); }\n    if (!name) continue;\n    var cover = firstSrc(segHtml);\n    if (cover && !isCover(cover)) cover = '';\n    // 分类/标签（作者链接单独取出）\n    var kind = '', author = '';\n    var cm = segHtml.match(/class=\"jm-(?:card|vcard)__cat\"[^>]*>([\\s\\S]*?)<\\/div>/);\n    if (cm) {\n      var parts = [], cre = /<a\\b[^>]*>([\\s\\S]{0,30}?)<\\/a>/g, cmm;\n      while ((cmm = cre.exec(cm[1])) !== null) {\n        var t = clean(cmm[1]);\n        if (!t) continue;\n        if (/\\/all\\/author\\//.test(cmm[0])) { if (!author) author = t; continue; }\n        parts.push(t);\n      }\n      if (!author) { var am0 = segHtml.match(/<a[^>]*href=\"[^\"]*\\/all\\/author\\/[^\"]*\"[^>]*>([\\s\\S]{0,40}?)<\\/a>/); if (am0) author = clean(am0[1]); }\n      kind = parts.join(' \\u00b7 ');\n    }\n    var st = segHtml.match(/class=\"jm-(?:card|vcard)__badge[^\"]*\"[^>]*>([\\s\\S]{0,20}?)<\\/span>/);\n    if (st) { var s2 = clean(st[1]); if (s2) kind = kind ? kind + ' \\u00b7 ' + s2 : s2; }\n    var dur = segHtml.match(/class=\"jm-vcard__dur\"[^>]*>([\\s\\S]{0,20}?)<\\/span>/);\n    if (dur) { var d2 = clean(dur[1]); if (d2) kind = kind ? kind + ' \\u00b7 ' + d2 : d2; }\n    var item = {\n      name: name,\n      bookUrl: host + url,\n      coverUrl: cover,\n      kind: kind,\n      type: segType(segOf(url))\n    };\n    if (author) item.author = author;\n    else if (segOf(url) === 'mv') item.author = '禁漫天堂';\n    out.push(item);\n  }\n  return out;\n}\n\n// 行卡 a.jm-rrow（最近更新）\nfunction pRows(html, seg, host) {\n  var h = String(html || '');\n  var out = [], seen = {}, re = /<a class=\"jm-rrow[^\"]*\"[^>]*>([\\s\\S]*?)<\\/a>/g, m;\n  while ((m = re.exec(h)) !== null) {\n    var tag = m[0].slice(0, 300), segHtml = m[1];\n    var lm = tag.match(/href=\"(\\/comic\\/detail\\/\\d+|\\/novel\\/detail\\/\\d+|\\/mv\\/detail\\/\\d+)\"/);\n    if (!lm) continue;\n    var url = lm[1], key = url.split('/').pop();\n    if (seen[key]) continue;\n    seen[key] = 1;\n    var name = '';\n    var nm = segHtml.match(/class=\"jm-rrow__title\"[^>]*>([\\s\\S]*?)<\\/span>/);\n    if (nm) name = clean(nm[1]);\n    if (!name) { var im = segHtml.match(/alt=\"([^\"]{1,200})\"/); if (im) name = clean(im[1]); }\n    if (!name) continue;\n    var cover = firstSrc(segHtml);\n    if (cover && !isCover(cover)) cover = '';\n    var kind = '', last = '', author = '';\n    var am2 = segHtml.match(/<a[^>]*href=\"[^\"]*\\/all\\/author\\/[^\"]*\"[^>]*>([\\s\\S]{0,40}?)<\\/a>/);\n    if (am2) author = clean(am2[1]);\n    var km = segHtml.match(/class=\"jm-rrow__c\"[^>]*>([\\s\\S]{0,30}?)<\\/span>/);\n    if (km) kind = clean(km[1].replace(/<a[^>]*href=\"[^\"]*\\/all\\/author\\/[^\"]*\"[^>]*>[\\s\\S]{0,40}?<\\/a>/g, ' '));\n    var lm2 = segHtml.match(/class=\"jm-rrow__m\"[^>]*>([\\s\\S]{0,40}?)<\\/span>/);\n    if (lm2) last = clean(lm2[1]);\n    var item2 = {\n      name: name, bookUrl: host + url, coverUrl: cover, kind: kind,\n      lastChapter: last, type: segType(segOf(url))\n    };\n    if (author) item2.author = author;\n    else if (segOf(url) === 'mv') item2.author = '禁漫天堂';\n    out.push(item2);\n  }\n  return out;\n}\n\n// 榜单：前 3 名 a.jm-rp-stand（领奖台），4-30 名 a.jm-rkrow\nfunction pRank(html, seg, host) {\n  var h = String(html || '');\n  var out = [], seen = {}, re = /<a class=\"jm-(rp-stand|rkrow)[^\"]*\"([^>]*)>([\\s\\S]*?)<\\/a>/g, m;\n  while ((m = re.exec(h)) !== null) {\n    var kind2 = m[1], attrs = m[2], segHtml = m[3];\n    var lm = attrs.match(/href=\"(\\/[a-z]+\\/detail\\/\\d+)\"/) || segHtml.match(/href=\"(\\/[a-z]+\\/detail\\/\\d+)\"/);\n    if (!lm) continue;\n    var url = lm[1], key = url.split('/').pop();\n    if (seen[key]) continue;\n    seen[key] = 1;\n    var name = '';\n    if (kind2 === 'rp-stand') {\n      var a1 = segHtml.match(/class=\"jm-rp-stitle\"[^>]*>([\\s\\S]*?)<\\/div>/);\n      if (a1) name = clean(a1[1]);\n    } else {\n      var a2 = segHtml.match(/class=\"jm-rkrow__title\"[^>]*>([\\s\\S]*?)<\\/span>/);\n      if (a2) name = clean(a2[1]);\n    }\n    if (!name) { var im = segHtml.match(/alt=\"([^\"]{1,200})\"/); if (im) name = clean(im[1]); }\n    if (!name) continue;\n    var cover = firstSrc(segHtml);\n    if (cover && !isCover(cover)) cover = '';\n    var k1 = segHtml.match(/class=\"jm-rp-ssub\"[^>]*>([\\s\\S]{0,60}?)<\\/div>/);\n    var k2 = segHtml.match(/class=\"jm-rkrow__sub\"[^>]*>([\\s\\S]{0,80}?)<\\/div>/);\n    var kind = k1 ? clean(k1[1]) : (k2 ? clean(k2[1]) : '');\n    var author = '';\n    var am3 = segHtml.match(/<a[^>]*href=\"[^\"]*\\/all\\/author\\/[^\"]*\"[^>]*>([\\s\\S]{0,40}?)<\\/a>/);\n    if (am3) author = clean(am3[1]);\n    var item3 = { name: name, bookUrl: host + url, coverUrl: cover, kind: kind, type: segType(segOf(url)) };\n    if (author) item3.author = author;\n    else if (segOf(url) === 'mv') item3.author = '禁漫天堂';\n    out.push(item3);\n  }\n  return out;\n}\n\nfunction pList(html, seg, host) {\n  var h = String(html || '');\n  if (h.indexOf('jm-card') >= 0 || h.indexOf('jm-vcard') >= 0) {\n    var c = pCards(h, seg, host);\n    if (c.length) return c;\n  }\n  if (h.indexOf('jm-rrow') >= 0) {\n    var r = pRows(h, seg, host);\n    if (r.length) return r;\n  }\n  return pRank(h, seg, host);\n}\n\n// ---------- 列表作者补齐 ----------\n// 漫画列表卡不带作者（实测 4 个列表页 author 链接数均为 0），只能逐本回详情取；\n// 限流 10/10s，所以只补前 12 本，其余留空，打开详情时宿主会再补\nfunction detailAuthor(id, seg) {\n  try {\n    var h = jmGet('/' + seg + '/detail/' + id, '补作者');\n    var m = h.match(/<a[^>]*href=\"[^\"]*\\/all\\/author\\/[^\"]*\"[^>]*>([\\s\\S]{0,40}?)<\\/a>/);\n    if (m) return clean(m[1]);\n    var ld = h.match(/\"author\":\\s*\\{[^}]*\"name\":\\s*\"([^\"]{1,60})\"/);\n    if (ld) return clean(ld[1]);\n  } catch (e) {}\n  return '';\n}\nfunction fillAuthors(rows, seg) {\n  var filled = 0;\n  for (var i = 0; i < rows.length && filled < 12; i++) {\n    if (rows[i].author) continue;\n    if (rows[i].type !== 'comic') continue;\n    var id = (String(rows[i].bookUrl || '').match(/\\/detail\\/(\\d+)/) || [])[1];\n    if (!id) continue;\n    var a = detailAuthor(id, 'comic');\n    if (a) { rows[i].author = a; filled++; }\n  }\n  return rows;\n}\n\n// ---------- 搜索 ----------\n// 站内按整词命中；三类各自一套列表页，接口用 ?key_word=&page= （实测 200 且可翻页）\nfunction stageSearch(ctx) {\n  var kw = String((ctx && ctx.key) || '').replace(/^\\s+|\\s+$/g, '');\n  if (!kw) throw new Error('搜索词为空');\n  var pg = nOf(ctx && ctx.page);\n  var host = hostOf();\n  var enc = encodeURIComponent(kw);\n  var segs = ['comic', 'novel', 'mv'];\n  var out = [];\n  for (var i = 0; i < segs.length; i++) {\n    var seg = segs[i];\n    var body = null;\n    try {\n      body = jmGet('/' + seg + '/all?key_word=' + enc + '&page=' + pg, '搜索');\n    } catch (e) {\n      if (i === 0) throw e;\n      continue;\n    }\n    var rows = pList(body, seg, host);\n    for (var j = 0; j < rows.length; j++) out.push(rows[j]);\n  }\n  if (!out.length && pg === 1) {\n    try {\n      if (typeof ui !== 'undefined' && ui && typeof ui.toast === 'function') {\n        ui.toast('没搜到「' + kw + '」：站内按整词命中，换个更短/更长的词试试');\n      }\n    } catch (e) {}\n  }\n  return out;\n}\n\n// ---------- 发现 ----------\n// 榜单 tab -> [sort, period]\nfunction rankKV(tab) {\n  var map = {\n    day: ['popular', 'day'], week: ['popular', 'week'], month: ['popular', 'month'], year: ['popular', 'year'],\n    collect: ['favorite', 'year'], favorite: ['favorite', 'year'],\n    hot: ['favorite', 'year'], new: ['new', 'day'], finished: ['finished', 'day']\n  };\n  return map[String(tab || '').toLowerCase()] || map.day;\n}\n\nfunction rankBoard(seg, tab) {\n  var host = hostOf();\n  var kv = rankKV(tab);\n  var theme = (seg === 'novel' ? 'novel' : 'comic');\n  var q = '/rank/board?theme=' + theme + '&sort=' + kv[0] + '&period=' + kv[1];\n  var r = null;\n  try { r = http.get(host + q, { headers: hdr() }); } catch (e) { r = null; }\n  if (r && r.ok && r.status === 200) {\n    var j = null;\n    try { j = JSON.parse(String(r.body || '')); } catch (e) { j = null; }\n    var inner = j && j.data && j.data.html;\n    if (inner) {\n      var rows = pRank(inner, seg, host);\n      if (rows.length) return rows;\n    }\n  }\n  return null;\n}\n\nfunction stageExplore(ctx) {\n  var host = hostOf();\n  var pg = nOf(ctx && ctx.page);\n  // 原生会把菜单地址里的 {{page}} 先展开；这里同时兜住\"没展开\"的情况\n  var u = String((ctx && (ctx.url || (ctx.menu && ctx.menu.url))) || '/comic/all');\n  u = u.replace('{{page}}', String(pg));\n  var base = u.split('#')[0].replace(/\\/+$/, '');\n  var tab = (u.match(/#tab=([a-z]+)/) || [])[1] || 'day';\n  var seg = segOf(base);\n  if (!base) base = '/' + seg + '/all';\n\n  // 榜单：/comic/rank、/novel/rank（单页，没有 {{page}}）\n  if (/^\\/(comic|novel)\\/rank/.test(base)) {\n    var rb = rankBoard(seg, tab);\n    if (rb && rb.length) return rb;\n    if (pg > 1) return [];\n    return pRank(jmGet('/' + seg + '/rank', '排行榜'), seg, host);\n  }\n\n  // 单页列表：最近更新（/comic/newest、/novel/newest、/mv/new）都是\"按天\"前端分页，\n  // 服务端各页返回同一份内容，所以只取第 1 页\n  if (/\\/(newest|new)$/.test(base)) {\n    if (pg > 1) return [];\n    return fillAuthors(pList(jmGet(base, '分类'), seg, host), seg);\n  }\n\n  // 其余分类地址已含页码（/x/all/page/N、/x/all/code/N、/x/tag/enc/N），直接取\n  return fillAuthors(pList(jmGet(u, '分类'), seg, host), seg);\n}\n\n// ---------- 详情 ----------\nfunction stageDetail(ctx) {\n  var bookUrl = String((ctx && ctx.book && (ctx.book.bookUrl || ctx.book.tocUrl)) || '');\n  var host = hostOf();\n  var seg = segOf(bookUrl);\n\n  // 视频：详情结构是 jm-vd-*，标题/简介/封面另走一套\n  if (seg === 'mv') {\n    var mid = (bookUrl.match(/\\/mv\\/detail\\/(\\d+)/) || [])[1];\n    if (!mid) throw new Error('视频详情拿不到 id：' + bookUrl);\n    var mvHtml = jmGet('/mv/detail/' + mid, '详情');\n    var mvName = pick(mvHtml, /class=\"jm-vd-title\"[^>]*>([\\s\\S]{0,300}?)<\\/div>/)\n      || pick(mvHtml, /class=\"jm-crumb__title\"[^>]*>([\\s\\S]{0,300}?)<\\/h1>/)\n      || pick(mvHtml, /og:title\"\\s+content=\"([^\"]{1,200})\"/).split('|')[0];\n    if (!mvName) throw new Error('视频详情解析不到标题，站点结构可能已改版');\n    var mvIntro = pick(mvHtml, /class=\"jm-vd-desc__text\"[^>]*>([\\s\\S]{0,4000}?)<\\/p>/);\n    // 封面：og:image 是 social-cover（已明文），还原 base64 拿到原图路径再走 coverDecode\n    var mvCover = '';\n    var og = mvHtml.match(/property=\"og:image\"\\s+content=\"([^\"]+)\"/);\n    if (og) {\n      var bm = og[1].match(/social-cover\\/([A-Za-z0-9+/=]+)\\.\\w+$/);\n      if (bm) {\n        var rawPath = '';\n        try { rawPath = unbase64(bm[1]); } catch (e) { rawPath = ''; }\n        if (rawPath && rawPath.charAt(0) === '/') mvCover = 'https://xi.dzuxta.cn' + rawPath;\n      }\n    }\n    if (!mvCover) {\n      var mcv = mvHtml.match(/data-src=\"(https:\\/\\/xi\\.dzuxta\\.cn\\/[^\"]+)\"/);\n      if (mcv) mvCover = unesc(mcv[1]);\n    }\n    // 分类 / 时长 / 标签（JSON-LD）\n    var mvKind = '';\n    var g = mvHtml.match(/\"genre\":\\s*\\[([^\\]]*)\\]/);\n    if (g) {\n      var parts = [], gre = /\"([^\"]+)\"/g, gm;\n      while ((gm = gre.exec(g[1])) !== null) if (gm[1]) parts.push(gm[1]);\n      mvKind = parts.join(' \\u00b7 ');\n    }\n    var mvDur = (mvHtml.match(/\"duration\":\\s*\"PT(\\d+)M(\\d+)S\"/) || []);\n    if (mvDur.length) {\n      var dtxt = mvDur[1] + ':' + (mvDur[2].length < 2 ? '0' + mvDur[2] : mvDur[2]);\n      mvKind = mvKind ? mvKind + ' \\u00b7 ' + dtxt : dtxt;\n    }\n    var mvUp = (mvHtml.match(/\"uploadDate\":\\s*\"([^\"]+)\"/) || [])[1] || '';\n    return {\n      name: mvName,\n      author: '禁漫天堂',\n      bookUrl: host + '/mv/detail/' + mid,\n      coverUrl: mvCover,\n      intro: mvIntro || mvName,\n      kind: mvKind,\n      status: '已完结',\n      updateTime: mvUp.replace('T', ' ').slice(0, 16),\n      lastChapter: dtxt ? '时长 ' + dtxt : '',\n      type: 'video'\n    };\n  }\n\n  // 漫画 / 小说：同一套 jm-dt-*\n  var cid = (bookUrl.match(/\\/(?:comic|novel)\\/detail\\/(\\d+)/) || [])[1];\n  if (!cid) throw new Error('详情阶段拿不到作品 id：' + bookUrl);\n  var html = jmGet('/' + seg + '/detail/' + cid, '详情');\n\n  var name = pick(html, /<h1 class=\"jm-dt-title\"[^>]*>([\\s\\S]{0,300}?)<\\/h1>/)\n    || pick(html, /property=\"og:title\"\\s+content=\"([^\"]{1,200})\"/).split('|')[0];\n  if (!name) throw new Error('详情页解析不到标题，站点结构可能已改版');\n\n  // 元信息：两行 div.jm-dt-meta —— 第一行 分类/作者/状态/更新时间，第二行 最新章节\n  var metas = [], mre = /<div class=\"jm-dt-meta\"[^>]*>([\\s\\S]*?)<\\/div>/g, mm;\n  while ((mm = mre.exec(html)) !== null) metas.push(mm[1]);\n\n  var cats = [], author = '', status = '', upd = '', lastCh = '';\n  for (var i = 0; i < metas.length; i++) {\n    var mseg = metas[i];\n    var spans = [], sre = /<span[^>]*>([\\s\\S]*?)<\\/span>/g, sm;\n    while ((sm = sre.exec(mseg)) !== null) spans.push(sm[1]);\n    for (var s = 0; s < spans.length; s++) {\n      var rawSpan = spans[s], txt = clean(rawSpan.replace(/<svg[\\s\\S]*?<\\/svg>/g, ' '));\n      if (!txt) continue;\n      if (/\\/all\\/author\\//.test(rawSpan)) { if (!author) author = txt; continue; }\n      if (/\\/all\\/(?:[a-z0-9]{2}|[a-z0-9]{2,}[^\"]*)\"[^>]*>/.test(rawSpan) && /\\/(?:comic|novel)\\/all\\/[a-z0-9]{2}/.test(rawSpan)) { cats.push(txt); continue; }\n      if (/\\/(?:comic|novel)\\/chapter\\/|\\/novel_chapter\\//.test(rawSpan)) { if (!lastCh) lastCh = txt; continue; }\n      if (/^\\d{4}-\\d{2}-\\d{2}/.test(txt)) { upd = txt.replace(/\\s*更新\\s*$/, ''); continue; }\n      if (/^(连载中|已完结|已下架|休刊|完结|连载)$/.test(txt)) { if (!status) status = txt; continue; }\n    }\n  }\n\n  var st = html.match(/class=\"jm-dt-pill[^\"]*jm-dt-pill--st\"[^>]*>([\\s\\S]{0,20}?)<\\/span>/);\n  if (st) { var s3 = clean(st[1]); if (s3) status = s3; }\n\n  // 封面：加密整文件，交给顶层 coverDecode\n  var cover = '';\n  var cm2 = html.match(/<img class=\"jm-dt-cover__img\"[^>]*data-src=\"([^\"]+)\"/);\n  if (!cm2) cm2 = html.match(/<img[^>]*class=\"jm-dt-cover__img\"[^>]*src=\"([^\"]+)\"/);\n  if (cm2) cover = unesc(cm2[1]);\n  if (cover && !isCover(cover)) cover = '';\n\n  var intro = pick(html, /<p class=\"jm-dt-desc__p\"[^>]*>([\\s\\S]{0,4000}?)<\\/p>/);\n\n  var tags = [], tre = /<a class=\"jm-dt-chip\"[^>]*>([\\s\\S]{0,200}?)<\\/a>/g, tm2;\n  while ((tm2 = tre.exec(html)) !== null) {\n    var tg = clean(tm2[1]);\n    if (tg && tags.indexOf(tg) < 0) tags.push(tg);\n  }\n\n  var kind = cats.concat(tags).join(' \\u00b7 ');\n  return {\n    name: name,\n    author: author || '未知',\n    bookUrl: host + '/' + seg + '/detail/' + cid,\n    coverUrl: cover,\n    intro: intro || name,\n    kind: kind,\n    status: status || (lastCh ? '连载中' : '已完结'),\n    updateTime: upd,\n    lastChapter: lastCh,\n    type: segType(seg)\n  };\n}\n\n// ---------- 目录 ----------\n// 漫画：a.jm-dt-ch -> /comic/chapter/{id}/{no}\n// 小说：a.jm-dt-ch -> /novel_chapter/{id}/{no}.html\n// 视频：单集，章节地址指回详情页，正文阶段解析播放链\nfunction stageToc(ctx) {\n  var bookUrl = String((ctx && ctx.book && (ctx.book.bookUrl || ctx.book.tocUrl)) || '');\n  var host = hostOf();\n  var seg = segOf(bookUrl);\n\n  if (seg === 'mv') {\n    var mid = (bookUrl.match(/\\/mv\\/detail\\/(\\d+)/) || [])[1];\n    if (!mid) throw new Error('目录阶段拿不到视频 id：' + bookUrl);\n    return [{ title: '\\u25b6 开始观看', url: host + '/mv/detail/' + mid }];\n  }\n\n  var cid = (bookUrl.match(/\\/(?:comic|novel)\\/detail\\/(\\d+)/) || [])[1];\n  if (!cid) throw new Error('目录阶段拿不到作品 id：' + bookUrl);\n  var html = jmGet('/' + seg + '/detail/' + cid, '目录');\n\n  // 漫画 /comic/chapter/{id}/{no}、小说 /novel_chapter/{id}/{no}.html；DOM 即正序\n  var isComic = seg === 'comic';\n  var re = isComic\n    ? /<a class=\"jm-dt-ch[^\"]*\" href=\"(\\/comic\\/chapter\\/\\d+\\/(\\d+))\"[^>]*>([\\s\\S]*?)<\\/a>/g\n    : /<a class=\"jm-dt-ch[^\"]*\" href=\"(\\/novel_chapter\\/\\d+\\/(\\d+)\\.html)\"[^>]*>([\\s\\S]*?)<\\/a>/g;\n  var unit = isComic ? '话' : '章';\n  var out = [], seen = {}, m;\n  while ((m = re.exec(html)) !== null) {\n    var href = m[1];\n    if (seen[href]) continue;\n    seen[href] = 1;\n    var body = m[3];\n    var no = pick(body, /class=\"jm-dt-ch__no\"[^>]*>([\\s\\S]{0,40}?)<\\/span>/);\n    var title = pick(body, /class=\"jm-dt-ch__t\"[^>]*>([\\s\\S]{0,300}?)<\\/span>/);\n    if (!title) title = no || ('第' + m[2] + unit);\n    else if (no) {\n      var fn = no.replace(/\\s+/g, ''), ft = title.replace(/\\s+/g, '');\n      if (ft !== fn && ft.indexOf(fn) < 0) title = no + ' ' + title;\n    }\n    var date = pick(body.replace(/<svg[\\s\\S]*?<\\/svg>/g, ' '), /class=\"jm-dt-ch__d\"[^>]*>([\\s\\S]{0,300}?)<\\/span>/);\n    out.push({ title: title, url: host + href, tag: date });\n  }\n  if (!out.length) throw new Error('目录为空：站点结构可能已改版（找不到 a.jm-dt-ch）');\n  return out;\n}\n\n// ---------- 正文 ----------\n// 漫画图：只取 section.jm-rd-pages 内的图（页面其它 img 是广告/UI）\nfunction stageContent(ctx) {\n  var bk = ctx && ctx.book, ch = ctx && ctx.chapter;\n  var raw = String((ch && (ch.url || ch.chapterUrl)) || (bk && (bk.chapterUrl || bk.bookUrl)) || '');\n  var seg = segOf(raw);\n\n  if (seg === 'mv') {\n    var mid = (raw.match(/\\/mv\\/(?:detail\\/|embed\\?id=)(\\d+)/) || [])[1];\n    if (!mid) throw new Error('视频正文拿不到 id：' + raw);\n    return videoContent(mid);\n  }\n\n  if (seg === 'novel') {\n    var html = jmGet(raw, '正文');\n    var box = html;\n    var bi = html.indexOf('data-rd-text');\n    if (bi >= 0) {\n      var st = html.indexOf('>', bi);\n      var en = html.indexOf('data-rd-text-end', st);\n      if (en < 0) en = html.indexOf('</article>', st);\n      if (en < 0) en = Math.min(html.length, st + 200000);\n      box = html.slice(st + 1, en);\n    }\n    var ps = box.match(/<p>[\\s\\S]*?<\\/p>/g) || [];\n    var lines = [];\n    for (var i = 0; i < ps.length; i++) {\n      var x = ps[i].replace(/^<p>/, '').replace(/<\\/p>$/, '').replace(/<[^>]+>/g, '');\n      x = clean(x);\n      if (x) lines.push(x);\n    }\n    if (!lines.length) throw new Error('正文为空：找不到 .jm-rd-text 段落');\n    return { text: lines.join('\\n') };\n  }\n\n  // 漫画\n  var chHtml = jmGet(raw, '正文');\n  var imgs = extractImages(chHtml);\n  if (!imgs.length) throw new Error('本章没有解析到图片');\n  return { images: imgs };\n}\n\nfunction extractImages(html) {\n  var h = String(html || '');\n  var box = h;\n  var si = h.indexOf('<section class=\"jm-rd-pages\"');\n  if (si < 0) si = h.indexOf('class=\"jm-rd-pages\"');\n  if (si >= 0) {\n    var se = h.indexOf('</section>', si);\n    box = se > si ? h.slice(si, se) : h.slice(si, si + 300000);\n  }\n  var out = [], seen = {}, re = /<img\\b[^>]*>/g, m;\n  while ((m = re.exec(box)) !== null) {\n    var tag = m[0];\n    // 带 class 的（jm-mtab__img / jm-iconads / logo）都是 UI 或广告\n    if (/\\sclass=\"/.test(tag)) continue;\n    var a1 = tag.match(/data-src=\"([^\"]+)\"/);\n    var a2 = tag.match(/\\ssrc=\"(https?:\\/\\/[^\"]+)\"/);\n    var u = unesc(a1 ? a1[1] : (a2 ? a2[1] : ''));\n    if (!u || !/^https?:\\/\\//i.test(u)) continue;\n    if (!/\\.(jpe?g|png|webp|gif)(\\?|&|#|$)/i.test(u)) continue;\n    if (/\\/static\\//i.test(u) || /logo\\.png/i.test(u)) continue;\n    if (seen[u]) continue;\n    seen[u] = 1;\n    out.push(u);\n  }\n  return out;\n}\n\n// 图片解密：站内图整体 AES-128-CBC 加密；少数已是明文（广告位/旧 CDN），先验魔数\nfunction isImageBytes(b) {\n  if (!b || b.length < 4) return false;\n  var b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];\n  if (b0 === 0xFF && b1 === 0xD8) return true;\n  if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4E && b3 === 0x47) return true;\n  if (b0 === 0x47 && b1 === 0x49 && b2 === 0x46) return true;\n  if (b0 === 0x52 && b1 === 0x49 && b2 === 0x46 && b3 === 0x46) return true;\n  return false;\n}\nvar IMG_KEY = '66356439363564663735333336323730';\nvar IMG_IV = '39376236303339346162633266626531';\nfunction decodeImage(bytes, ctx) {\n  if (!bytes || !bytes.length) return bytes;\n  if (isImageBytes(bytes)) return bytes;\n  var out = null;\n  try { out = image.decrypt('AES/CBC/PKCS7Padding', bytes, IMG_KEY, IMG_IV); } catch (e) { out = null; }\n  if (out && isImageBytes(out)) return out;\n  var n = bytes.length - (bytes.length % 16);\n  if (!n) return bytes;\n  var raw = null;\n  try { raw = image.decrypt('AES/CBC/NoPadding', bytes.subarray(0, n), IMG_KEY, IMG_IV); } catch (e) { raw = null; }\n  if (!raw) return bytes;\n  // JPEG 尾巴切 FFD9\n  var end = -1;\n  for (var k = raw.length - 2; k >= 0 && k > raw.length - 128; k--) {\n    if (raw[k] === 0xFF && raw[k + 1] === 0xD9) { end = k + 2; break; }\n  }\n  if (end > 0) return raw.subarray(0, end);\n  return raw;\n}\n\n// ---------- 视频链 ----------\n// /mv/detail/{id} -> /mv/embed?id={id}（packer 混淆）-> /videos/detail_embed.js?img=&u=&t=（再一层 packer）-> /media/m3u8?...\n// 静态解两层 packer 即可拿到播放地址，交给原生播放器；videoPage 留原站网页做回退\nfunction unpackPacker(src) {\n  var s = String(src || '');\n  var m = s.match(/eval\\(function\\(p,a,c,k,e,d\\)\\{[\\s\\S]*?\\}\\('([\\s\\S]*?)',(\\d+),(\\d+),'([\\s\\S]*?)'\\.split\\('\\|'\\)/);\n  if (!m) return '';\n  var payload = m[1], a = parseInt(m[2], 10), c = parseInt(m[3], 10);\n  var k = m[4].split('|');\n  function enc(x) { return (x < a ? '' : enc(parseInt(x / a, 10))) + ((x = x % a) > 35 ? String.fromCharCode(x + 29) : x.toString(36)); }\n  var out = payload;\n  for (var i = c - 1; i >= 0; i--) {\n    if (!k[i]) continue;\n    out = out.replace(new RegExp('\\\\b' + enc(i) + '\\\\b', 'g'), k[i]);\n  }\n  return out;\n}\n\nfunction videoContent(mid) {\n  var host = hostOf();\n  var embedUrl = host + '/mv/embed?id=' + mid;\n  var body = jmGet(embedUrl, '视频页');\n  var js1 = unpackPacker(body);\n  if (!js1) throw new Error('视频页解析失败（找不到播放脚本）');\n\n  var imgM = js1.match(/img=([^&\"\\\\]+)/);\n  var uM = js1.match(/\\+\\s*encodeURIComponent\\(\"([^\"]+)\"\\)/);\n  var videoUrl = '';\n  if (imgM && uM) {\n    var t = Math.floor(Date.now() / 1000 / 1800);\n    var playUrl = host + '/videos/detail_embed.js?img=' + imgM[1] + '&u=' + encodeURIComponent(uM[1]) + '&t=' + t;\n    var r = null;\n    try { r = http.get(playUrl, { headers: hdr() }); } catch (e) { r = null; }\n    if (r && r.ok && r.status === 200) {\n      var js2 = unpackPacker(String(r.body || ''));\n      var m3 = js2.match(/src=\"(\\/media\\/m3u8\\?[^\"]+)\"/);\n      if (m3) videoUrl = host + unesc(m3[1]);\n    }\n  }\n  return {\n    video: videoUrl,\n    videoPage: embedUrl,\n    mediaError: videoUrl ? '' : '直链没解出来，可用「网页播放」'\n  };\n}\n\n// ---------- 自检 / 维护动作 ----------\nfunction actSelfCheck() {\n  var out = ['禁漫天堂自检 · 线路 ' + hostOf().replace(/^https?:\\/\\//, '')];\n  var host = hostOf();\n  try {\n    var l = pList(jmGet('/comic/all', '漫画列表'), 'comic', host);\n    out.push('\\u2460 漫画列表 ' + (l.length ? '\\u2713 ' + l.length + ' 条，首条：' + l[0].name : '\\u2717 0 条'));\n  } catch (e) { out.push('\\u2460 漫画列表 \\u2717 ' + String(e.message || e).split('\\n')[0]); }\n  try {\n    var n = pList(jmGet('/novel/all', '小说列表'), 'novel', host);\n    out.push('\\u2461 小说列表 ' + (n.length ? '\\u2713 ' + n.length + ' 条，首条：' + n[0].name : '\\u2717 0 条'));\n  } catch (e) { out.push('\\u2461 小说列表 \\u2717 ' + String(e.message || e).split('\\n')[0]); }\n  try {\n    var v = pList(jmGet('/mv/all', '视频列表'), 'mv', host);\n    out.push('\\u2462 视频列表 ' + (v.length ? '\\u2713 ' + v.length + ' 条，首条：' + v[0].name : '\\u2717 0 条'));\n  } catch (e) { out.push('\\u2462 视频列表 \\u2717 ' + String(e.message || e).split('\\n')[0]); }\n  try {\n    var rk = rankBoard('comic', 'week');\n    out.push('\\u2463 周榜 ' + (rk && rk.length ? '\\u2713 ' + rk.length + ' 条' : '\\u2717 0 条'));\n  } catch (e) { out.push('\\u2463 周榜 \\u2717 ' + String(e.message || e).split('\\n')[0]); }\n  return out.join('\\n');\n}\n\nfunction actLineCheck() {\n  var out = ['线路自检'];\n  var best = '', bestMs = 1e9;\n  for (var i = 0; i < HOSTS.length; i++) {\n    var h = HOSTS[i], t0 = Date.now(), ok = false, ms = 0, note = '';\n    try {\n      var r = http.get(h + '/comic/all', { headers: hdr() });\n      ms = Date.now() - t0;\n      ok = !!(r && r.ok && r.status === 200 && /jm-card/.test(String(r.body || '')));\n      note = ok ? ms + 'ms' : ('HTTP ' + (r && r.status));\n    } catch (e) { ms = Date.now() - t0; note = '异常'; }\n    out.push((ok ? '\\u2713 ' : '\\u2717 ') + h.replace(/^https?:\\/\\//, '') + '  ' + note);\n    if (ok && ms < bestMs) { bestMs = ms; best = h; }\n  }\n  if (best) { try { vars.set('host', best); } catch (e) {} }\n  out.push('\\n当前线路：' + hostOf() + (best ? '（最快 ' + bestMs + 'ms）' : '（全部不通）'));\n  return out.join('\\n');\n}\n\nfunction actVideoCheck() {\n  var host = hostOf();\n  var out = ['视频链自检'];\n  try {\n    var list = pList(jmGet('/mv/all', '视频列表'), 'mv', host);\n    if (!list.length) return out.join('\\n') + '\\n视频列表为空';\n    var one = list[0];\n    out.push('目标：' + one.name);\n    out.push('地址：' + one.bookUrl);\n    var c = videoContent(one.bookUrl.split('/').pop());\n    out.push('直链：' + (c.video ? '\\u2713 ' + c.video.replace(/token=[^&]*/, 'token=<隐藏>').slice(0, 90) + '…' : '\\u2717 未解出'));\n    out.push('网页：' + c.videoPage);\n    return out.join('\\n');\n  } catch (e) {\n    return out.join('\\n') + '\\n异常：' + String(e.message || e).split('\\n')[0];\n  }\n}",
+ "search": {
+  "script": "stageSearch"
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "漫画"
+   },
+   {
+    "title": "全部",
+    "url": "/comic/all/page/{{page}}"
+   },
+   {
+    "title": "爱情",
+    "url": "/comic/all/aq/{{page}}"
+   },
+   {
+    "title": "BL",
+    "url": "/comic/all/bl/{{page}}"
+   },
+   {
+    "title": "单本",
+    "url": "/comic/all/db/{{page}}"
+   },
+   {
+    "title": "短篇",
+    "url": "/comic/all/dp/{{page}}"
+   },
+   {
+    "title": "韩漫",
+    "url": "/comic/all/hg/{{page}}"
+   },
+   {
+    "title": "剧情",
+    "url": "/comic/all/jq/{{page}}"
+   },
+   {
+    "title": "乱伦",
+    "url": "/comic/all/ll/{{page}}"
+   },
+   {
+    "title": "奇幻",
+    "url": "/comic/all/qh/{{page}}"
+   },
+   {
+    "title": "日漫",
+    "url": "/comic/all/rb/{{page}}"
+   },
+   {
+    "title": "调教",
+    "url": "/comic/all/tj/{{page}}"
+   },
+   {
+    "title": "同人",
+    "url": "/comic/all/tr/{{page}}"
+   },
+   {
+    "title": "校园",
+    "url": "/comic/all/xy/{{page}}"
+   },
+   {
+    "title": "最近更新（全站）",
+    "url": "/comic/newest"
+   },
+   {
+    "title": "日榜",
+    "url": "/comic/rank#tab=day"
+   },
+   {
+    "title": "周榜",
+    "url": "/comic/rank#tab=week"
+   },
+   {
+    "title": "月榜",
+    "url": "/comic/rank#tab=month"
+   },
+   {
+    "title": "年榜",
+    "url": "/comic/rank#tab=year"
+   },
+   {
+    "title": "收藏榜",
+    "url": "/comic/rank#tab=collect"
+   },
+   {
+    "title": "新作榜",
+    "url": "/comic/rank#tab=new"
+   },
+   {
+    "title": "完结榜",
+    "url": "/comic/rank#tab=finished"
+   },
+   {
+    "title": "小说"
+   },
+   {
+    "title": "全部",
+    "url": "/novel/all/page/{{page}}"
+   },
+   {
+    "title": "都市激情",
+    "url": "/novel/all/dsjq/{{page}}"
+   },
+   {
+    "title": "校园春色",
+    "url": "/novel/all/xycs/{{page}}"
+   },
+   {
+    "title": "乡村爱情",
+    "url": "/novel/all/xcaq/{{page}}"
+   },
+   {
+    "title": "系统异能",
+    "url": "/novel/all/xtyn/{{page}}"
+   },
+   {
+    "title": "家庭乱伦",
+    "url": "/novel/all/jtll/{{page}}"
+   },
+   {
+    "title": "穿越重生",
+    "url": "/novel/all/cycs/{{page}}"
+   },
+   {
+    "title": "经典武侠",
+    "url": "/novel/all/jdwx/{{page}}"
+   },
+   {
+    "title": "同人改编",
+    "url": "/novel/all/trgb/{{page}}"
+   },
+   {
+    "title": "科学幻想",
+    "url": "/novel/all/kxhx/{{page}}"
+   },
+   {
+    "title": "东方玄幻",
+    "url": "/novel/all/dfxh/{{page}}"
+   },
+   {
+    "title": "娱乐明星",
+    "url": "/novel/all/ylmx/{{page}}"
+   },
+   {
+    "title": "历史架空",
+    "url": "/novel/all/lsjk/{{page}}"
+   },
+   {
+    "title": "西方魔幻",
+    "url": "/novel/all/xfmh/{{page}}"
+   },
+   {
+    "title": "贤者小说",
+    "url": "/novel/all/xzxs/{{page}}"
+   },
+   {
+    "title": "日榜",
+    "url": "/novel/rank#tab=day"
+   },
+   {
+    "title": "周榜",
+    "url": "/novel/rank#tab=week"
+   },
+   {
+    "title": "月榜",
+    "url": "/novel/rank#tab=month"
+   },
+   {
+    "title": "年榜",
+    "url": "/novel/rank#tab=year"
+   },
+   {
+    "title": "收藏榜",
+    "url": "/novel/rank#tab=collect"
+   },
+   {
+    "title": "新作榜",
+    "url": "/novel/rank#tab=new"
+   },
+   {
+    "title": "完结榜",
+    "url": "/novel/rank#tab=finished"
+   },
+   {
+    "title": "视频"
+   },
+   {
+    "title": "全部",
+    "url": "/mv/all/page/{{page}}"
+   },
+   {
+    "title": "AI短剧",
+    "url": "/mv/all/aidj/{{page}}"
+   },
+   {
+    "title": "国产视频",
+    "url": "/mv/all/gcsp/{{page}}"
+   },
+   {
+    "title": "日本AV",
+    "url": "/mv/all/rbav/{{page}}"
+   },
+   {
+    "title": "H动漫",
+    "url": "/mv/all/hdm/{{page}}"
+   },
+   {
+    "title": "偷拍摄像",
+    "url": "/mv/all/tp/{{page}}"
+   },
+   {
+    "title": "次元萝莉",
+    "url": "/mv/all/cyll/{{page}}"
+   },
+   {
+    "title": "国产传媒",
+    "url": "/mv/all/gccm/{{page}}"
+   },
+   {
+    "title": "主播福利",
+    "url": "/mv/all/zbfl/{{page}}"
+   },
+   {
+    "title": "吃瓜爆料",
+    "url": "/mv/all/cgbl/{{page}}"
+   },
+   {
+    "title": "无码流出",
+    "url": "/mv/all/wmlc/{{page}}"
+   },
+   {
+    "title": "高清AV",
+    "url": "/mv/all/gqav/{{page}}"
+   },
+   {
+    "title": "同人热播",
+    "url": "/mv/all/trrb/{{page}}"
+   },
+   {
+    "title": "3D动漫",
+    "url": "/mv/all/3ddm/{{page}}"
+   },
+   {
+    "title": "最新",
+    "url": "/mv/new"
+   }
+  ],
+  "script": "stageExplore"
+ },
+ "detail": {
+  "script": "stageDetail"
+ },
+ "toc": {
+  "script": "stageToc"
+ },
+ "content": {
+  "script": "stageContent",
+  "text": "= $.text",
+  "images": "= $.images",
+  "video": "= $.video",
+  "videoPage": "= $.videoPage",
+  "mediaError": "= $.mediaError",
+  "imageDecode": {
+   "script": "decodeImage",
+   "processPlainImages": false
+  }
+ },
+ "enabled": true
+}

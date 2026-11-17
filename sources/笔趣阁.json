@@ -1,0 +1,186 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "笔趣阁",
+ "url": "https://www.bqquge.org",
+ "type": "text",
+ "group": "渡",
+ "comment": "笔趣阁 · 双线路合并版（2026-11-10）。两站结构完全不同，本源在脚本里按 vars.line 分发，一个站失效在书源设置里切线路即可，不用重新导入。\n· bqquge（旧站，ASP.NET，直连快）：书籍ID为数字（/121），目录在详情页 #list 单页给全（实测 2586 章），正文 .con p。\n· byqg（新站，走 Cloudflare）：书籍ID为随机串（/book/7JdUYj….html），目录在 /chapter/{id}.html，每页 500 章共 6 页（#linkNext 翻页），正文 #content p。\n发现页按线路给不同菜单（bqquge 站内榜单 3 项；byqg 排行榜 5 项 + 分类 18 项），**菜单 URL 一律带 {{page}}**，否则宿主不认为可翻页、下滑不会加载。\n翻页注意：bqquge 第 1 页没有 /N 后缀（/paihang/1 实测 404），脚本里会去掉；越界翻页站点会 302 到末页，脚本用页码标记（bqquge <span>1/442</span>、byqg id=\"pagestats\">1/60<）判断并返回空数组收尾。\n验收范围：沙箱回放（bqquge：搜索10条、发现10条、目录2562章、正文550字、翻页 p1/p2/p442 有数据 p443 空；byqg：搜索12条、发现12条、目录500章/页、翻页 p1/p60 有数据 p61 空）。真机未验。维护日期：2026-11-10。",
+ "vars": [
+  {
+   "key": "line",
+   "label": "线路（失效了换一条）",
+   "options": [
+    "bqquge（旧站·直连快）",
+    "byqg（新站·走Cloudflare）"
+   ],
+   "default": "bqquge（旧站·直连快）",
+   "filter": false
+  }
+ ],
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36"
+ },
+ "js": "\n// 笔趣阁 · 双线路合并\n// vars.line: 'bqquge...' | 'byqg...'（取前缀判断）\nfunction bqLine(ctx) {\n  var v = String((ctx && ctx.vars && ctx.vars.line) || 'bqquge');\n  return v.indexOf('byqg') === 0 ? 'byqg' : 'bqquge';\n}\nfunction bqHost(line) {\n  return line === 'byqg' ? 'https://www.byqg.cc' : 'https://www.bqquge.org';\n}\nfunction bqAbs(line, u) {\n  var s = String(u || '');\n  if (!s) return '';\n  if (/^https?:/i.test(s)) return s;\n  return bqHost(line) + (s.charAt(0) === '/' ? s : '/' + s);\n}\nfunction bqText(v) {\n  if (v == null) return '';\n  if (Array.isArray(v)) v = v.length ? v[0] : '';\n  var s = String(v == null ? '' : v);\n  // 去掉可能夹带的标签，再压空白\n  s = s.replace(/<[^>]*>/g, '');\n  return s.replace(/\\s+/g, ' ').trim();\n}\n\n// ---------- 列表解析（搜索与发现共用）----------\nfunction bqCardByqg(c, line) {\n  var name = bqText(native.sel('@css:.bookname a@text', c));\n  var href = native.sel('@css:.bookname a@href', c);\n  if (!name || !href) return null;\n  var auths = native.selAll('@css:.author@text', c);\n  var author = '', words = '';\n  auths.forEach(function (a) {\n    var t = bqText(a);\n    if (t.indexOf('作者') === 0) author = t.replace(/^作者[:：]\\s*/, '');\n    else if (t.indexOf('字数') === 0) words = t.replace(/^字数[:：]\\s*/, '');\n  });\n  return {\n    name: name,\n    author: author,\n    bookUrl: bqAbs(line, href),\n    lastChapter: bqText(native.sel('@css:.cat a@text', c)),\n    wordCount: words\n  };\n}\n\nfunction bqCardBqquge(c, line) {\n  var name = bqText(native.sel('@css:.itemtxt h3 a@text', c));\n  var href = native.sel('@css:.itemtxt h3 a@href', c);\n  if (!name || !href) return null;\n  var paras = native.selAll('@css:.itemtxt p@html', c);\n  var status = '', kind = '', author = '';\n  paras.forEach(function (p) {\n    // 第 1 个 p 是「状态 + 分类」两个 span，第 2 个 p 是作者链接\n    var sp = native.selAll('@css:span@text', p);\n    if (sp.length >= 2) { status = bqText(sp[0]); kind = bqText(sp[1]); }\n    var at = native.sel('@css:a@text', p);\n    if (at && String(at).indexOf('作者') >= 0) author = String(at).replace(/^作者[:：]\\s*/, '');\n  });\n  var chg = native.selAll('@css:.itemtxt ul li a@text', c);\n  return {\n    name: name,\n    author: bqText(author),\n    bookUrl: bqAbs(line, href),\n    coverUrl: bqAbs(line, native.sel('@css:.item > a img@src', c)),\n    status: status,\n    kind: kind,\n    lastChapter: chg.length ? bqText(chg[0]) : ''\n  };\n}\n\nfunction bqListByqg(h, line) {\n  var out = [];\n  native.selAll('@css:.bookbox .bookinfo@html', h).forEach(function (c) {\n    var it = bqCardByqg(c, line);\n    if (it) out.push(it);\n  });\n  return out;\n}\n\nfunction bqListBqquge(h, line) {\n  var out = [];\n  native.selAll('@css:.item@html', h).forEach(function (c) {\n    var it = bqCardBqquge(c, line);\n    if (it) out.push(it);\n  });\n  return out;\n}\n\n// ---------- 发现 ----------\n// 总页数：bqquge 是 <span>1/442</span>，byqg 是 <em id=\"pagestats\">1/60</em>\nfunction bqMaxPage(h) {\n  var s = String(h || '');\n  var m = s.match(/id=\"pagestats\">\\s*\\d+\\s*\\/\\s*(\\d+)/);\n  if (m) return Number(m[1]);\n  m = s.match(/<span>\\s*\\d+\\s*\\/\\s*(\\d+)\\s*<\\/span>/);\n  if (m) return Number(m[1]);\n  return 0;\n}\n\nfunction bqExplore(ctx) {\n  ctx = ctx || {};\n  var line = bqLine(ctx);\n  var p = Number(ctx.page || 1) || 1;\n  var u = String(ctx.url || '');\n  if (!u) return [];\n  // 菜单地址里可能残留 {{page}} / {{source.url}}，补一次\n  u = u.replace(/\\{\\{\\s*page\\s*\\}\\}/g, String(p));\n  u = u.replace(/\\{\\{\\s*source\\.url\\s*\\}\\}/g, bqHost(line));\n  // bqquge 的第 1 页没有 /N 后缀（实测 /paihang/1 是 404，/paihang 才是第 1 页）\n  if (line !== 'byqg') {\n    var m1 = u.match(/\\/(\\d+)\\/?$/);\n    if (m1 && Number(m1[1]) <= 1) u = u.replace(/\\/\\d+\\/?$/, '');\n  }\n  if (!/^https?:/i.test(u)) u = bqAbs(line, u);\n  var r = http.get(u, { timeout: 25000 });\n  // 翻过头时站点会 302 到末页（bqquge）或照常返回末页内容（byqg），\n  // 这里返回空数组让宿主停下，别抛错（不然用户翻到底就弹错误）\n  if (!r.ok) {\n    if (p > 1) return [];\n    throw new Error('分类请求失败 HTTP ' + r.status);\n  }\n  var h = r.body;\n  var max = bqMaxPage(h);\n  if (p > 1 && max > 0 && p > max) return [];\n  return line === 'byqg' ? bqListByqg(h, line) : bqListBqquge(h, line);\n}\n\n// ---------- 搜索 ----------\nfunction bqSearch(ctx) {\n  var line = bqLine(ctx);\n  var key = String((ctx && ctx.key) || '');\n  if (!key) return [];\n  var host = bqHost(line);\n  var url = line === 'byqg'\n    ? host + '/search/' + encodeURIComponent(key) + '.html'\n    : host + '/so/' + encodeURIComponent(key);\n  var r = http.get(url, { timeout: 20000 });\n  if (!r.ok) throw new Error('搜索失败 HTTP ' + r.status);\n  var h = r.body;\n  return line === 'byqg' ? bqListByqg(h, line) : bqListBqquge(h, line);\n}\n\n// ---------- 详情 ----------\nfunction bqDetail(ctx) {\n  var line = bqLine(ctx);\n  var bu = String((ctx.book && (ctx.book.bookUrl || ctx.book.tocUrl)) || '');\n  var r = http.get(bu, { timeout: 20000 });\n  if (!r.ok) throw new Error('详情失败 HTTP ' + r.status);\n  var h = r.body;\n  var o = { bookUrl: bu };\n  function pick(sel) { return bqText(native.sel(sel, h)); }\n  function after(label) {\n    var m = h.match(new RegExp(label + '[:：]\\\\s*([^<\\\\n]{1,40})'));\n    return m ? m[1].trim() : '';\n  }\n  if (line === 'byqg') {\n    o.name = pick('@css:h1.booktitle@text');\n    o.author = pick('@css:p.booktag a.red@text');\n    o.kind = pick('@css:p.booktag a.blue@text');\n    o.status = pick('@css:p.booktag span.red@text');\n    var blues = native.selAll('@css:p.booktag span.blue@text', h);\n    o.wordCount = bqText(blues[0]);\n    o.intro = pick('@css:p.bookintro@text');\n    o.lastChapter = pick('@css:a.bookchapter@text');\n    o.updateTime = pick('@css:p.booktime@text').replace(/^更新时间[:：]\\s*/, '');\n    var m = String(bu).match(/\\/book\\/([^\\/.]+)\\.html/);\n    o.tocUrl = m ? bqHost(line) + '/chapter/' + m[1] + '.html' : bu;\n  } else {\n    o.name = pick('@css:h1@text');\n    o.author = pick('@css:.booktxt p a@text').replace(/^作者[:：]\\s*/, '');\n    o.kind = after('类别').replace(/小说$/, '');\n    o.status = after('状态');\n    o.wordCount = after('字数');\n    o.updateTime = after('更新');\n    o.intro = pick('@css:.des@text');\n    var newc = native.selAll('@css:.newest h3 a@text', h);\n    o.lastChapter = bqText(newc[0]);\n    o.tocUrl = bu;\n  }\n  o.type = 'text';\n  return o;\n}\n\n// ---------- 目录 ----------\nfunction bqToc(ctx) {\n  var line = bqLine(ctx);\n  var bu = String((ctx.book && (ctx.book.tocUrl || ctx.book.bookUrl)) || (ctx.baseUrl || ''));\n  var r = http.get(bu, { timeout: 25000 });\n  if (!r.ok) throw new Error('目录失败 HTTP ' + r.status);\n  var h = r.body;\n  var out = [];\n  if (line === 'byqg') {\n    var links = native.selAll('@css:#allchapter dd a@html', h);\n    links.forEach(function (a) {\n      var t = bqText(native.sel('@css:@text', a));\n      var href = native.sel('@css:@href', a);\n      if (!t || !href || t.indexOf('查看全部') >= 0) return;\n      out.push({ title: t, url: bqAbs(line, href) });\n    });\n  } else {\n    native.selAll('@css:#list li a@html', h).forEach(function (a) {\n      var t = bqText(native.sel('@css:@text', a));\n      var href = native.sel('@css:@href', a);\n      if (!t || !href) return;\n      out.push({ title: t, url: bqAbs(line, href) });\n    });\n  }\n  if (!out.length) throw new Error('目录为空：站点结构可能已变，或该书已下架');\n  return out;\n}\n\n// ---------- 正文 ----------\nfunction bqContent(ctx) {\n  var line = bqLine(ctx);\n  var u = String((ctx.chapter && ctx.chapter.url) || '');\n  if (!u) throw new Error('缺少章节地址');\n  var r = http.get(u, { timeout: 20000 });\n  if (!r.ok) throw new Error('正文失败 HTTP ' + r.status);\n  var h = r.body;\n  var sel = line === 'byqg' ? '@css:#content p@text' : '@css:.con p@text';\n  var ps = native.selAll(sel, h);\n  var lines = [];\n  ps.forEach(function (p) {\n    var t = bqText(p);\n    if (!t) return;\n    if (/^（本章未完|^一秒记住|^请收藏本站|^-{6,}$|看最新章节|今日一章/.test(t)) return;\n    if (/(请收藏本站|www\\.[a-z]+\\.com|一秒记住)/.test(t) && t.length < 60) return;\n    lines.push(t);\n  });\n  // 首行常重复章节标题（bqquge 的 <p> 就是标题本身），去掉\n  var title = bqText((ctx.chapter && ctx.chapter.title) || '');\n  if (lines.length && title && lines[0].replace(/\\s/g, '') === title.replace(/\\s/g, '')) lines.shift();\n  var text = lines.join('\\n');\n  if (!text) throw new Error('这一章正文为空，请从目录换一章');\n  return { text: text };\n}\n",
+ "search": {
+  "script": "bqSearch"
+ },
+ "detail": {
+  "script": "bqDetail"
+ },
+ "toc": {
+  "script": "bqToc"
+ },
+ "content": {
+  "script": "bqContent"
+ },
+ "rate": "20/10000",
+ "explore": {
+  "menus": [
+   {
+    "title": "站内榜单（bqquge）",
+    "when": "= indexOf(str(vars.line), 'byqg') != 0"
+   },
+   {
+    "title": "排行榜",
+    "url": "https://www.bqquge.org/paihang/{{page}}",
+    "when": "= indexOf(str(vars.line), 'byqg') != 0"
+   },
+   {
+    "title": "连载",
+    "url": "https://www.bqquge.org/lianzai/{{page}}",
+    "when": "= indexOf(str(vars.line), 'byqg') != 0"
+   },
+   {
+    "title": "完结",
+    "url": "https://www.bqquge.org/wanjie/{{page}}",
+    "when": "= indexOf(str(vars.line), 'byqg') != 0"
+   },
+   {
+    "title": "排行榜（byqg）",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "读者倾心榜",
+    "url": "https://www.byqg.cc/ranking/hits/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "字耕里程榜",
+    "url": "https://www.byqg.cc/ranking/words/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "笔耕不辍堂",
+    "url": "https://www.byqg.cc/ranking/guru/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "新玉初藏阁",
+    "url": "https://www.byqg.cc/ranking/create/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "墨迹未干栏",
+    "url": "https://www.byqg.cc/ranking/update/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "分类（byqg）",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "玄幻",
+    "url": "https://www.byqg.cc/library/3j60Al2J6aEQvWFfJmSizr/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "仙侠",
+    "url": "https://www.byqg.cc/library/resIRzyoE401QajeUymgn/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "都市",
+    "url": "https://www.byqg.cc/library/3B21UHLP8KrzfeYIPsArBp/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "历史",
+    "url": "https://www.byqg.cc/library/H3sDVoLvXWx3h3ivdXwgB/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "科幻",
+    "url": "https://www.byqg.cc/library/Cp0sda3r5LmSK6cghq0b0/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "军事",
+    "url": "https://www.byqg.cc/library/5st1gil4MXOf262kjquJgQ/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "言情",
+    "url": "https://www.byqg.cc/library/dpW1A5qFkBbLGAvTFu2s/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "轻小说",
+    "url": "https://www.byqg.cc/library/29tDzNPydoqUhYehjpef8P/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "悬疑",
+    "url": "https://www.byqg.cc/library/55PZODSwAZ9Wsd2FAfF43i/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "奇幻",
+    "url": "https://www.byqg.cc/library/dTGt7MsEVgLqFaeGtydjw/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "游戏",
+    "url": "https://www.byqg.cc/library/5HxCwRWS4ZBwmh6ju1xn1X/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "诸天无限",
+    "url": "https://www.byqg.cc/library/2wYKuP8qBF6nXVHlXbzVC8/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "武侠",
+    "url": "https://www.byqg.cc/library/5d4etgRfGWROezKGuQ7KCr/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "重生",
+    "url": "https://www.byqg.cc/library/iPXVtWNiNYqz4CNL2SzIo/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "体育",
+    "url": "https://www.byqg.cc/library/xRoppGBpRQhawbXAkXbHq/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "现实",
+    "url": "https://www.byqg.cc/library/1bQ2IpTozNx87QBAX3Nhyh/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "穿越",
+    "url": "https://www.byqg.cc/library/2JYvr7HSCpos8cHN4cY2VQ/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   },
+   {
+    "title": "未删减",
+    "url": "https://www.byqg.cc/library/2ni2CHKCPVVuASAl3sHHOP/{{page}}.html",
+    "when": "= indexOf(str(vars.line), 'byqg') == 0"
+   }
+  ],
+  "script": "bqExplore",
+  "retry": 1
+ }
+}

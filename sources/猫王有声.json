@@ -1,0 +1,168 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "猫王有声",
+ "url": "https://kuwo.cn",
+ "type": "audio",
+ "comment": "猫王有声 v4.6。取链三路兜底（云端带 host 参数→备用直链→直连）；音频线路可手动选线（自动=上次成功线路优先记忆），选错仍自动兜底其余线路。发现页分组菜单：推荐/排行榜/分类，首页顶置抽屉栏按分组显示频道。『🔎 连通性自检』逐段报告。\n【2026-11-14 取自用户提供的订阅 sub.json；名称去符号、分组并入渡·听书】",
+ "rate": "10/1000",
+ "scriptLimits": {
+  "requests": 100
+ },
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36",
+  "Accept": "*/*"
+ },
+ "vars": [
+  {
+   "key": "server",
+   "label": "云端后端线路（接口聚合，可自检）",
+   "options": [
+    "自动（测速选优）",
+    "云端 https://backend.appmiaoda.com/projects/supabase345057433544081408/functions/v1"
+   ],
+   "default": "自动（测速选优）",
+   "optionsScript": "serverOptions"
+  },
+  {
+   "key": "quality",
+   "label": "音质(码率)",
+   "options": [
+    "128",
+    "320"
+   ],
+   "default": "128"
+  },
+  {
+   "key": "line",
+   "label": "音频线路（取播放地址用）",
+   "options": [
+    "自动（优先上次成功线路）",
+    "线路① 云端 kuwo-play",
+    "线路② 官方 anti.s",
+    "线路③ kuwo.php 直连"
+   ],
+   "default": "自动（优先上次成功线路）",
+   "optionsScript": "lineOptions"
+  }
+ ],
+ "actions": [
+  {
+   "label": "🩺 一键诊断",
+   "script": "actDiagnose"
+  },
+  {
+   "label": "⚡ 重测速并应用",
+   "script": "actRetest"
+  },
+  {
+   "label": "♻️ 恢复默认",
+   "script": "actResetServer"
+  }
+ ],
+ "search": {
+  "script": "stageSearch"
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "推荐"
+   },
+   {
+    "title": "推荐",
+    "url": "home"
+   },
+   {
+    "title": "排行榜"
+   },
+   {
+    "title": "热播榜",
+    "url": "rank:13:27"
+   },
+   {
+    "title": "音乐娱乐榜",
+    "url": "rank:22:104"
+   },
+   {
+    "title": "有声小说榜",
+    "url": "rank:1:30"
+   },
+   {
+    "title": "口碑榜",
+    "url": "rank:14:28"
+   },
+   {
+    "title": "分类"
+   },
+   {
+    "title": "抖音神曲",
+    "url": "cate:253:37"
+   },
+   {
+    "title": "怀旧老歌",
+    "url": "cate:252:37"
+   },
+   {
+    "title": "创作|翻唱",
+    "url": "cate:248:37"
+   },
+   {
+    "title": "催眠",
+    "url": "cate:254:37"
+   },
+   {
+    "title": "古风",
+    "url": "cate:255:37"
+   },
+   {
+    "title": "民谣",
+    "url": "cate:1409:37"
+   },
+   {
+    "title": "纯音乐",
+    "url": "cate:1408:37"
+   },
+   {
+    "title": "3D电子",
+    "url": "cate:249:37"
+   },
+   {
+    "title": "情感治愈",
+    "url": "cate:250:37"
+   },
+   {
+    "title": "音乐推荐",
+    "url": "cate:246:37"
+   },
+   {
+    "title": "音乐故事",
+    "url": "cate:247:37"
+   },
+   {
+    "title": "音乐课程",
+    "url": "cate:251:37"
+   },
+   {
+    "title": "播客周刊",
+    "url": "cate:1423:37"
+   },
+   {
+    "title": "儿童音乐",
+    "url": "cate:1407:37"
+   }
+  ],
+  "script": "stageExplore"
+ },
+ "detail": {
+  "script": "stageDetail"
+ },
+ "toc": {
+  "script": "stageToc"
+ },
+ "content": {
+  "script": "stageContent",
+  "audio": "= data != null ? $.audio : body"
+ },
+ "js": "// ===== 有声书源 B · 音乐/全量链路  v4.6 =====\n// 来源：接口实测调优（2026-11-11）。\n//\n// 【引擎契约 v3】对齐 HarmonyOS-book 开源引擎契约（源码核实）：\n//  1) 脚本阶段不写 fields/list：Runner.scripted() 按 BOOK_FIELD_NAMES 同名键取值。\n//     ★ 封面是 coverUrl，不是 cover → 写 cover 会「不出封面」。\n//  2) 顶层 type=audio + 每条记录 type:\"audio\" + content.audio 规则\n//     → content() 判定 kind='audio'，播放器才启动（否则音频直链被当文字渲染）。\n//  3) 发现页 menu.url 渲染进 __url → 脚本 ctx.url（Runner.explore():704,727）。\n//\n// 【分类修复】接口实测（含分类参数）：\n//   kuwo-albums?classifyId={id}&pn={page}&rn={size}&categoryId={cat}&sortType=tsScore\n//   旧版只传 classifyId → 实测返回全站 total=35003（点「玄幻奇幻」出全站热门）= 分类不对。\n//   榜单 kuwo-rank-data 返回字段是 list，不是 books；tabId/tagId 来自 kuwo-rank-tabs。\n//   分类树来自 kuwo-classify：sections[].categoryId + sections[].child[].classifyId。\n//\n// 【播放修复】取链链路：\n//   play_api.url（api.php 动态下发，当前 http://43.142.122.173/）\n//   + /kuwo.php?type={音质}&rid={rid} → data.add（实测 200 audio/mpeg 真实直链）。\n//   兜底：官方 anti.s?type=convert_url&rid={rid}（实测直接返回真实 MP3 直链）。\n//   云端 kuwo-play 的 url 恒为空（只给歌词），不作为取链来源。\n//  约束：QuickJS；所有阶段/按钮只引用本文件里的函数名；状态走 vars.get/set。\n\nvar SUPA = \"https://backend.appmiaoda.com/projects/supabase345057433544081408/functions/v1\";\nvar ANON = \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoyMTAxNjk1MzAzLCJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwic3ViIjoiYW5vbiJ9.d_zv-NO7ifqZtHZHdEFYo0Kaxldn9NeW7Yy4YmHnsnc\";\nvar KW_BASE = \"https://mobilebasedata.kuwo.cn/basedata.s\";\nvar KW_RANK = \"https://search.kuwo.cn/r.s\";\nvar KW_POLICY = \"https://tsm.kuwo.cn/audioApi/a.p\";\nvar KW_ANTI = \"https://antiserver.kuwo.cn/anti.s\";\nvar KW_CONFIG = \"http://www.tingshu8.top/api.php\";\nvar PLAY_API_FALLBACK = \"http://43.142.122.173\";\n\nvar HOST_POOL = [SUPA];\nvar PROBE_PATH = \"/kuwo-rank-tabs\";\n\nfunction hostOf() {\n  var raw = String(vars.get(\"server\") || \"\").trim();\n  var want = \"\";\n  if (raw && !/^自动/.test(raw)) {\n    var sp = raw.indexOf(\" \");\n    want = (sp > 0 ? raw.substring(sp + 1) : raw).replace(/\\/+$/, \"\");  // 「云端 URL」→ 取地址\n  }\n  if (want) return want;\n  var ms = String(vars.get(\"server_ms\") || \"\");\n  if (ms) {\n    var parts = ms.split(\",\"), best = \"\", bestMs = 1e9;\n    for (var i = 0; i < parts.length; i++) {\n      var kv = parts[i].split(\":\");\n      if (kv.length === 2 && parseInt(kv[1], 10) > 0 && parseInt(kv[1], 10) < bestMs) {\n        bestMs = parseInt(kv[1], 10); best = kv[0];\n      }\n    }\n    if (best && HOST_POOL.indexOf(best) >= 0) return best;\n  }\n  return HOST_POOL[0];\n}\nfunction markHost(host, ok, ms) {\n  if (!ok) return;\n  var map = {}, s = String(vars.get(\"server_ms\") || \"\"), parts = s ? s.split(\",\") : [];\n  for (var i = 0; i < parts.length; i++) {\n    var kv = parts[i].split(\":\");\n    if (kv.length === 2) map[kv[0]] = parseInt(kv[1], 10) || 0;\n  }\n  map[host] = ms;\n  var out = [];\n  for (var k in map) if (map.hasOwnProperty(k)) out.push(k + \":\" + map[k]);\n  vars.set(\"server_ms\", out.join(\",\"));\n}\n\nfunction reqHeaders(url) {\n  var u = String(url);\n  if (u.indexOf(\"appmiaoda.com\") >= 0) {\n    return { \"apikey\": ANON, \"Authorization\": \"Bearer \" + ANON,\n             \"Accept\": \"application/json\", \"User-Agent\": \"tingyue/1.1.8\" };\n  }\n  if (u.indexOf(\"43.142.122.173\") >= 0 || u.indexOf(\"115.190.207.125\") >= 0) {\n    return { \"User-Agent\": \"Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36\",\n             \"Accept\": \"*/*\" };\n  }\n  return { \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\",\n           \"Referer\": \"https://kuwo.cn/\", \"Accept\": \"*/*\" };\n}\n\n// 云端限流体识别（appmiaoda 免费规格：429 状态或 200+ConcurrencyLimit 文案）\nfunction isLimitedBody(s) {\n  return String(s || \"\").indexOf(\"ConcurrencyLimit\") >= 0 || String(s || \"\").indexOf(\"并发请求上限\") >= 0;\n}\n\nvar _apiCache = {};\nfunction apiGet(url, desc) {\n  // 请求级短缓存：同 url 90 秒内复用，避免发现页/详情/目录重试风暴叠加云端并发限流\n  var hit = _apiCache[url];\n  if (hit && (Date.now() - hit.t) < 90000 && hit.s) return hit.s;\n  var r = null, last = \"\";\n  for (var i = 0; i < 4; i++) {\n    var t0 = Date.now();\n    try { r = http.get(url, { headers: reqHeaders(url) }); }\n    catch (e) { r = { ok: false, status: 0, error: String(e && e.message || e) }; }\n    var body = String((r && r.body) || \"\");\n    if (r && r.ok && r.status === 200 && !isLimitedBody(body)) {\n      if (url.indexOf(\"appmiaoda.com\") >= 0) {\n        try { markHost(hostOf(), true, Date.now() - t0); } catch (e0) {}\n      }\n      _apiCache[url] = { t: Date.now(), s: body };\n      return body;\n    }\n    if (isLimitedBody(body)) { last = \"HTTP 200 云端限流\"; }\n    else last = r && r.status ? \"HTTP \" + r.status : \"网络错误\";\n    // 429/5xx 退避重试（appmiaoda 免费规格并发窗口极短，瞬发重试必撞限流）\n    if (!(r && (r.status === 429 || r.status >= 500))) break;\n    try { sleep(600 * (i + 1) + 500); } catch (e2) {}\n  }\n  var limited = String(r && r.body || \"\").indexOf(\"ConcurrencyLimit\") >= 0 || (r && r.status === 429);\n  var hint = limited\n    ? \"\\n云端聚合并发已满（429），稍等几秒重试；或到「书源设置」点『🔎 连通性自检』看是哪一段不通。\"\n    : \"\\n请到「书源设置」点『🔎 连通性自检』，它会逐段测出是哪一步失败。\";\n  throw new Error((desc || \"请求\") + \"失败：\" + last + hint);\n}\nfunction jsonGet(url, desc) {\n  var s = apiGet(url, desc);\n  try { return JSON.parse(s); } catch (e) { return null; }\n}\nfunction looseJson(s) {\n  try { return JSON.parse(s); } catch (e) {}\n  try {\n    var t = String(s).replace(/\\r?\\n/g, \" \");\n    t = t.replace(/([{,]\\s*)'([^']+)'\\s*:/g, '$1\"$2\":').replace(/':/g, '\":').replace(/'/g, '\"');\n    return JSON.parse(t);\n  } catch (e2) { return null; }\n}\nfunction dec(s) {\n  return String(s == null ? \"\" : s)\n    .replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\")\n    .replace(/&gt;/g, \">\").replace(/&#39;/g, \"'\").replace(/&quot;/g, '\"')\n    .replace(/<[^>]+>/g, \"\").trim();\n}\nfunction https(s) { return String(s || \"\").replace(/^http:\\/\\//, \"https://\"); }\nfunction idOf(s) {\n  var t = String(s || \"\");\n  var m = t.match(/[?&](?:id|albumId|albumid)=(\\d+)/) || t.match(/(\\d{6,})/);\n  return m ? m[1] : \"\";\n}\nfunction ctxUrl(ctx) {\n  var c = ctx || {};\n  // ★ 章节地址优先于书籍地址：引擎 content 阶段 ctx.url 恒为空字符串，\n  //   章节地址在 ctx.chapter.url、书籍地址在 ctx.book.bookUrl（源码 scriptContext）。\n  //   若 book 分支在前，content 阶段会取到书籍 URL → 匹配失败 → 静默返回空 audio\n  //   → 真机报「正文规则没有返回音频地址」。\n  return String(c.url || c.bookUrl || c.tocUrl || c.chapterUrl || c.link ||\n                (c.chapter && (c.chapter.url || c.chapter.chapterUrl)) ||\n                (c.book && (c.book.url || c.book.bookUrl || c.book.tocUrl)) ||\n                (c.item && c.item.url) || \"\");\n}\nfunction bookUrlOf(id) { return KW_BASE + \"?type=get_album_info&id=\" + id; }\n\n// 书记录工厂：引擎标准键名 + type=audio\n// 封面高清化（2026-11-13 实测）：酷我 albumcover 各尺寸档通用，300/400 → 500\nfunction hdPic(url) {\n  var s = https(url);\n  if (!s) return s;\n  return s.replace(/(\\/star\\/albumcover\\/)\\d+\\//, \"$1500/\");\n}\nfunction bookRec(title, id, author, cover, intro) {\n  return {\n    name: dec(title),\n    bookUrl: bookUrlOf(id),\n    author: dec(author) || \"未知\",\n    coverUrl: hdPic(cover),\n    intro: dec(intro),\n    type: \"audio\"\n  };\n}\n// play_api host：优先 api.php 动态下发，失败用内置兜底；结果缓存进 vars\nfunction playHost() {\n  var cached = String(vars.get(\"play_host\") || \"\");\n  if (cached) return cached;\n  var host = PLAY_API_FALLBACK;\n  try {\n    var d = jsonGet(KW_CONFIG, \"取播放服务\");\n    var u = d && d.data && d.data.play_api && d.data.play_api.url;\n    if (u && /^https?:\\/\\//i.test(String(u))) host = String(u).replace(/\\/+$/, \"\");\n  } catch (e) {}\n  vars.set(\"play_host\", host);\n  return host;\n}\nfunction antiUrl(rid) {\n  return KW_ANTI + \"?type=convert_url&rid=\" + encodeURIComponent(rid) +\n         \"&format=mp3&response=url\";\n}\nfunction playUrl(rid) {\n  var q = String(vars.get(\"quality\") || \"128\");\n  if (!/^\\d+$/.test(q)) q = \"128\";\n  return playHost() + \"/kuwo.php?type=\" + q + \"&rid=\" + encodeURIComponent(rid);\n}\n\n// ---------- 设置页动作 ----------\n\nfunction actResetServer() {\n  vars.set(\"server\", HOST_POOL[0]);\n  vars.set(\"server_ms\", \"\");\n  vars.set(\"play_host\", \"\");\n  try { ui.refreshExplore(); } catch (e) {}\n  return \"♻️ 已复位到默认云端后端，耗时记录与播放服务缓存已清空。\";\n}\nfunction probePool(pool) {\n  var out = [];\n  for (var i = 0; i < pool.length; i++) {\n    var t = Date.now(), ok = false;\n    try {\n      var r = http.get(pool[i] + PROBE_PATH, { headers: reqHeaders(pool[i]) });\n      ok = !!(r && r.ok && r.status === 200);\n    } catch (e) {}\n    out.push({ host: pool[i], ok: ok, ms: Date.now() - t });\n  }\n  return out;\n}\n// ===== 三按钮：诊断 / 重测速并应用 / 恢复默认 =====\n// 诊断：先给结论再给明细；当前音频线路失效时自动切到可用线路；兜底线路不通不计为故障。\nfunction actDiagnose() {\n  var out = [], lines = [], i, fails = 0, fixed = [], best = null;\n  var steps = [\n    [\"搜索\", hostOf() + \"/kuwo-search?keyword=%E5%91%A8%E6%9D%B0%E4%BC%A6&pn=0&rn=20\", 1],\n    [\"首页\", hostOf() + \"/kuwo-books\", 1],\n    [\"榜单\", hostOf() + \"/kuwo-rank-data?tabId=13&tagId=27&pn=1&rn=20\", 1],\n    [\"分类标签\", hostOf() + \"/kuwo-channel-tabs?categoryId=37\", 1],\n    [\"分类列表\", hostOf() + \"/kuwo-albums?classifyId=254&pn=1&rn=20&categoryId=37&sortType=tsScore\", 1],\n    [\"详情\", bookUrlOf(\"95648538\"), 1],\n    [\"目录\", hostOf() + \"/kuwo-episodes?albumId=95648538\", 1],\n    [\"取链\", hostOf() + \"/kuwo-play?rid=605531597&quality=128&host=\" + encodeURIComponent(playHost()), 1],\n    [\"取链兜底(anti.s)\", antiUrl(\"605531597\"), 0],\n    [\"取链兜底(kuwo.php)\", playUrl(\"605531597\"), 0]\n  ];\n  for (i = 0; i < steps.length; i++) {\n    try {\n      var t = Date.now(), s = apiGet(steps[i][1], steps[i][0]);\n      out.push(\"  ✅ \" + steps[i][0] + \"  \" + s.length + \" 字节 / \" + (Date.now() - t) + \"ms\");\n    } catch (e) {\n      if (steps[i][2]) fails++;\n      out.push(\"  \" + (steps[i][2] ? \"❌\" : \"○\") + \" \" + steps[i][0] + \"  \" + String(e.message || e).split(\"\\n\")[0]);\n    }\n  }\n  var scored = [];\n  for (i = 0; i < LINE_HOSTS.length; i++) {\n    var t2 = Date.now(), ok = false;\n    try { var r = http.get(lineProbeUrl(LINE_HOSTS[i].key), { timeout: 8000 }); ok = !!(r && r.ok && r.status === 200); } catch (e2) {}\n    var ms = Date.now() - t2;\n    scored.push({ k: LINE_HOSTS[i].key, n: LINE_HOSTS[i].n, ok: ok, ms: ms });\n    lines.push(\"  \" + (ok ? \"✅\" : \"❌\") + \" \" + LINE_HOSTS[i].n + \"  \" + (ok ? ms + \"ms\" : \"不通\"));\n    if (ok && (!best || ms < best.ms)) best = { k: LINE_HOSTS[i].key, n: LINE_HOSTS[i].n, ms: ms };\n  }\n  var curLine = String(vars.get(\"line\") || \"\"), auto = /^自动/.test(curLine) || !curLine, curOk = auto;\n  for (i = 0; i < scored.length; i++) if (scored[i].n === curLine) curOk = scored[i].ok;\n  if (!curOk && best) {\n    vars.set(\"line\", best.n);\n    vars.set(\"line_ms\", scored.map(function (x) { return x.k + \":\" + (x.ok ? x.ms : 999999); }).join(\",\"));\n    fixed.push(\"音频线路 \" + curLine + \" 不通 → 已切到 \" + best.n);\n  }\n  if (fixed.length) { try { ui.refreshExplore(); } catch (e3) {} }\n\n  var head;\n  if (!fails && !fixed.length) head = \"🩺 诊断结果：✅ 关键链路正常（搜索 / 首页 / 榜单 / 分类 / 详情 / 目录 / 取链 全通）\";\n  else if (fixed.length) head = \"🩺 诊断结果：⚠️ 必需环节失败 \" + fails + \" 处，已自动修复 \" + fixed.length + \" 处\";\n  else head = \"🩺 诊断结果：❌ 必需环节失败 \" + fails + \" 处，需人工处理\";\n  var res = [head, \"  当前 云端后端 \" + hostOf() + \" · 播放服务 \" + playHost() + \" · 音频线路 \" + (auto ? \"自动\" : curOk ? curLine : best ? best.n : \"无可用\")];\n  for (i = 0; i < fixed.length; i++) res.push(\"  🔧 \" + fixed[i]);\n  res.push(\"\", \"链路明细\");\n  res = res.concat(out);\n  res.push(\"\", \"音频线路\");\n  res = res.concat(lines);\n  res.push(\"提示：标 ○ 的是取链兜底线路，不通不影响使用（云端 kuwo-play 可用即可播放）。\");\n  return res.join(\"\\n\");\n}\nfunction serverOptions(ctx) {\n  var ms = String(vars.get(\"server_ms\") || \"\"), scored = [];\n  for (var i = 0; i < HOST_POOL.length; i++) {\n    var v = 1e9, parts = ms ? ms.split(\",\") : [];\n    for (var j = 0; j < parts.length; j++) {\n      var kv = parts[j].split(\":\");\n      if (kv.length === 2 && kv[0] === HOST_POOL[i]) v = parseInt(kv[1], 10) || 1e9;\n    }\n    scored.push({ h: HOST_POOL[i], v: v });\n  }\n  scored.sort(function (a, b) { return a.v - b.v; });\n  var out = [];\n  for (var k = 0; k < scored.length; k++) out.push(scored[k].h);\n  return out;\n}\n\n// ---------- 音频线路测速（v4.6）：anti.s / kuwo.php 直连，按真实取链耗时排序 ----------\nvar LINE_AUTO = \"自动（优先上次成功线路）\";\nvar LINE_CLOUD = \"线路① 云端 kuwo-play\";\nvar LINE_PROBE_RID = \"605531597\";\nfunction lineProbeUrl(k) { return k === \"anti\" ? antiUrl(LINE_PROBE_RID) : playUrl(LINE_PROBE_RID); }\nvar LINE_HOSTS = [\n  { key: \"anti\", n: \"线路② 官方 anti.s\" },\n  { key: \"php\", n: \"线路③ kuwo.php 直连\" }\n];\nfunction lineOptions(ctx) {\n  var ms = String(vars.get(\"line_ms\") || \"\"), parts = ms ? ms.split(\",\") : [];\n  function score(n) {\n    for (var j = 0; j < parts.length; j++) { var kv = parts[j].split(\":\"); if (kv.length === 2 && kv[0] === n) return parseInt(kv[1], 10) || 1e9; }\n    return 1e9;\n  }\n  var items = [];\n  for (var i = 0; i < LINE_HOSTS.length; i++) items.push({ n: LINE_HOSTS[i].n, v: score(LINE_HOSTS[i].key) });\n  items.sort(function (a, b) { return a.v - b.v; });\n  var out = [LINE_AUTO, LINE_CLOUD];\n  for (var k = 0; k < items.length; k++) out.push(items[k].n);\n  return out;\n}\n// 重测速：一次测完云端后端与音频线路并应用最优（「并应用」写进标签，避免误以为是只读操作）。\nfunction actRetest() {\n  if (typeof ui !== \"undefined\" && ui && ui.toast) ui.toast(\"正在重测速…\");\n  var res = probePool(HOST_POOL), out = [\"⚡ 重测速完成，已应用最快线路\"], i, okH = 0;\n  for (i = 0; i < res.length; i++) if (res[i].ok) okH++;\n  out.push(\"  云端后端 \" + okH + \"/\" + res.length + \" 可用\");\n  var scored = [], best = null;\n  for (i = 0; i < LINE_HOSTS.length; i++) {\n    var t = Date.now(), ok = false;\n    try { var r = http.get(lineProbeUrl(LINE_HOSTS[i].key), { timeout: 8000 }); ok = !!(r && r.ok && r.status === 200); } catch (e) {}\n    var ms = Date.now() - t;\n    scored.push({ k: LINE_HOSTS[i].key, n: LINE_HOSTS[i].n, ok: ok, ms: ms });\n    if (ok && (!best || ms < best.ms)) best = { k: LINE_HOSTS[i].key, n: LINE_HOSTS[i].n, ms: ms };\n  }\n  vars.set(\"line_ms\", scored.map(function (x) { return x.k + \":\" + (x.ok ? x.ms : 999999); }).join(\",\"));\n  if (best) vars.set(\"line\", best.n);\n  try { ui.refreshExplore(); } catch (e2) {}\n  out.push(\"  音频线路 \" + (best ? best.n + \"  \" + best.ms + \"ms\" : \"全不通，保持原设置\"));\n  out.push(\"\", \"提示：日常无需手动执行；取链失败或切网后跑一次即可。\");\n  return out.join(\"\\n\");\n}\n\n// ---------- 五阶段：真实业务解析，返回值一律引擎标准键名 ----------\nfunction stageSearch(ctx) {\n  var key = String((ctx && (ctx.key || ctx.keyword)) || \"\").trim();\n  if (!key) return [];\n  var page = parseInt(String((ctx && ctx.page) || 1), 10) || 1;\n  var out = [];\n  try {\n    var d = jsonGet(hostOf() + \"/kuwo-search?keyword=\" + encodeURIComponent(key) +\n                    \"&pn=\" + ((page - 1) * 20) + \"&rn=20\", \"搜索\");\n    var bs = (d && d.books) || [];\n    for (var i = 0; i < bs.length; i++) {\n      var id = String(bs[i].id || \"\");\n      if (!id) continue;\n      out.push(bookRec(bs[i].title, id, bs[i].author || bs[i].narrator,\n                       bs[i].cover, bs[i].description));\n    }\n  } catch (e) {}\n  return out;\n}\n\n// 发现：menu.url 编码三种意图\n//   home                         → kuwo-books（返回 books）\n//   rank:{tabId}:{tagId}         → kuwo-rank-data（返回 list）\n//   cate:{classifyId}:{catId}    → kuwo-albums（补全 pn/rn/categoryId/sortType）\n// ★ 音乐分类用 37 号频道「热歌神曲」：标签由 kuwo-channel-tabs?categoryId=37 下发，\n//   catId 必须是 37；用 2 会落到有声小说分类（玄幻/都市），这就是旧版「分类不对」的原因。\nfunction stageExplore(ctx) {\n  var u = ctxUrl(ctx), out = [];\n  var page = parseInt(String((ctx && ctx.page) || 1), 10) || 1;\n  var path = \"/kuwo-books\";\n  var dataKey = \"books\";\n  var m = u.match(/^rank:(\\d+):(\\d+)/);\n  var c = u.match(/^cate:(\\d+):(\\d+)/);\n  if (m) {\n    path = \"/kuwo-rank-data?tabId=\" + m[1] + \"&tagId=\" + m[2] + \"&pn=\" + page + \"&rn=30\";\n    dataKey = \"list\";\n  } else if (c) {\n    path = \"/kuwo-albums?classifyId=\" + c[1] + \"&pn=\" + page + \"&rn=30\" +\n           \"&categoryId=\" + c[2] + \"&sortType=tsScore\";\n  } else if (u.indexOf(\"cate:\") >= 0) {\n    var only = u.split(\":\")[1];\n    path = \"/kuwo-albums?classifyId=\" + only + \"&pn=\" + page + \"&rn=30&categoryId=2&sortType=tsScore\";\n  }\n  try {\n    var d = jsonGet(hostOf() + path, \"发现\");\n    var bs = (d && (d[dataKey] || d.books || d.list || (d.data && d.data.books))) || [];\n    for (var i = 0; i < bs.length; i++) {\n      var it = bs[i], id = String(it.id || it.albumId || \"\");\n      if (!id) continue;\n      out.push(bookRec(it.title || it.name, id, it.author || it.narrator || it.artist,\n                       it.cover || it.pic || it.img, it.description || it.subtitle || it.intro));\n    }\n  } catch (e) {}\n  if (!out.length) {\n    throw new Error(\"发现页取数失败（\" + path + \"）：多为云端聚合并发限流，稍等几秒下拉刷新即可；\" +\n                    \"若持续失败请点『🔎 连通性自检』查看哪一段不通。\");\n  }\n  return out;\n}\n\n// 详情：官方 basedata.s（字段全）；云端 kuwo-albuminfo 的 meta 兜底\nfunction stageDetail(ctx) {\n  var id = idOf(ctxUrl(ctx));\n  if (!id) return {};\n  var r = { name: \"\", author: \"\", coverUrl: \"\", intro: \"\", tocUrl: bookUrlOf(id), type: \"audio\" };\n  try {\n    var d = jsonGet(bookUrlOf(id), \"详情\");\n    if (d && (d.name || d.albumid)) {\n      r.name = dec(d.name || d.book_name); r.author = dec(d.artist) || \"未知\";\n      r.coverUrl = hdPic(d.big_pic || d.pic); r.intro = dec(d.desc || d.info);\n    }\n  } catch (e) {}\n  if (!r.name) {\n    try {\n      var c = jsonGet(hostOf() + \"/kuwo-albuminfo?albumId=\" + encodeURIComponent(id), \"云端详情\");\n      var m = c && c.meta;\n      if (m) { r.name = dec(m.name); r.author = dec(m.author); r.coverUrl = hdPic(m.cover); r.intro = dec(m.description); }\n    } catch (e2) {}\n  }\n  return r;\n}\n\n// 目录：云端 kuwo-episodes；官方 policy.songList / r.s.musiclist 双兜底\n// chapter.url = kuwo://{rid}（自定义协议，content 阶段再取真实直链）\nfunction stageToc(ctx) {\n  var id = idOf(ctxUrl(ctx));\n  if (!id) return [];\n  var out = [], seen = {};\n  function push(rid, title) {\n    rid = String(rid || \"\");\n    if (!rid || seen[rid]) return;\n    seen[rid] = 1;\n    out.push({ title: dec(title) || \"第 \" + (out.length + 1) + \" 集\", url: \"kuwo://\" + rid });\n  }\n  try {\n    var d = jsonGet(hostOf() + \"/kuwo-episodes?albumId=\" + encodeURIComponent(id), \"云端目录\");\n    var cs = (d && d.chapters) || [];\n    for (var i = 0; i < cs.length; i++) push(cs[i].id, cs[i].title);\n  } catch (e) {}\n  if (!out.length) {\n    try {\n      var p = jsonGet(KW_POLICY + \"?op=policy&albumids=\" + encodeURIComponent(id) + \"&uid=0\", \"官方目录\");\n      var sl = (p && p.albums && p.albums[0] && p.albums[0].songList) || [];\n      for (var j = 0; j < sl.length; j++) push(sl[j].id, sl[j].name);\n    } catch (e2) {}\n  }\n  if (!out.length) {\n    try {\n      var s = apiGet(KW_RANK + \"?stype=albuminfo&albumid=\" + encodeURIComponent(id) + \"&pn=0&rn=100\", \"官方专辑目录\");\n      var o = looseJson(s), ml = (o && o.musiclist) || [];\n      for (var k = 0; k < ml.length; k++) push(ml[k].id, ml[k].name);\n    } catch (e3) {}\n  }\n  return out;\n}\n\n// 正文：从 kuwo://{rid} 取真实直链（v4.5：新增「音频线路」设置项，手动选线优先）\n// 线路：① 云端 kuwo-play（必须带 host=play_api.url，否则 url 恒空）\n//       ② 官方 anti.s（返回干净 https 直链）\n//       ③ play_api 的 kuwo.php（data.add）\n// 自动模式 = 上次成功线路优先（记忆 kw_last_line）；手动指定 = 所选线路排最前，\n// 失败仍按顺序兜底其余线路，保证总能播。\nfunction stageContent(ctx) {\n  var u = ctxUrl(ctx);\n  if (!u) return { audio: \"\" };\n  var m = u.match(/kuwo:\\/\\/(\\d+)/) || u.match(/[?&]rid=(\\d+)/);\n  if (!m) return { audio: \"\" };\n  var rid = m[1];\n  var q = String(vars.get(\"quality\") || \"128\");\n  if (!/^\\d+$/.test(q)) q = \"128\";\n\n  var mode = String(vars.get(\"line\") || \"自动（优先上次成功线路）\");\n  var last = String(vars.get(\"kw_last_line\") || \"\");\n  // order: 0=云端 kuwo-play  1=anti.s  2=kuwo.php\n  var order = [0, 1, 2];\n  function bringToFront(k) { order = [k].concat(order.filter(function (x) { return x !== k; })); }\n  if (mode.indexOf(\"云端\") >= 0 && mode.indexOf(\"①\") >= 0) bringToFront(0);\n  else if (mode.indexOf(\"anti.s\") >= 0) bringToFront(1);\n  else if (mode.indexOf(\"kuwo.php\") >= 0) bringToFront(2);\n  else if (last !== \"\") { var li = parseInt(last, 10); if (li >= 0 && li <= 2) bringToFront(li); }\n\n  var errors = [];\n  for (var oi = 0; oi < order.length; oi++) {\n    var which = order[oi];\n    var v = \"\";\n    try {\n      if (which === 0) {\n        var d0 = jsonGet(hostOf() + \"/kuwo-play?rid=\" + encodeURIComponent(rid) +\n                         \"&quality=\" + q + \"&host=\" + encodeURIComponent(playHost()), \"云端取链\");\n        v = String((d0 && d0.url) || (d0 && d0.data && d0.data.url) || \"\");\n      } else if (which === 1) {\n        v = String(apiGet(antiUrl(rid), \"取播放地址兜底\")).trim();\n      } else {\n        var d = jsonGet(playUrl(rid), \"取播放地址\");\n        v = String((d && d.add) || \"\");\n      }\n    } catch (e1) { errors.push([\"云端kuwo-play\", \"anti.s\", \"kuwo.php\"][which] + \": \" + String(e1.message || e1).split(\"\\n\")[0]); }\n    if (/^https?:\\/\\//i.test(v)) {\n      try { vars.set(\"kw_last_line\", String(which)); } catch (e2) {}\n      return { audio: https(v), text: https(v) };\n    }\n  }\n  throw new Error(\"未取到音频地址：云端 kuwo-play / 官方 anti.s / play_api kuwo.php 三条取链均未返回直链。\" +\n                  \"请点『🔎 连通性自检』看是哪一段失败（该曲目可能需 VIP 或已下架）。\");\n}",
+ "group": "渡·听书"
+}

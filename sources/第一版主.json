@@ -1,0 +1,112 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "第一版主",
+ "url": "https://m.banzhuxiaoshuo.com",
+ "group": "渡",
+ "type": "text",
+ "enabled": true,
+ "enabledExplore": true,
+ "rate": "10/10000",
+ "comment": "第一版主网移动版 · 轻页原生 v5（2026-11-04 修字段）\n· 站点：m.banzhuxiaoshuo.com（UTF-8，全站需手机版 UA，已固定在 headers）；备用线路 www.diyibanzhu.me（同后端，可在书源设置里切换 vars.site）。m.sinodan.cc 本轮实测连不上，未收录。\n· 搜索：POST /wap.php?action=search（objectType=2 + wd），实测「陈园长」命中 1 条。\n· 发现：总人气 / 月人气 / 新书 / 字数榜 / 最新，逐条实测 200、各 30 条、第 2 页正常翻页。\n· 详情与目录同页（/list/{id}.html）：目录取最后一个 chapter-list 块（.-1）——详情页有两块（最新章节 + 完整目录），目录分页页只有一块，.-1 两边都命中。翻页走 a.nextPage。\n· 【正文段落分段已修】原站 HTML 是 CRLF + 每行独立 <br/>，引擎的 `\\n{3,}` 压缩会被 \\r 打断 → 每段之间残留空行与纯 \\r 行。本源改成在 text 里用 lib 函数 body() 先做 HTML→纯文本再归一化：去广告块 / <br>→换行 / 去标签 / 逐行 trim / 丢空行 → 输出「一段一行」。实测 123 段 0 空行。\n· 目录并发（2026-11-01）：详情页 select[name=pagelist] 一次列出全部目录页，nextUrl 返回列表 → 引擎按 batch 并发（原来是逐页串行）。\n· 正文分页：章节页是「数字分页」（/view/{id}_2.html），nextUrl 用 sel('center.chapterPages a@href') 一次列出全部剩余页（列表写法），引擎并发抓取。\n· 封面：站点全书只有 /images/jipin-default.jpg 占位图（列表页无 img、详情页每本同一张），coverUrl 留空不伪造。\n· 并发 10/10000（1 次/秒）：本轮取证中站点偶发 502，属易抖站点。\n· 【空响应 2026-11-01】站点偶发返回空响应（刷新即好），toc 加 retry=2、detail 加 retry=1 自动补救。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13; SM-S9080) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "zh-CN,zh;q=0.9"
+ },
+ "vars": [
+  {
+   "key": "site",
+   "label": "线路",
+   "filter": false,
+   "default": "https://m.banzhuxiaoshuo.com",
+   "options": [
+    "https://m.banzhuxiaoshuo.com",
+    "https://www.diyibanzhu.me"
+   ]
+  }
+ ],
+ "lib": "fn body(html) {\n  let h = replace(html, '<center[^>]*chapterPages.*?</center>', '', 's')\n  h = replace(h, '<font[^>]*>[^<]*本章未完[^<]*</font>', '')\n  h = replace(h, '<font[^>]*>[^<]*数字分页[^<]*</font>', '')\n  let t = stripHtml(h)\n  let out = []\n  for line in split(t, '\\n') {\n    let s = trim(line)\n    if (s != '' && !startsWith(s, '标签：') && !contains(s, '本章完') && !contains(s, '本章未完') && !contains(s, '数字分页') && !contains(s, '最新章节请访问')) {\n      push(out, s)\n    }\n  }\n  return join(out, '\\n')\n}\n",
+ "search": {
+  "url": "{{vars.site}}/wap.php?action=search",
+  "method": "POST",
+  "body": "objectType=2&wd={{urlencode(key)}}",
+  "headers": {
+   "Content-Type": "application/x-www-form-urlencoded"
+  },
+  "list": "class.book-all-list@li",
+  "fields": {
+   "name": "a.name@text",
+   "bookUrl": "a.name@href",
+   "author": "p.info@text##[\\s\\S]*?作者：\\s*([^\\s<]+)[\\s\\S]*##$1",
+   "lastChapter": "p.update a@text",
+   "wordCount": "class.words@text##字数：\\s*",
+   "status": "span[style*=float]@text##^\\d{4}-\\d{2}-\\d{2}\\s*$"
+  },
+  "retry": 2
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "版主系 · 移动版"
+   },
+   {
+    "title": "总人气",
+    "url": "{{vars.site}}/book/1_17214_{{page}}.html"
+   },
+   {
+    "title": "月人气",
+    "url": "{{vars.site}}/book/2_17214_{{page}}.html"
+   },
+   {
+    "title": "新书",
+    "url": "{{vars.site}}/book/3_17214_{{page}}.html"
+   },
+   {
+    "title": "字数榜",
+    "url": "{{vars.site}}/book/4_17214_{{page}}.html"
+   },
+   {
+    "title": "最新",
+    "url": "{{vars.site}}/book/17214_{{page}}.html"
+   }
+  ],
+  "list": "class.book-all-list@li",
+  "fields": {
+   "name": "a.name@text",
+   "bookUrl": "a.name@href",
+   "author": "p.info@text##[\\s\\S]*?作者：\\s*([^\\s<]+)[\\s\\S]*##$1",
+   "lastChapter": "p.update a@text",
+   "wordCount": "class.words@text##字数：\\s*",
+   "status": "span[style*=float]@text##^\\d{4}-\\d{2}-\\d{2}\\s*$"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "h1@text",
+   "author": "p.info@text##[\\s\\S]*?作者：([^\\s<]*)[\\s\\S]*##$1",
+   "kind": "p.info@text##[\\s\\S]*?类型：([^\\s<]*)[\\s\\S]*##$1",
+   "intro": "div.book-intro@text",
+   "lastChapter": "class.chapter-list.0@ul@li.0@a@text",
+   "status": "span.status@text##[•·\\s]+$",
+   "wordCount": "p.info@text##[\\s\\S]*?字数：\\s*(\\d+)[\\s\\S]*##$1"
+  },
+  "retry": 1
+ },
+ "toc": {
+  "url": "= book.bookUrl",
+  "list": "class.chapter-list.1@ul@li",
+  "fields": {
+   "title": "a@text",
+   "url": "a@href"
+  },
+  "nextUrl": "= map(filter(map(selAll('select[name=\"pagelist\"]@option@value'), u => [u, default(int(match(u, '_(\\\\d+)\\\\.html$', 1)), 1)]), p => p[1] > 1), p => p[0])",
+  "batch": 4,
+  "retry": 2
+ },
+ "content": {
+  "url": "= chapter.url",
+  "text": "= body(sel('#nr1@html'))",
+  "nextUrl": "= map(filter(map(selAll('center.chapterPages a@href'), u => [u, default(int(match(u, '_(\\\\d+)\\\\.html', 1)), 1)]), p => p[1] > default(int(match(chapter.url, '_(\\\\d+)\\\\.html', 1)), 1)), p => p[0])"
+ }
+}

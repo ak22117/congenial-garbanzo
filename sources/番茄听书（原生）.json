@@ -1,0 +1,399 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "番茄听书",
+ "url": "https://fanqienovel.com/native-audio",
+ "group": "渡·听书",
+ "comment": "番茄听书 （原生直连，2026-10-24 v15）",
+ "type": "audio",
+ "rate": "200",
+ "vars": [
+  {
+   "key": "tone",
+   "label": "默认音色（不选=真人原声；1/2/4/5/6/8/12/17/27/28/29/30/31/32/51/74/90/100/103/105/110/115=AI）——播放页可随时切",
+   "default": "0"
+  },
+  {
+   "key": "devid",
+   "label": "device_id",
+   "default": "5"
+  },
+  {
+   "key": "devtype",
+   "label": "device_type",
+   "default": "Honor10"
+  },
+  {
+   "key": "osver",
+   "label": "os_version",
+   "default": "9"
+  },
+  {
+   "key": "vcode",
+   "label": "version_code",
+   "default": "70132"
+  },
+  {
+   "key": "vname",
+   "label": "version_name",
+   "default": "7.0.1.32"
+  }
+ ],
+ "voices": [
+  {
+   "id": "1",
+   "name": "甜美少女"
+  },
+  {
+   "id": "2",
+   "name": "清亮青叔"
+  },
+  {
+   "id": "4",
+   "name": "成熟大叔"
+  },
+  {
+   "id": "5",
+   "name": "开朗青年"
+  },
+  {
+   "id": "6",
+   "name": "温柔淑女"
+  },
+  {
+   "id": "8",
+   "name": "风雅青叔"
+  },
+  {
+   "id": "12",
+   "name": "清纯少女"
+  },
+  {
+   "id": "17",
+   "name": "磁性青叔"
+  },
+  {
+   "id": "27",
+   "name": "推文女声"
+  },
+  {
+   "id": "28",
+   "name": "亲切姐姐"
+  },
+  {
+   "id": "29",
+   "name": "儒雅大叔"
+  },
+  {
+   "id": "30",
+   "name": "优雅御姐"
+  },
+  {
+   "id": "31",
+   "name": "斯文青叔"
+  },
+  {
+   "id": "32",
+   "name": "知性主播"
+  },
+  {
+   "id": "51",
+   "name": "多人对话"
+  },
+  {
+   "id": "74",
+   "name": "成熟升级"
+  },
+  {
+   "id": "90",
+   "name": "多人配乐"
+  },
+  {
+   "id": "100",
+   "name": "俏皮御姐"
+  },
+  {
+   "id": "103",
+   "name": "双音灵动"
+  },
+  {
+   "id": "105",
+   "name": "王明军音"
+  },
+  {
+   "id": "110",
+   "name": "双角对话"
+  },
+  {
+   "id": "115",
+   "name": "从容淑女"
+  }
+ ],
+ "lib": "fn fqle32(b, off) {\nreturn (b[off] | (b[off + 1] << 8) | (b[off + 2] << 16) | (b[off + 3] << 24)) >>> 0\n}\nfn fqpackle32(v) {\nv = v >>> 0\nreturn [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]\n}\nfn fqpackle64(v) {\nreturn concat(fqpackle32(v[0]), fqpackle32(v[1]))\n}\nfn fqrotl64(v, n) {\nn = n % 64\nif (n == 0) {\nreturn [v[0], v[1]]\n}\nif (n == 32) {\nreturn [v[1], v[0]]\n}\nif (n > 32) {\nreturn fqrotl64([v[1], v[0]], n - 32)\n}\nreturn [((v[0] << n) | (v[1] >>> (32 - n))) >>> 0, ((v[1] << n) | (v[0] >>> (32 - n))) >>> 0]\n}\nfn fqrotr64(v, n) {\nn = n % 64\nif (n == 0) {\nreturn [v[0], v[1]]\n}\nreturn fqrotl64(v, 64 - n)\n}\nfn fqadd64(a, b) {\nlet lo = a[0] + b[0]\nlet carry = 0\nif (lo >= 4294967296) {\ncarry = 1\n}\nreturn [lo >>> 0, (a[1] + b[1] + carry) >>> 0]\n}\nfn fqxor64(a, b) {\nreturn [(a[0] ^ b[0]) >>> 0, (a[1] ^ b[1]) >>> 0]\n}\nfn fqnot64(a) {\nreturn [(~a[0]) >>> 0, (~a[1]) >>> 0]\n}\nfn fqbit(v, pos) {\nif (pos < 32) {\nreturn (v[0] >>> pos) & 1\n}\nreturn (v[1] >>> (pos - 32)) & 1\n}\nfn fqpad(b, n) {\nlet k = n - (len(b) % n)\nlet i = 0\nwhile (i < k) {\nb = push(b, k)\ni = i + 1\n}\nreturn b\n}\nfn fqvarint(value) {\nvalue = value >>> 0\nlet out = []\nwhile (value > 128) {\nout = push(out, (value & 127) | 128)\nvalue = floor(value / 128)\n}\nreturn push(out, value & 127)\n}\nfn fqvarintb(b) {\nreturn fqvarint(len(b))\n}\nfn fqfieldvarint(tag, value) {\nreturn concat(fqvarint(tag << 3), fqvarint(value))\n}\nfn fqfieldbytes(tag, data) {\nreturn concat(fqvarint((tag << 3) | 2), concat(fqvarint(len(data)), data))\n}\nfn fqfieldstring(tag, s) {\nreturn fqfieldbytes(tag, bytes(s))\n}\nfn fqlks(rand, key) {\nlet seedHex = bytesHex(hash('MD5', concat(rand, bytes(str(key)))))\nlet words = []\nlet i = 0\nlet base = 0\nwhile (i < 4) {\nlet b = []\nlet k = 0\nwhile (k < 8) {\nb = push(b, charCode(seedHex, base + k))\nk = k + 1\n}\nwords = push(words, [fqle32(b, 0), fqle32(b, 4)])\nbase = base + 8\ni = i + 1\n}\nlet x = words[0]\nlet y = words[1]\nlet buf = [words[2], words[3]]\nlet out = [words[0]]\ni = 0\nwhile (i < 34) {\nlet prev = x\nlet t = fqadd64(fqrotr64(y, 8), prev)\nt = [(t[0] ^ i) >>> 0, t[1]]\nbuf = push(buf, t)\nlet nx = [(t[0] ^ fqrotr64(prev, 61)[0]) >>> 0, (t[1] ^ fqrotr64(prev, 61)[1]) >>> 0]\nout = push(out, nx)\nx = nx\ny = buf[0]\nbuf = slice(buf, 1, len(buf))\ni = i + 1\n}\nreturn slice(out, 0, 34)\n}\nfn fqleb(seed, keys) {\nlet lo = [fqle32(seed, 0), fqle32(seed, 4)]\nlet hi = [fqle32(seed, 8), fqle32(seed, 12)]\nlet i = 0\nwhile (i < 34) {\nlet r = fqadd64(lo, fqrotr64(hi, 8))\nlet nhi = [(keys[i][0] ^ r[0]) >>> 0, (keys[i][1] ^ r[1]) >>> 0]\nlet nlo = [(nhi[0] ^ fqrotr64(lo, 61)[0]) >>> 0, (nhi[1] ^ fqrotr64(lo, 61)[1]) >>> 0]\nhi = nhi\nlo = nlo\ni = i + 1\n}\nreturn concat(fqpackle64(lo), fqpackle64(hi))\n}\nfn fqls(kh, rand, aid) {\nlet plain = fqpad(bytes(str(kh) + '-1611921764-3019'), 16)\nlet keys = fqlks(rand, aid)\nlet out = []\nlet i = 0\nwhile (i < len(plain)) {\nout = concat(out, fqleb(slice(plain, i, i + 16), keys))\ni = i + 16\n}\nreturn bytesBase64(concat(rand, out))\n}\nfn fqske(key) {\nlet state = []\nlet consts = [74278795, 1036602426]\nlet i = 0\nwhile (i < 72) {\nstate = push(state, [0, 0])\ni = i + 1\n}\ni = 0\nwhile (i < 4) {\nstate[i] = key[i]\ni = i + 1\n}\ni = 4\nwhile (i < 72) {\nlet tmp = fqrotr64(state[i - 1], 3)\ntmp = fqxor64(tmp, state[i - 3])\ntmp = fqxor64(tmp, fqrotr64(tmp, 1))\nlet not4 = fqnot64(state[i - 4])\nlet x = fqxor64(not4, tmp)\nlet c = [3 ^ fqbit(consts, (i - 4) % 62), 0]\nstate[i] = fqxor64(x, c)\ni = i + 1\n}\nreturn state\n}\nfn fqseb(block, keys) {\nlet sk = fqske(keys)\nlet lo = [fqle32(block, 0), fqle32(block, 4)]\nlet hi = [fqle32(block, 8), fqle32(block, 12)]\nlet r = 0\nwhile (r < 72) {\nlet h1 = fqrotl64(hi, 1)\nlet h8 = fqrotl64(hi, 8)\nlet h2 = fqrotl64(hi, 2)\nlet m0 = (h1[0] & h8[0]) >>> 0\nlet m1 = (h1[1] & h8[1]) >>> 0\nlet nhi = [((lo[0] ^ m0 ^ h2[0]) >>> 0 ^ sk[r][0]) >>> 0, ((lo[1] ^ m1 ^ h2[1]) >>> 0 ^ sk[r][1]) >>> 0]\nlo = hi\nhi = nhi\nr = r + 1\n}\nreturn concat(fqpackle64(lo), fqpackle64(hi))\n}\nfn fqparam(query, name) {\nlet parts = split(query, '&')\nlet i = 0\nwhile (i < len(parts)) {\nlet p = parts[i]\nlet eq = indexOf(p, '=')\nlet k = eq < 0 ? p : substring(p, 0, eq)\nif (k == name) {\nlet v = eq < 0 ? '' : substring(p, eq + 1)\nreturn urldecode(replaceText(v, '+', ' '))\n}\ni = i + 1\n}\nreturn ''\n}\nfn fqosdword(version) {\nlet digits = replaceText(str(version), '.', '')\nlet weights = [20480, 2048, 20971520, 2097152, 1342177280, 134217728]\nwhile (len(digits) < 6) {\ndigits = '0' + digits\n}\nlet sum = 0\nlet i = 0\nwhile (i < 6) {\nsum = sum + num(substring(digits, i, i + 1)) * weights[i]\ni = i + 1\n}\nreturn sum >>> 0\n}\nfn fqbuildargus(query, kh, rnd, aid, bodyStub) {\nlet deviceId = fqparam(query, 'device_id')\nlet versionName = fqparam(query, 'version_name')\nlet deviceType = fqparam(query, 'device_type')\nlet osVersion = fqparam(query, 'os_version')\nlet channel = fqparam(query, 'channel')\nif (channel == '') {\nchannel = '0'\n}\nlet bodyHash = slice(hash('SM3', bodyStub == '' ? list(16, 0) : hexBytes(bodyStub)), 0, 6)\nlet queryHash = slice(hash('SM3', query == '' ? list(16, 0) : bytes(query)), 0, 6)\nlet deviceInfo = concat(fqvarint(10), concat(fqvarintb(bytes(deviceType)), bytes(deviceType)))\ndeviceInfo = concat(deviceInfo, concat(fqvarint(18), concat(fqvarintb(bytes(osVersion)), bytes(osVersion))))\ndeviceInfo = concat(deviceInfo, concat(fqvarint(26), concat(fqvarintb(bytes(channel)), bytes(channel))))\ndeviceInfo = concat(deviceInfo, concat(fqvarint(32), fqvarint(fqosdword(osVersion))))\nlet out = []\nout = concat(out, fqfieldvarint(1, 1077940818))\nout = concat(out, fqfieldvarint(2, 2))\nout = concat(out, fqfieldvarint(3, rnd))\nout = concat(out, fqfieldstring(4, str(aid)))\nout = concat(out, fqfieldstring(5, deviceId))\nout = concat(out, fqfieldstring(6, '1611921764'))\nout = concat(out, fqfieldstring(7, versionName))\nout = concat(out, fqfieldstring(8, 'v04.04.05-ov-android'))\nout = concat(out, fqfieldvarint(9, 134744640))\nout = concat(out, fqfieldbytes(10, list(8, 0)))\nout = concat(out, fqfieldvarint(11, 0))\nout = concat(out, fqfieldvarint(12, kh << 1))\nout = concat(out, fqfieldbytes(13, bodyHash))\nout = concat(out, fqfieldbytes(14, queryHash))\nout = concat(out, fqfieldvarint(20, 738))\nout = concat(out, fqfieldbytes(23, deviceInfo))\nreturn out\n}\nfn fqargus(query, kh, rnd, aid, bodyStub) {\nlet padded = fqpad(fqbuildargus(query, kh, rnd, aid, bodyStub), 16)\nlet argusKey = hexBytes('fc78e0a9657a0c748ce51559903ccf03510e51d3cff232d71343e88a321c5304')\nlet secret = hexBytes('ac1adaae95a7af94a5114ab3b3a97dd80050aa0a39314c40528caec95256c28c')\nlet aesKey = hash('MD5', slice(secret, 0, 16))\nlet aesIv = hash('MD5', slice(secret, 16, 32))\nlet keys = []\nlet i = 0\nwhile (i < 4) {\nkeys = push(keys, [fqle32(argusKey, i * 8), fqle32(argusKey, i * 8 + 4)])\ni = i + 1\n}\nlet enc = []\ni = 0\nwhile (i < len(padded)) {\nenc = concat(enc, fqseb(slice(padded, i, i + 16), keys))\ni = i + 16\n}\nlet out = concat([242, 247, 252, 255, 242, 247, 252, 255], enc)\nlet xorKey = slice(out, 0, 8)\ni = 8\nlet out2 = slice(out, 0, 8)\nwhile (i < len(out)) {\nout2 = push(out2, (out[i] ^ xorKey[i % 8]) & 255)\ni = i + 1\n}\nlet packed = concat([166, 110, 173, 159, 119, 1, 208, 12, 24], concat(reverse(out2), [97, 111]))\nlet body = encrypt('AES/CBC/NoPadding', fqpad(packed, 16), aesKey, aesIv)\nreturn bytesBase64(concat([242, 129], body))\n}\nfn fqua() {\nreturn 'com.dragon.read.oversea.gp/70132 (Linux; U; Android 9; zh_CN; Honor 10; Build/PQ3A.190801.002; Cronet/TTNetVersion:unknown)'\n}\nfn fqweba() {\nreturn 'Mozilla/5.0 (Linux; Android 12; DCO-AL00) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'\n}\nfn fqhost() {\nreturn 'https://api5-normal-sinfonlinea.fqnovel.com'\n}\nfn fqdetHost() {\nreturn 'https://api5-normal-sinfonlinec.fqnovel.com'\n}\nfn fqimgCdn() {\nreturn 'https://p6-novel.byteimg.com/origin/'\n}\nfn fqhex2(b) {\nlet t = '0123456789ABCDEF'\nlet hi = floor(b / 16)\nlet lo = b - hi * 16\nreturn substring(t, hi, hi + 1) + substring(t, lo, lo + 1)\n}\nfn fqenc(s) {\nlet bs = bytes(str(s))\nlet out = ''\nlet i = 0\nwhile (i < len(bs)) {\nlet b = bs[i]\nlet keep = false\nif (b >= 48 && b <= 57) {\nkeep = true\n}\nif (b >= 65 && b <= 90) {\nkeep = true\n}\nif (b >= 97 && b <= 122) {\nkeep = true\n}\nif (b == 45 || b == 95 || b == 46 || b == 126) {\nkeep = true\n}\nif (keep) {\nout = out + fromBytes([b])\n} else {\nout = out + '%' + fqhex2(b)\n}\ni = i + 1\n}\nreturn out\n}\nfn fqtab(mode) {\nreturn lookup({'小说': '3', '听书': '2', '漫画': '8', '短剧': '8', '漫剧': '8'}, str(mode), '3')\n}\nfn fqvideo(mode) {\nreturn str(mode) == '短剧' || str(mode) == '漫剧'\n}\nfn fqkind(mode) {\nreturn lookup({'听书': 'audio', '漫画': 'comic', '短剧': 'video', '漫剧': 'video'}, str(mode), 'text')\n}\nfn fqtabkind(tab) {\nreturn lookup({'2': 'audio', '8': 'comic', '11': 'video', '19': 'video', '32': 'video'}, str(tab), 'text')\n}\nfn fqisvideo(d) {\nif (d == null) {\nreturn false\n}\nif (d.video_vertical != null || d.drama_chapter_number != null || d.matchmaking_drama_type != null) {\nreturn true\n}\nreturn false\n}\nfn fqtype3(d, mode, tab, web) {\nif (fqvideo(mode)) {\nif (web) {\nreturn 'text'\n}\nreturn 'video'\n}\nif (str(mode) == '听书') {\nreturn 'audio'\n}\nif (d != null) {\nif (fqisvideo(d)) {\nif (web) {\nreturn 'text'\n}\nreturn 'video'\n}\nif (d.book_type != null && str(d.book_type) == '1') {\nreturn 'audio'\n}\nlet t = str(d.first_chapter_title ?? '')\nif (t != '') {\nif (contains(t, '话')) {\nreturn 'comic'\n}\nif (contains(t, '集')) {\nreturn 'audio'\n}\n}\n}\nreturn fqtabkind(tab)\n}\nfn fqrnd(seed) {\nlet x = seed % 2147483647\nif (x <= 0) {\nx = 12345\n}\nreturn x * 48271 % 2147483648\n}\nfn fqrand(seed, n) {\nlet out = []\nlet x = seed % 2147483647\nif (x <= 0) {\nx = 12345\n}\nlet i = 0\nwhile (i < n) {\nx = x * 48271 % 2147483647\nout = push(out, x % 256)\ni = i + 1\n}\nreturn out\n}\nfn fqdevq(devid, devtype, osver, vcode, vname) {\nreturn 'aid=1967&app_name=novelapp&channel=0&device_platform=android&device_id=' + str(devid) +\n'&device_type=' + str(devtype) + '&os_version=' + str(osver) +\n'&version_code=' + str(vcode) + '&version_name=' + str(vname) +\n'&update_version_code=' + str(vcode) + '&manifest_version_code=' + str(vcode)\n}\nfn fqsearchq(dv, key, page, tab) {\nreturn dv + '&query=' + fqenc(key) + '&tab_type=' + str(tab) + '&passback=' + str((page - 1) * 10)\n}\nfn fqsearchurl(dv, key, page, tab) {\nreturn fqhost() + '/reading/bookapi/search/tab/v/?' + fqsearchq(dv, key, page, tab)\n}\nfn fqbd(item) {\nlet bd = item.book_data\nif (bd != null && len(bd) > 0) {\nreturn bd[0]\n}\nreturn item\n}\nfn fqdetailq(dv, bid, tab) {\nreturn dv + '&iid=1&book_id=' + str(bid) + '&hgm=' + str(tab)\n}\nfn fqdetailurl(dv, bid, tab) {\nreturn fqdetHost() + '/reading/bookapi/multi-detail/v/?' + fqdetailq(dv, bid, tab)\n}\nfn fqfirst(d) {\nif (d == null) {\nreturn {}\n}\nlet one = get(d, 0, null)\nif (one != null) {\nreturn one\n}\nreturn d\n}\nfn fqbookurl(bid, tab) {\nreturn 'https://fanqienovel.com/page/' + str(bid) + '/t' + str(tab)\n}\nfn fqbid(u) {\nlet m = str(match(str(u), 'page/(\\\\d+)', 1))\nif (m == '') {\nreturn itemOf(u)\n}\nreturn m\n}\nfn itemOf(u) {\nreturn str(match(str(u), 'chapter/\\\\d+/(\\\\d+)', 1))\n}\nfn fqutab(u) {\nlet m = str(match(str(u), '/t(\\\\d+)', 1))\nif (m != '') {\nreturn m\n}\nlet q = str(match(str(u), 'tab=(\\\\d+)', 1))\nif (q != '') {\nreturn q\n}\nreturn '3'\n}\nfn fqchapurl(itemId, tab) {\nreturn 'https://fanqienovel.com/chapter/' + str(tab) + '/' + str(itemId)\n}\nfn fqitemid(chapUrl) {\nreturn str(match(str(chapUrl), 'chapter/\\\\d+/(\\\\d+)', 1))\n}\nfn fqweburl(itemId) {\nreturn 'https://m.wkbrowser.com/i' + str(itemId) + '/info/v2/'\n}\nfn fqchapters(d) {\nlet vols = d.chapterListWithVolume\nif (vols == null) {\nreturn []\n}\nlet out = []\nlet multi = len(vols) > 1\nlet i = 0\nwhile (i < len(vols)) {\nif (multi) {\nlet nm = str(get(d.volumeNameList, i, ''))\nif (nm != '') {\nout = push(out, {volume: nm})\n}\n}\nlet ch = vols[i]\nlet j = 0\nwhile (j < len(ch)) {\nout = push(out, ch[j])\nj = j + 1\n}\ni = i + 1\n}\nreturn out\n}\nfn fqaudioq(dv, itemId, tone) {\nlet t = str(tone)\nif (t == '' || t == 'null' || t == 'undefined') {\nt = '1'\n}\nreturn dv + '&tone_id=' + t + '&item_ids=' + str(itemId) + '&pv_player=-1'\n}\nfn fqaudiourl(dv, itemId, tone) {\nreturn 'https://reading.snssdk.com/reading/reader/audio/playinfo/?' + fqaudioq(dv, itemId, tone)\n}\nfn fqaudioget(aud) {\nif (aud == null) {\nreturn ''\n}\nlet dd = aud.data\nif (dd == null) {\nreturn ''\n}\nlet d = null\nif (typeOf(dd) == 'list') {\nif (len(dd) == 0) {\nreturn ''\n}\nd = dd[0]\n} else {\nd = fqfirst(dd)\n}\nif (d == null) {\nreturn ''\n}\nlet u = d.main_url\nif (u != null && u != '') {\nreturn u\n}\nlet il = d.item_list\nif (il != null && len(il) > 0) {\nlet a = il[0].audio_data ?? il[0]\nif (a.main_url != null) {\nreturn a.main_url\n}\n}\nreturn ''\n}\nfn fqtext(d) {\nif (d == null) {\nreturn ''\n}\nlet c = str(d.content ?? '')\nif (c == '') {\nreturn ''\n}\nif (startsWith(c, '{')) {\nreturn ''\n}\nreturn c\n}\nfn fqtext2(d) {\nif (d == null) {\nreturn ''\n}\nlet imgs = fqcomicimgs(d.content)\nif (len(imgs) > 0) {\nlet out = ''\nlet i = 0\nwhile (i < len(imgs)) {\nout = out + '<img src=\"' + imgs[i] + '\">'\ni = i + 1\n}\nreturn out\n}\nreturn fqtext(d)\n}\nfn fqcomicimgs(txt) {\nlet c = str(txt ?? '')\nif (c == '' || !startsWith(c, '{')) {\nreturn []\n}\nlet j = json(c)\nif (j == null) {\nreturn []\n}\nlet ms = j.materials\nif (ms == null) {\nreturn []\n}\nlet out = []\nlet sk = j.skeleton\nlet skd = sk == null ? null : sk.data\nif (skd != null && len(skd) > 0) {\nlet i = 0\nwhile (i < len(skd)) {\nlet it = skd[i]\nlet key = it.elementInfo ?? it.key ?? it.id ?? it.value\nif (key != null) {\nlet node = ms[str(key)]\nif (node != null) {\nlet u = fqweburi(node)\nif (u != '') {\nout = push(out, fqimgCdn() + u)\n}\n}\n}\ni = i + 1\n}\n}\nif (len(out) == 0) {\nlet ks = keys(ms)\nlet i = 0\nwhile (i < len(ks)) {\nlet u = fqweburi(ms[ks[i]])\nif (u != '') {\nout = push(out, fqimgCdn() + u)\n}\ni = i + 1\n}\n}\nreturn out\n}\nfn fqweburi(node) {\nif (node == null) {\nreturn ''\n}\nlet d = node.data\nif (d != null && d.web_uri != null) {\nreturn str(d.web_uri)\n}\nif (node.web_uri != null) {\nreturn str(node.web_uri)\n}\nreturn ''\n}\nfn fqnum(n) {\nlet v = num(n)\nif (v >= 10000) {\nreturn round(v / 10000, 1) + '万字'\n}\nif (v > 0) {\nreturn str(v) + '字'\n}\nreturn ''\n}\nfn fqstatus(s) {\nlet v = str(s)\nif (v == '0') { return '连载中' }\nif (v == '1') { return '已完结' }\nif (v == '2') { return '断更' }\nif (v == '4') { return '断更' }\nif (v == '3') { return '完结' }\nreturn ''\n}\nfn fqdate(ts) {\nlet v = num(ts)\nif (v <= 0) {\nreturn ''\n}\nreturn formatDate(v, 'yyyy-MM-dd')\n}\nfn fqkindof(d, bookUrl, mode, web, btype) {\nif (fqvideo(mode)) {\nif (web) {\nreturn 'text'\n}\nreturn 'video'\n}\nif (d != null) {\nlet imgs = fqcomicimgs(d.content)\nif (len(imgs) > 0) {\nreturn 'comic'\n}\n}\nif (str(btype) == 'audio') {\nreturn 'audio'\n}\nif (fqtabkind(fqutab(bookUrl)) == 'audio') {\nif (d != null && len(fqtext(d)) > 1000) {\nreturn 'text'\n}\nreturn 'audio'\n}\nreturn 'text'\n}\nfn fqrealids(v) {\nif (typeOf(v) != 'string') {\nreturn []\n}\nreturn matchAll(v, '(\\\\d{15,})', 1)\n}\nfn fqrealidsraw(body) {\nlet m = match(str(body), '\"related_audio_bookids\"\\\\s*:\\\\s*\"?\\\\[([0-9,\\\\s]*)\\\\]', 1)\nreturn matchAll(str(m), '(\\\\d{15,})', 1)\n}\nfn fqrealidsof(saved, rdet) {\nif (str(saved) == 'none') {\nreturn []\n}\nif (saved != null && str(saved) != '') {\nreturn split(str(saved), ',')\n}\nif (rdet == null) {\nreturn []\n}\nreturn fqrealids(fqfirst(rdet.data ?? rdet).related_audio_bookids)\n}\nfn fqapierr(r) {\nif (r == null) {\nreturn '请求失败'\n}\nif (typeOf(r) != 'map') {\nreturn '响应不是 JSON'\n}\nreturn str(r.message ?? r.msg ?? '') + '（code=' + str(r.code) + '）'\n}\nfn fqrealerr(tone, real, explicit, rids, rdir, raud, audf, title) {\nif (real) {\nif (str(tone) != '0') {\nreturn '这是真人版条目，AI 音色可能没有对应音频。想听 AI 语音，请打开搜索里不带「真人版」的那一本，音色在播放页可随时切。'\n}\nreturn '真人版音频取不到，可稍后重试。'\n}\nif (str(tone) != '0') {\nreturn ''\n}\nif (!explicit) {\nreturn audf == null ? '' : '音频取不到：' + fqapierr(audf)\n}\nif (len(rids) == 0) {\nreturn '这本书没有真人录音版，「真人原声」放不了，请换其它音色。'\n}\nif (rdir == null) {\nreturn '真人版目录没取到，可稍后重试。'\n}\nif (raud == null) {\nreturn '真人版里没有和「' + str(title) + '」对应的一集（真人版常把几章合成一集或改了标题）。想连续听真人原声，请在发现页或搜索结果里打开「书名（真人版）」按集收听。'\n}\nreturn '真人版音频取不到：' + fqapierr(raud)\n}\nfn fqtonenum(x) {\nlet s = replaceText(replaceText(str(x), 'tone_id=', ''), ' ', '')\nif (s == '' || s == 'null' || s == 'undefined') {\nreturn '0'\n}\nlet n = num(s)\nif (n < 0 || n > 999) {\nreturn '0'\n}\nreturn str(n)\n}\nfn fqisbookid(k) {\nreturn test(str(k), '^[0-9]{19}$')\n}\nfn fqiditem(k) {\nreturn [{book_id: str(k), book_name: '书号 ' + str(k), author: '按书号打开', real: false}]\n}\nfn fqrealkey(t) {\nlet s = replace(str(t), '\\\\s', '')\ns = replace(s, '^第[0-9零一二三四五六七八九十百千万两〇]+[章节回集话]', '')\ns = replace(s, '^[0-9]+', '')\ns = replace(s, '[,，.。、!！?？:：;；\"“”\\'‘’「」『』《》()（）\\\\[\\\\]【】…—\\-_·~～]', '')\nreturn replace(s, '[0-9]+$', '')\n}\nfn fqrealmatch(rdir, title) {\nif (rdir == null) {\nreturn ''\n}\nlet key = fqrealkey(title)\nif (len(key) < 2) {\nreturn ''\n}\nlet loose = ''\nfor c in fqchapters(rdir.data ?? rdir) {\nif (c.itemId != null) {\nlet ck = fqrealkey(c.title)\nif (ck == key) {\nreturn str(c.itemId)\n}\nif (loose == '' && len(ck) >= 4 && len(key) >= 4 && (contains(ck, key) || contains(key, ck))) {\nloose = str(c.itemId)\n}\n}\n}\nreturn loose\n}\nfn fqkind2(tts, author, cat) {\nlet c = str(cat)\nreturn c == 'undefined' ? '' : c\n}\nfn fqmatchrate(a, r) {\nif (a == null) {\nreturn 0\n}\nif (r == null) {\nreturn 0\n}\nlet ac = fqchapters(a.data ?? a)\nlet rc = fqchapters(r.data ?? r)\nif (len(ac) == 0) {\nreturn 0\n}\nif (len(rc) == 0) {\nreturn 0\n}\nlet rk = []\nlet j = 0\nwhile (j < len(rc)) {\nrk = push(rk, fqrealkey(rc[j].title))\nj = j + 1\n}\nlet hit = 0\nlet i = 0\nwhile (i < len(ac)) {\nlet k = fqrealkey(ac[i].title)\nlet m = 0\nlet found = false\nwhile (m < len(rk)) {\nif (rk[m] == k) {\nfound = true\nm = len(rk)\n}\nm = m + 1\n}\nif (found) {\nhit = hit + 1\n}\ni = i + 1\n}\nreturn hit * 100 / len(ac)\n}\n// 分类树 → 男频/女频/出版 三组（tab_type=2 听书分类树）\nfn fqcats(d) {\n  let root = default(get(d, 'data', null), d)\n  let gs = ['男频|boy_category', '女频|girl_category', '出版|publish_category']\n  let out = []\n  for g in gs {\n    let ab = split(str(g), '|')\n    push(out, { category_name: str(ab[0]) })\n    for x in default(get(root, str(ab[1]), null), []) {\n      if (str(x.dim) == '1') {\n        push(out, { category_name: x.category_name, category_id: x.category_id })\n      }\n    }\n  }\n  return out\n}\n// 分类 → 书单地址（book_list/v1 免签名）\nfn fqsearchone(d, tab) {\n  let ts = d.search_tabs\n  if (ts == null) { return [] }\n  let out = []\n  for t in ts {\n    if (str(t.tab_type) != str(tab)) { continue }\n    let arr = t.data\n    if (arr == null) { return [] }\n    let vals = []\n    if (typeOf(arr) == 'list') { vals = arr }\n    else { for k in keys(arr) { push(vals, arr[k]) } }\n    for v in vals {\n      let b = fqbd(v)\n      let nm = str(default(b.book_name, ''))\n      if (nm == '' || nm == 'undefined' || nm == 'null') { continue }\n      push(out, b)\n    }\n    return out\n  }\n  return []\n}\n\nfn fqqof(u) {\nlet s = str(u)\nlet i = indexOf(s, '?')\nif (i < 0) {\nreturn ''\n}\nreturn substring(s, i + 1)\n}\n\nfn fqisreal(u) {\nreturn contains(str(u), '/real')\n}\n",
+ "let": {
+  "dv": "= fqdevq(vars.devid, vars.devtype, vars.osver, vars.vcode, vars.vname)",
+  "kh": "= floor(now() / 1000)",
+  "ts": "= now()",
+  "tab": "= fqtab('听书')",
+  "kind": "= fqkind('听书')",
+  "fqv": "= false",
+  "quality": "= str(vars.quality)"
+ },
+ "search": {
+  "url": "= fqisbookid(key) ? '' : (trim(str(key)) == '' ? '' : fqsearchurl(dv, key, page, '2'))",
+  "headers": {
+   "user-agent": "= fqua()",
+   "accept": "application/json; charset=utf-8,application/x-protobuf",
+   "x-khronos": "{{kh}}",
+   "x-ss-req-ticket": "{{ts}}",
+   "x-argus": "= fqisbookid(key) ? '' : fqargus((fqsearchq(dv, key, page, '2')) + '&', kh, fqrnd(ts), 1967, '')",
+   "x-ladon": "= fqls(kh, fqrand(kh, 4), 1967)",
+   "x-helios": "= fqls(kh, fqrand(kh, 6), 1967)"
+  },
+  "retry": 2,
+  "list": "= fqisbookid(key) ? fqiditem(key) : (trim(str(key)) == '' ? [] : fqsearchone(data, '2'))",
+  "fields": {
+   "name": "= fqbd(item).book_name",
+   "author": "= fqbd(item).author",
+   "coverUrl": "= default(fqbd(item).audio_thumb_uri, fqbd(item).thumb_url)",
+   "intro": "= fqbd(item).abstract",
+   "kind": "= fqkind2(fqbd(item).tts_status, fqbd(item).author, str(default(fqbd(item).category, '')))",
+   "wordCount": "= fqnum(fqbd(item).word_number)",
+   "lastChapter": "= fqbd(item).last_chapter_title",
+   "status": "= fqstatus(fqbd(item).creation_status)",
+   "bookUrl": "= fqbookurl(fqbd(item).book_id, tab)",
+   "type": "= 'audio'"
+  }
+ },
+ "explore": {
+  "dynamicMenus": {
+   "url": "https://novel.snssdk.com/api/novel/channel/homepage/new_category/page/data/v1/?aid=13&tab_type=2",
+   "headers": {
+    "user-agent": "= fqua()",
+    "accept": "application/json; charset=utf-8,application/x-protobuf"
+   },
+   "retry": 2,
+   "list": "= fqcats(data)",
+   "title": "= str(item.category_name)",
+   "target": "= item.category_id ? fqsearchurl(dv, str(item.category_name), page, '2') : ''"
+  },
+  "headers": {
+   "user-agent": "= fqua()",
+   "accept": "application/json; charset=utf-8,application/x-protobuf",
+   "x-khronos": "= contains(str(__url), 'search/tab') ? str(kh) : ''",
+   "x-ss-req-ticket": "= contains(str(__url), 'search/tab') ? str(ts) : ''",
+   "x-argus": "= contains(str(__url), 'search/tab') ? fqargus(fqqof(__url) + '&', kh, fqrnd(ts), 1967, '') : ''",
+   "x-ladon": "= contains(str(__url), 'search/tab') ? fqls(kh, fqrand(kh, 4), 1967) : ''",
+   "x-helios": "= contains(str(__url), 'search/tab') ? fqls(kh, fqrand(kh, 6), 1967) : ''"
+  },
+  "retry": 2,
+  "list": "= fqsearchone(data, '2')",
+  "fields": {
+   "name": "= item.book_name",
+   "author": "= item.author",
+   "coverUrl": "= default(item.audio_thumb_uri, item.thumb_url)",
+   "intro": "= item.abstract",
+   "kind": "= fqkind2(item.tts_status, item.author, str(default(item.category, '')))",
+   "wordCount": "= fqnum(item.word_number)",
+   "status": "= fqstatus(item.creation_status)",
+   "bookUrl": "= fqbookurl(item.book_id, tab)",
+   "type": "= 'audio'"
+  }
+ },
+ "detail": {
+  "url": "= fqdetailurl(dv, fqbid(book.bookUrl), fqutab(book.bookUrl))",
+  "headers": {
+   "user-agent": "= fqua()",
+   "accept": "application/json; charset=utf-8,application/x-protobuf",
+   "x-khronos": "{{kh}}",
+   "x-ss-req-ticket": "{{ts}}",
+   "x-argus": "= fqargus((fqdetailq(dv, fqbid(book.bookUrl), fqutab(book.bookUrl))) + '&', kh, fqrnd(ts), 1967, '')",
+   "x-ladon": "= fqls(kh, fqrand(kh, 4), 1967)",
+   "x-helios": "= fqls(kh, fqrand(kh, 6), 1967)"
+  },
+  "retry": 2,
+  "let": {
+   "d": "= fqfirst(data.data ?? data)"
+  },
+  "fields": {
+   "name": "= str(d.book_name)",
+   "author": "= d.author",
+   "coverUrl": "= d.thumb_url",
+   "intro": "= default(d.abstract, d.book_abstract_v2, \"暂无简介\")",
+   "kind": "= str(default(d.category, ''))",
+   "status": "= fqstatus(d.creation_status)",
+   "wordCount": "= fqnum(d.word_number)",
+   "lastChapter": "= d.last_chapter_title",
+   "updateTime": "= fqdate(d.last_chapter_update_time)",
+   "tocUrl": "= fqbookurl(d.book_id, fqutab(book.bookUrl))",
+   "type": "= fqtype3(d, '听书', fqutab(book.bookUrl), false)"
+  },
+  "keep": {
+   "bid": "= fqbid(book.bookUrl)",
+   "tab": "= fqutab(book.bookUrl)",
+   "words": "= num(d.word_number)",
+   "tones": "= str(d.tones)",
+   "real": "= len(fqrealidsraw(body)) > 0 ? join(fqrealidsraw(body), ',') : 'none'",
+   "realok": "= fqmatchrate(adir, rdir0) >= 80 ? '1' : '0'"
+  },
+  "fetch": {
+   "adir": {
+    "url": "= 'https://fanqienovel.com/api/reader/directory/detail?bookId=' + fqbid(book.bookUrl)",
+    "headers": {
+     "user-agent": "= fqweba()",
+     "accept": "application/json; charset=utf-8"
+    },
+    "retry": 1
+   },
+   "rdir0": {
+    "when": "= len(fqrealidsraw(body)) > 0",
+    "url": "= 'https://fanqienovel.com/api/reader/directory/detail?bookId=' + first(fqrealidsraw(body))",
+    "headers": {
+     "user-agent": "= fqweba()",
+     "accept": "application/json; charset=utf-8"
+    },
+    "retry": 1
+   }
+  }
+ },
+ "toc": {
+  "url": "= 'https://fanqienovel.com/api/reader/directory/detail?bookId=' + fqbid(book.bookUrl)",
+  "headers": {
+   "user-agent": "= fqweba()",
+   "accept": "application/json; charset=utf-8",
+   "referer": "= 'https://fanqienovel.com/page/' + fqbid(book.bookUrl)"
+  },
+  "retry": 2,
+  "let": {
+   "d": "= data.data ?? data"
+  },
+  "list": "= fqchapters(d)",
+  "fields": {
+   "title": "= default($.volume, $.title)",
+   "url": "= $.itemId != null ? fqchapurl($.itemId, fqutab(book.bookUrl)) : ''",
+   "isVolume": "= $.itemId == null",
+   "tag": "= fqdate($.firstPassTime)"
+  }
+ },
+ "content": {
+  "url": "= fqweburl(fqitemid(chapter.url))",
+  "retry": 2,
+  "let": {
+   "d": "= fqfirst(data.data ?? data)",
+   "k": "= fqkindof(d, book.bookUrl, '听书', false, book.type)",
+   "real": "= fqisreal(book.bookUrl)",
+   "explicit": "= str(default(book.vars.custom, '')) != ''",
+   "tone": "= fqtonenum(replaceText(str(default(book.vars.custom, vars.tone)), 'tone_id=', ''))",
+   "wantReal": "= k == 'audio' && !real && tone == '0'",
+   "vid": "= fqitemid(chapter.url)"
+  },
+  "fetch": {
+   "rdet": {
+    "when": "= wantReal && str(default(book.vars.real, '')) == ''",
+    "url": "= fqdetailurl(dv, fqbid(book.bookUrl), fqutab(book.bookUrl))",
+    "headers": {
+     "user-agent": "= fqua()",
+     "accept": "application/json; charset=utf-8,application/x-protobuf",
+     "x-khronos": "{{kh}}",
+     "x-ss-req-ticket": "{{ts}}",
+     "x-argus": "= fqargus((fqdetailq(dv, fqbid(book.bookUrl), fqutab(book.bookUrl))) + '&', kh, fqrnd(ts), 1967, '')",
+     "x-ladon": "= fqls(kh, fqrand(kh, 4), 1967)",
+     "x-helios": "= fqls(kh, fqrand(kh, 6), 1967)"
+    },
+    "retry": 1
+   },
+   "rdir": {
+    "when": "= wantReal && len(fqrealidsof(book.vars.real, rdet)) > 0",
+    "url": "= 'https://fanqienovel.com/api/reader/directory/detail?bookId=' + first(fqrealidsof(book.vars.real, rdet))",
+    "headers": {
+     "user-agent": "= fqweba()",
+     "accept": "application/json; charset=utf-8",
+     "referer": "= 'https://fanqienovel.com/page/' + first(fqrealidsof(book.vars.real, rdet))"
+    },
+    "retry": 1
+   },
+   "raud": {
+    "when": "= rdir != null && str(default(book.vars.realok, '1')) == '1' && fqrealmatch(rdir, chapter.title) != ''",
+    "url": "= fqaudiourl(dv, fqrealmatch(rdir, chapter.title), '0')",
+    "headers": {
+     "user-agent": "= fqua()",
+     "accept": "application/json; charset=utf-8,application/x-protobuf",
+     "x-khronos": "{{kh}}",
+     "x-ss-req-ticket": "{{ts}}",
+     "x-argus": "= fqargus((fqaudioq(dv, fqrealmatch(rdir, chapter.title), '0')) + '&', kh, fqrnd(ts), 1967, '')",
+     "x-ladon": "= fqls(kh, fqrand(kh, 4), 1967)",
+     "x-helios": "= fqls(kh, fqrand(kh, 6), 1967)"
+    },
+    "retry": 2
+   },
+   "aud": {
+    "when": "= k == 'audio' && fqaudioget(raud) == ''",
+    "url": "= fqaudiourl(dv, fqitemid(chapter.url), (str(default(book.vars.realok, '1')) == '0') ? '1' : tone)",
+    "headers": {
+     "user-agent": "= fqua()",
+     "accept": "application/json; charset=utf-8,application/x-protobuf",
+     "x-khronos": "{{kh}}",
+     "x-ss-req-ticket": "{{ts}}",
+     "x-argus": "= fqargus((fqaudioq(dv, fqitemid(chapter.url), (str(default(book.vars.realok, '1')) == '0') ? '1' : tone)) + '&', kh, fqrnd(ts), 1967, '')",
+     "x-ladon": "= fqls(kh, fqrand(kh, 4), 1967)",
+     "x-helios": "= fqls(kh, fqrand(kh, 6), 1967)"
+    },
+    "retry": 2
+   },
+   "aud0": {
+    "when": "= k == 'audio' && tone != '0' && fqaudioget(aud) == ''",
+    "url": "= fqaudiourl(dv, fqitemid(chapter.url), '0')",
+    "headers": {
+     "user-agent": "= fqua()",
+     "accept": "application/json; charset=utf-8,application/x-protobuf",
+     "x-khronos": "{{kh}}",
+     "x-ss-req-ticket": "{{ts}}",
+     "x-argus": "= fqargus((fqaudioq(dv, fqitemid(chapter.url), '0')) + '&', kh, fqrnd(ts), 1967, '')",
+     "x-ladon": "= fqls(kh, fqrand(kh, 4), 1967)",
+     "x-helios": "= fqls(kh, fqrand(kh, 6), 1967)"
+    },
+    "retry": 1
+   },
+   "audf": {
+    "when": "= k == 'audio' && fqaudioget(raud) == '' && fqaudioget(aud) == '' && fqaudioget(aud0) == ''",
+    "url": "= fqaudiourl(dv, fqitemid(chapter.url), '1')",
+    "headers": {
+     "user-agent": "= fqua()",
+     "accept": "application/json; charset=utf-8,application/x-protobuf",
+     "x-khronos": "{{kh}}",
+     "x-ss-req-ticket": "{{ts}}",
+     "x-argus": "= fqargus((fqaudioq(dv, fqitemid(chapter.url), '1')) + '&', kh, fqrnd(ts), 1967, '')",
+     "x-ladon": "= fqls(kh, fqrand(kh, 4), 1967)",
+     "x-helios": "= fqls(kh, fqrand(kh, 6), 1967)"
+    },
+    "retry": 2
+   }
+  },
+  "text": "= fqv ? ('本集需要「本地桥」才能播：官方流是 CENC 加密，应用自带播放器解不开。\\n请先在电脑上跑 hg-bridge，再把书源设置里的「本地桥地址」填成 http://<电脑局域网IP>:8899。') : (len(fqtext2(d)) > 50 ? fqtext2(d) : (k == 'audio' ? '本章为听书音频，点右上角播放；无文字正文。' : ''))",
+  "images": "= fqcomicimgs(d.content)",
+  "audio": "= k == 'audio' ? default(fqaudioget(raud), fqaudioget(aud), fqaudioget(aud0), fqaudioget(audf)) : ''",
+  "mediaHeaders": {
+   "User-Agent": "= fqweba()"
+  },
+  "links": [
+   {
+    "label": "🔗 在番茄官网打开本章",
+    "url": "= fqweburl(fqitemid(chapter.url))"
+   }
+  ],
+  "mediaError": "= (str(default(book.vars.realok, '1')) == '0' && tone == '0' ? '真人版与正文只有部分章节对得上，已整本改用 AI 朗读。\\n' : '') + fqrealerr(tone, real, explicit, fqrealidsof(book.vars.real, rdet), rdir, raud, audf, chapter.title)"
+ },
+ "login": {
+  "url": "https://fanqienovel.com/",
+  "cookies": [
+   "sessionid"
+  ],
+  "check": {
+   "url": "https://fanqienovel.com/api/user/info",
+   "ok": "= data.code == 0",
+   "name": "= default(data.data.name, data.data.nickname, '')"
+  }
+ },
+ "bookSourceUrl": "https://fanqienovel.com/native-audio",
+ "bookSourceName": "番茄听书（原生）"
+}

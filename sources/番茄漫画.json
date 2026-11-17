@@ -1,0 +1,209 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "番茄漫画",
+ "url": "https://fanqienovel.com/native-comic",
+ "group": "渡·漫画",
+ "comment": "番茄漫画 · 原生直连（搜索/详情/目录/图集）。\n图集走 web_uri 直链。\n已知：仅漫画形态；小说/听书见另两个源。",
+ "type": "comic",
+ "rate": "200",
+ "vars": [
+  {
+   "key": "devid",
+   "label": "device_id",
+   "default": "5"
+  },
+  {
+   "key": "devtype",
+   "label": "device_type",
+   "default": "Honor10"
+  },
+  {
+   "key": "osver",
+   "label": "os_version",
+   "default": "9"
+  },
+  {
+   "key": "vcode",
+   "label": "version_code",
+   "default": "70132"
+  },
+  {
+   "key": "vname",
+   "label": "version_name",
+   "default": "7.0.1.32"
+  }
+ ],
+ "lib": "fn fqle32(b, off) {\n return (b[off] | (b[off + 1] << 8) | (b[off + 2] << 16) | (b[off + 3] << 24)) >>> 0\n}\nfn fqpackle32(v) {\n v = v >>> 0\n return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]\n}\nfn fqpackle64(v) {\n return concat(fqpackle32(v[0]), fqpackle32(v[1]))\n}\nfn fqrotl64(v, n) {\n n = n % 64\n if (n == 0) {\n return [v[0], v[1]]\n }\n if (n == 32) {\n return [v[1], v[0]]\n }\n if (n > 32) {\n return fqrotl64([v[1], v[0]], n - 32)\n }\n return [((v[0] << n) | (v[1] >>> (32 - n))) >>> 0, ((v[1] << n) | (v[0] >>> (32 - n))) >>> 0]\n}\nfn fqrotr64(v, n) {\n n = n % 64\n if (n == 0) {\n return [v[0], v[1]]\n }\n return fqrotl64(v, 64 - n)\n}\nfn fqadd64(a, b) {\n let lo = a[0] + b[0]\n let carry = 0\n if (lo >= 4294967296) {\n carry = 1\n }\n return [lo >>> 0, (a[1] + b[1] + carry) >>> 0]\n}\nfn fqxor64(a, b) {\n return [(a[0] ^ b[0]) >>> 0, (a[1] ^ b[1]) >>> 0]\n}\nfn fqnot64(a) {\n return [(~a[0]) >>> 0, (~a[1]) >>> 0]\n}\nfn fqbit(v, pos) {\n if (pos < 32) {\n return (v[0] >>> pos) & 1\n }\n return (v[1] >>> (pos - 32)) & 1\n}\nfn fqpad(b, n) {\n let k = n - (len(b) % n)\n let i = 0\n while (i < k) {\n b = push(b, k)\n i = i + 1\n }\n return b\n}\nfn fqvarint(value) {\n value = value >>> 0\n let out = []\n while (value > 128) {\n out = push(out, (value & 127) | 128)\n value = floor(value / 128)\n }\n return push(out, value & 127)\n}\nfn fqvarintb(b) {\n return fqvarint(len(b))\n}\nfn fqfieldvarint(tag, value) {\n return concat(fqvarint(tag << 3), fqvarint(value))\n}\nfn fqfieldbytes(tag, data) {\n return concat(fqvarint((tag << 3) | 2), concat(fqvarint(len(data)), data))\n}\nfn fqfieldstring(tag, s) {\n return fqfieldbytes(tag, bytes(s))\n}\nfn fqlks(rand, key) {\n let seedHex = bytesHex(hash('MD5', concat(rand, bytes(str(key)))))\n let words = []\n let i = 0\n let base = 0\n while (i < 4) {\n let b = []\n let k = 0\n while (k < 8) {\n b = push(b, charCode(seedHex, base + k))\n k = k + 1\n }\n words = push(words, [fqle32(b, 0), fqle32(b, 4)])\n base = base + 8\n i = i + 1\n }\n let x = words[0]\n let y = words[1]\n let buf = [words[2], words[3]]\n let out = [words[0]]\n i = 0\n while (i < 34) {\n let prev = x\n let t = fqadd64(fqrotr64(y, 8), prev)\n t = [(t[0] ^ i) >>> 0, t[1]]\n buf = push(buf, t)\n let nx = [(t[0] ^ fqrotr64(prev, 61)[0]) >>> 0, (t[1] ^ fqrotr64(prev, 61)[1]) >>> 0]\n out = push(out, nx)\n x = nx\n y = buf[0]\n buf = slice(buf, 1, len(buf))\n i = i + 1\n }\n return slice(out, 0, 34)\n}\nfn fqleb(seed, keys) {\n let lo = [fqle32(seed, 0), fqle32(seed, 4)]\n let hi = [fqle32(seed, 8), fqle32(seed, 12)]\n let i = 0\n while (i < 34) {\n let r = fqadd64(lo, fqrotr64(hi, 8))\n let nhi = [(keys[i][0] ^ r[0]) >>> 0, (keys[i][1] ^ r[1]) >>> 0]\n let nlo = [(nhi[0] ^ fqrotr64(lo, 61)[0]) >>> 0, (nhi[1] ^ fqrotr64(lo, 61)[1]) >>> 0]\n hi = nhi\n lo = nlo\n i = i + 1\n }\n return concat(fqpackle64(lo), fqpackle64(hi))\n}\nfn fqls(kh, rand, aid) {\n let plain = fqpad(bytes(str(kh) + '-1611921764-3019'), 16)\n let keys = fqlks(rand, aid)\n let out = []\n let i = 0\n while (i < len(plain)) {\n out = concat(out, fqleb(slice(plain, i, i + 16), keys))\n i = i + 16\n }\n return bytesBase64(concat(rand, out))\n}\nfn fqske(key) {\n let state = []\n let consts = [74278795, 1036602426]\n let i = 0\n while (i < 72) {\n state = push(state, [0, 0])\n i = i + 1\n }\n i = 0\n while (i < 4) {\n state[i] = key[i]\n i = i + 1\n }\n i = 4\n while (i < 72) {\n let tmp = fqrotr64(state[i - 1], 3)\n tmp = fqxor64(tmp, state[i - 3])\n tmp = fqxor64(tmp, fqrotr64(tmp, 1))\n let not4 = fqnot64(state[i - 4])\n let x = fqxor64(not4, tmp)\n let c = [3 ^ fqbit(consts, (i - 4) % 62), 0]\n state[i] = fqxor64(x, c)\n i = i + 1\n }\n return state\n}\nfn fqseb(block, keys) {\n let sk = fqske(keys)\n let lo = [fqle32(block, 0), fqle32(block, 4)]\n let hi = [fqle32(block, 8), fqle32(block, 12)]\n let r = 0\n while (r < 72) {\n let h1 = fqrotl64(hi, 1)\n let h8 = fqrotl64(hi, 8)\n let h2 = fqrotl64(hi, 2)\n let m0 = (h1[0] & h8[0]) >>> 0\n let m1 = (h1[1] & h8[1]) >>> 0\n let nhi = [((lo[0] ^ m0 ^ h2[0]) >>> 0 ^ sk[r][0]) >>> 0, ((lo[1] ^ m1 ^ h2[1]) >>> 0 ^ sk[r][1]) >>> 0]\n lo = hi\n hi = nhi\n r = r + 1\n }\n return concat(fqpackle64(lo), fqpackle64(hi))\n}\nfn fqparam(query, name) {\n let parts = split(query, '&')\n let i = 0\n while (i < len(parts)) {\n let p = parts[i]\n let eq = indexOf(p, '=')\n let k = eq < 0 ? p : substring(p, 0, eq)\n if (k == name) {\n let v = eq < 0 ? '' : substring(p, eq + 1)\n return urldecode(replaceText(v, '+', ' '))\n }\n i = i + 1\n }\n return ''\n}\nfn fqosdword(version) {\n let digits = replaceText(str(version), '.', '')\n let weights = [20480, 2048, 20971520, 2097152, 1342177280, 134217728]\n while (len(digits) < 6) {\n digits = '0' + digits\n }\n let sum = 0\n let i = 0\n while (i < 6) {\n sum = sum + num(substring(digits, i, i + 1)) * weights[i]\n i = i + 1\n }\n return sum >>> 0\n}\nfn fqbuildargus(query, kh, rnd, aid, bodyStub) {\n let deviceId = fqparam(query, 'device_id')\n let versionName = fqparam(query, 'version_name')\n let deviceType = fqparam(query, 'device_type')\n let osVersion = fqparam(query, 'os_version')\n let channel = fqparam(query, 'channel')\n if (channel == '') {\n channel = '0'\n }\n let bodyHash = slice(hash('SM3', bodyStub == '' ? list(16, 0) : hexBytes(bodyStub)), 0, 6)\n let queryHash = slice(hash('SM3', query == '' ? list(16, 0) : bytes(query)), 0, 6)\n let deviceInfo = concat(fqvarint(10), concat(fqvarintb(bytes(deviceType)), bytes(deviceType)))\n deviceInfo = concat(deviceInfo, concat(fqvarint(18), concat(fqvarintb(bytes(osVersion)), bytes(osVersion))))\n deviceInfo = concat(deviceInfo, concat(fqvarint(26), concat(fqvarintb(bytes(channel)), bytes(channel))))\n deviceInfo = concat(deviceInfo, concat(fqvarint(32), fqvarint(fqosdword(osVersion))))\n let out = []\n out = concat(out, fqfieldvarint(1, 1077940818))\n out = concat(out, fqfieldvarint(2, 2))\n out = concat(out, fqfieldvarint(3, rnd))\n out = concat(out, fqfieldstring(4, str(aid)))\n out = concat(out, fqfieldstring(5, deviceId))\n out = concat(out, fqfieldstring(6, '1611921764'))\n out = concat(out, fqfieldstring(7, versionName))\n out = concat(out, fqfieldstring(8, 'v04.04.05-ov-android'))\n out = concat(out, fqfieldvarint(9, 134744640))\n out = concat(out, fqfieldbytes(10, list(8, 0)))\n out = concat(out, fqfieldvarint(11, 0))\n out = concat(out, fqfieldvarint(12, kh << 1))\n out = concat(out, fqfieldbytes(13, bodyHash))\n out = concat(out, fqfieldbytes(14, queryHash))\n out = concat(out, fqfieldvarint(20, 738))\n out = concat(out, fqfieldbytes(23, deviceInfo))\n return out\n}\nfn fqargus(query, kh, rnd, aid, bodyStub) {\n let padded = fqpad(fqbuildargus(query, kh, rnd, aid, bodyStub), 16)\n let argusKey = hexBytes('fc78e0a9657a0c748ce51559903ccf03510e51d3cff232d71343e88a321c5304')\n let secret = hexBytes('ac1adaae95a7af94a5114ab3b3a97dd80050aa0a39314c40528caec95256c28c')\n let aesKey = hash('MD5', slice(secret, 0, 16))\n let aesIv = hash('MD5', slice(secret, 16, 32))\n let keys = []\n let i = 0\n while (i < 4) {\n keys = push(keys, [fqle32(argusKey, i * 8), fqle32(argusKey, i * 8 + 4)])\n i = i + 1\n }\n let enc = []\n i = 0\n while (i < len(padded)) {\n enc = concat(enc, fqseb(slice(padded, i, i + 16), keys))\n i = i + 16\n }\n let out = concat([242, 247, 252, 255, 242, 247, 252, 255], enc)\n let xorKey = slice(out, 0, 8)\n i = 8\n let out2 = slice(out, 0, 8)\n while (i < len(out)) {\n out2 = push(out2, (out[i] ^ xorKey[i % 8]) & 255)\n i = i + 1\n }\n let packed = concat([166, 110, 173, 159, 119, 1, 208, 12, 24], concat(reverse(out2), [97, 111]))\n let body = encrypt('AES/CBC/NoPadding', fqpad(packed, 16), aesKey, aesIv)\n return bytesBase64(concat([242, 129], body))\n}\nfn fqua() {\n return 'com.dragon.read.oversea.gp/70132 (Linux; U; Android 9; zh_CN; Honor 10; Build/PQ3A.190801.002; Cronet/TTNetVersion:unknown)'\n}\nfn fqweba() {\n return 'Mozilla/5.0 (Linux; Android 12; DCO-AL00) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'\n}\nfn fqhost() {\n return 'https://api5-normal-sinfonlinea.fqnovel.com'\n}\nfn fqdetHost() {\n return 'https://api5-normal-sinfonlinec.fqnovel.com'\n}\nfn fqimgCdn() {\n return 'https://p6-novel.byteimg.com/origin/'\n}\nfn fqhex2(b) {\n let t = '0123456789ABCDEF'\n let hi = floor(b / 16)\n let lo = b - hi * 16\n return substring(t, hi, hi + 1) + substring(t, lo, lo + 1)\n}\nfn fqenc(s) {\n let bs = bytes(str(s))\n let out = ''\n let i = 0\n while (i < len(bs)) {\n let b = bs[i]\n let keep = false\n if (b >= 48 && b <= 57) {\n keep = true\n }\n if (b >= 65 && b <= 90) {\n keep = true\n }\n if (b >= 97 && b <= 122) {\n keep = true\n }\n if (b == 45 || b == 95 || b == 46 || b == 126) {\n keep = true\n }\n if (keep) {\n out = out + fromBytes([b])\n } else {\n out = out + '%' + fqhex2(b)\n }\n i = i + 1\n }\n return out\n}\nfn fqtab(mode) {\n return lookup({'小说': '3', '听书': '2', '漫画': '8', '短剧': '8', '漫剧': '8'}, str(mode), '3')\n}\nfn fqvideo(mode) {\n return str(mode) == '短剧' || str(mode) == '漫剧'\n}\nfn fqkind(mode) {\n return lookup({'听书': 'audio', '漫画': 'comic', '短剧': 'video', '漫剧': 'video'}, str(mode), 'text')\n}\nfn fqtabkind(tab) {\n return lookup({'2': 'audio', '8': 'comic', '11': 'video', '19': 'video', '32': 'video'}, str(tab), 'text')\n}\nfn fqtype2(mode, tab, web) {\n if (fqvideo(mode)) {\n if (web) {\n return 'text'\n }\n return 'video'\n }\n return fqtabkind(tab)\n}\nfn fqisvideo(d) {\n if (d == null) {\n return false\n }\n if (d.video_vertical != null || d.drama_chapter_number != null || d.matchmaking_drama_type != null) {\n return true\n }\n return false\n}\nfn fqtype3(d, mode, tab, web) {\n if (fqvideo(mode)) {\n if (web) {\n return 'text'\n }\n return 'video'\n }\n if (str(mode) == '听书') {\n return 'audio'\n }\n if (d != null) {\n if (fqisvideo(d)) {\n if (web) {\n return 'text'\n }\n return 'video'\n }\n if (d.book_type != null && str(d.book_type) == '1') {\n return 'audio'\n }\n let t = str(d.first_chapter_title ?? '')\n if (t != '') {\n if (contains(t, '话')) {\n return 'comic'\n }\n if (contains(t, '集')) {\n return 'audio'\n }\n }\n }\n return fqtabkind(tab)\n}\nfn fqrnd(seed) {\n let x = seed % 2147483647\n if (x <= 0) {\n x = 12345\n }\n return x * 48271 % 2147483648\n}\nfn fqrand(seed, n) {\n let out = []\n let x = seed % 2147483647\n if (x <= 0) {\n x = 12345\n }\n let i = 0\n while (i < n) {\n x = x * 48271 % 2147483647\n out = push(out, x % 256)\n i = i + 1\n }\n return out\n}\nfn fqdevq(devid, devtype, osver, vcode, vname) {\n return 'aid=1967&app_name=novelapp&channel=0&device_platform=android&device_id=' + str(devid) +\n '&device_type=' + str(devtype) + '&os_version=' + str(osver) +\n '&version_code=' + str(vcode) + '&version_name=' + str(vname) +\n '&update_version_code=' + str(vcode) + '&manifest_version_code=' + str(vcode)\n}\nfn fqsearchq(dv, key, page, tab) {\n return dv + '&query=' + fqenc(key) + '&tab_type=' + str(tab) + '&passback=' + str((page - 1) * 10)\n}\nfn fqsearchurl(dv, key, page, tab) {\n return fqhost() + '/reading/bookapi/search/tab/v/?' + fqsearchq(dv, key, page, tab)\n}\nfn fqsearchtab(d, tab) {\n let hits = filter(d.search_tabs ?? [], t => str(t.tab_type) == str(tab))\n if (len(hits) == 0) {\n return []\n }\n let dd = hits[0].data\n if (dd == null) {\n return []\n }\n if (typeOf(dd) == 'list') {\n return dd\n }\n return values(dd)\n}\nfn fqsearchtab2(d, tab) {\n let out = fqsearchtab(d, tab)\n if (len(out) > 0) {\n return out\n }\n if (str(tab) != '3') {\n return fqsearchtab(d, '3')\n }\n return out\n}\nfn fqbd(item) {\n let bd = item.book_data\n if (bd != null && len(bd) > 0) {\n return bd[0]\n }\n return item\n}\nfn fqdetailq(dv, bid, tab) {\n return dv + '&iid=1&book_id=' + str(bid) + '&hgm=' + str(tab)\n}\nfn fqdetailurl(dv, bid, tab) {\n return fqdetHost() + '/reading/bookapi/multi-detail/v/?' + fqdetailq(dv, bid, tab)\n}\nfn fqfirst(d) {\n if (d == null) {\n return {}\n }\n let one = get(d, 0, null)\n if (one != null) {\n return one\n }\n return d\n}\nfn fqbookurl(bid, tab) {\n return 'https://fanqienovel.com/page/' + str(bid) + '/t' + str(tab)\n}\nfn fqbid(u) {\n let m = str(match(str(u), 'page/(\\\\d+)', 1))\n if (m == '') {\n return itemOf(u)\n }\n return m\n}\nfn itemOf(u) {\n return str(match(str(u), 'chapter/\\\\d+/(\\\\d+)', 1))\n}\nfn fqutab(u) {\n let m = str(match(str(u), '/t(\\\\d+)', 1))\n if (m != '') {\n return m\n }\n let q = str(match(str(u), 'tab=(\\\\d+)', 1))\n if (q != '') {\n return q\n }\n return '3'\n}\nfn fqchapurl(itemId, tab) {\n return 'https://fanqienovel.com/chapter/' + str(tab) + '/' + str(itemId)\n}\nfn fqitemid(chapUrl) {\n return str(match(str(chapUrl), 'chapter/\\\\d+/(\\\\d+)', 1))\n}\nfn fqweburl(itemId) {\n return 'https://m.wkbrowser.com/i' + str(itemId) + '/info/v2/'\n}\nfn fqchapters(d) {\n let vols = d.chapterListWithVolume\n if (vols == null) {\n return []\n }\n let out = []\n let multi = len(vols) > 1\n let i = 0\n while (i < len(vols)) {\n if (multi) {\n let nm = str(get(d.volumeNameList, i, ''))\n if (nm != '') {\n out = push(out, {volume: nm})\n }\n }\n let ch = vols[i]\n let j = 0\n while (j < len(ch)) {\n out = push(out, ch[j])\n j = j + 1\n }\n i = i + 1\n }\n return out\n}\nfn fqtext(d) {\n if (d == null) {\n return ''\n }\n let c = str(d.content ?? '')\n if (c == '') {\n return ''\n }\n if (startsWith(c, '{')) {\n return ''\n }\n return c\n}\nfn fqtext2(d) {\n if (d == null) {\n return ''\n }\n let imgs = fqcomicimgs(d.content)\n if (len(imgs) > 0) {\n let out = ''\n let i = 0\n while (i < len(imgs)) {\n out = out + '<img src=\"' + imgs[i] + '\">'\n i = i + 1\n }\n return out\n }\n return fqtext(d)\n}\nfn fqcomicimgs(txt) {\n let c = str(txt ?? '')\n if (c == '' || !startsWith(c, '{')) {\n return []\n }\n let j = json(c)\n if (j == null) {\n return []\n }\n let ms = j.materials\n if (ms == null) {\n return []\n }\n let out = []\n let sk = j.skeleton\n let skd = sk == null ? null : sk.data\n if (skd != null && len(skd) > 0) {\n let i = 0\n while (i < len(skd)) {\n let it = skd[i]\n let key = it.elementInfo ?? it.key ?? it.id ?? it.value\n if (key != null) {\n let node = ms[str(key)]\n if (node != null) {\n let u = fqweburi(node)\n if (u != '') {\n out = push(out, fqimgCdn() + u)\n }\n }\n }\n i = i + 1\n }\n }\n if (len(out) == 0) {\n let ks = keys(ms)\n let i = 0\n while (i < len(ks)) {\n let u = fqweburi(ms[ks[i]])\n if (u != '') {\n out = push(out, fqimgCdn() + u)\n }\n i = i + 1\n }\n }\n return out\n}\nfn fqweburi(node) {\n if (node == null) {\n return ''\n }\n let d = node.data\n if (d != null && d.web_uri != null) {\n return str(d.web_uri)\n }\n if (node.web_uri != null) {\n return str(node.web_uri)\n }\n return ''\n}\nfn fqcatlist(d, group) {\n let cat = d[group]\n if (cat == null) {\n return []\n }\n return cat\n}\nfn fqbooks(d) {\n let dd = d.data ?? d\n if (typeOf(dd) == 'list') {\n return dd\n }\n let inner = dd.data\n if (typeOf(inner) == 'list') {\n return inner\n }\n return []\n}\nfn fqlisturl(cid, gender, page, tab) {\n let t = str(tab)\n if (t == '' || t == 'null') {\n t = '3'\n }\n return 'https://novel.snssdk.com/api/novel/channel/homepage/new_category/book_list/v1/?aid=1967' +\n '&app_name=news_article&app_version=9.7.3&channel=tengxun_tt&creation_status=9&device_platform=android' +\n '&enter_from=novel_category&version_code=973&version_name=9.7.3&word_count=9&os=android' +\n '&device_type=ProjectTitan&os_api=29&os_version=10&offset=' + str((page - 1) * 10) + '&limit=10' +\n '&category_id=' + str(cid) + '&' + str(gender) + '&tab_type=' + t + '&hgm=' + t\n}\nfn fqgenderkey(chan) {\n if (str(chan) == '女频') {\n return 'gender=0'\n }\n if (str(chan) == '出版') {\n return 'genre_type=160'\n }\n return 'gender=1'\n}\nfn fqnum(n) {\n let v = num(n)\n if (v >= 10000) {\n return round(v / 10000, 1) + '万字'\n }\n if (v > 0) {\n return str(v) + '字'\n }\n return ''\n}\nfn fqstatus(s) {\n let v = str(s)\n if (v == '0') { return '连载中' }\n if (v == '1') { return '已完结' }\n if (v == '2') { return '断更' }\n if (v == '4') { return '断更' }\n if (v == '3') { return '完结' }\n return ''\n}\nfn fqdate(ts) {\n let v = num(ts)\n if (v <= 0) {\n return ''\n }\n return formatDate(v, 'yyyy-MM-dd')\n}\nfn fqvtabsq(dv, tab) {\n return dv + '&tab_type=' + str(tab) + '&client_template=0&offset=0&last_tab_index=0' +\n '&screen_width_px=1281&classic_tab_style=v3&bottom_tab_type=0&client_req_type=1'\n}\nfn fqvtabsurlg(dv, tab, g) {\n return fqhost() + '/reading/bookapi/bookmall/tab/v/?' + fqvtabsq(dv, tab) + '&gender=' + str(g)\n}\nfn fqgenderid(chan) {\n if (str(chan) == '女频') {\n return '0'\n }\n return '1'\n}\nfn fqvreelq(dv, cellId, tab, page, session) {\n let s = ''\n if (session != null && str(session) != '') {\n s = '&session_id=' + fqenc(session)\n }\n let off = (num(page) - 1) * 6\n return dv + '&cell_id=' + fqenc(cellId) + '&tab_type=' + str(tab) +\n '&client_template=2&client_req_type=2&offset=' + str(off) +\n '&unlimited_selector_change_type=' + (num(page) > 1 ? '1' : '2') + s\n}\nfn fqvreelurl(dv, cellId, tab, page, session) {\n if (cellId == null || str(cellId) == '') {\n return ''\n }\n return fqhost() + '/reading/bookapi/bookmall/cell/change/v1/?' + fqvreelq(dv, cellId, tab, page, session)\n}\nfn fqvtabs(d) {\n let t = d.data\n if (t == null) {\n return []\n }\n let ti = t.tab_item\n if (ti == null) {\n return []\n }\n return ti\n}\nfn fqcellid(item) {\n let cd = item.cell_data\n if (cd == null || len(cd) == 0) {\n return ''\n }\n let c = cd[0].cell_id_str\n if (c == null) {\n return ''\n }\n return str(c)\n}\nfn fqsession(item) {\n if (item.session_id == null) {\n return ''\n }\n return str(item.session_id)\n}\nfn fqtabswithcell(d) {\n return filter(fqvtabs(d), t => t.cell_data != null)\n}\nfn fqbybookmall(mode) {\n return fqvideo(mode) || str(mode) == '漫画' || str(mode) == '听书'\n}\nfn fqmenus(d, mode, chan) {\n if (fqbybookmall(mode)) {\n return fqtabswithcell(d)\n }\n return fqcatlist(d.data, fqcatgroup(mode, chan))\n}\nfn fqmenutitle(item, mode) {\n if (fqbybookmall(mode)) {\n return default(item.tab_name, item.title, str(mode))\n }\n return str(item.category_name ?? '')\n}\nfn fqmenutarget(dv, item, mode, chan, page, tab) {\n if (fqbybookmall(mode)) {\n return fqvreelurl(dv, fqcellid(item), item.tab_type, page, fqsession(item))\n }\n return fqlisturl(item.category_id, fqgenderkey(chan), page, tab)\n}\nfn fqchanneltab(mode) {\n if (str(mode) == '漫画') {\n return '9'\n }\n if (str(mode) == '听书') {\n return '5'\n }\n return '8'\n}\nfn fqreel(d) {\n  let dm = d.data\n  if (dm != null) {\n    let cv = dm.cell_view\n    if (cv != null) {\n      let bd = cv.book_data\n      if (bd != null && len(bd) > 0) {\n        return bd\n      }\n      let out = fqdigbooks(cv.cell_data, 0)\n      if (len(out) > 0) {\n        return out\n      }\n    }\n  }\n  return fqbooks(d)\n}\nfn fqkindof(d, bookUrl, mode, web, btype) {\n if (fqvideo(mode)) {\n if (web) {\n return 'text'\n }\n return 'video'\n }\n if (d != null) {\n let imgs = fqcomicimgs(d.content)\n if (len(imgs) > 0) {\n return 'comic'\n }\n }\n if (str(btype) == 'audio') {\n return 'audio'\n }\n if (fqtabkind(fqutab(bookUrl)) == 'audio') {\n if (d != null && len(fqtext(d)) > 1000) {\n return 'text'\n }\n return 'audio'\n }\n return 'text'\n}\nfn fqdigbooks(nodes, depth) {\n if (nodes == null || depth > 4) {\n return []\n }\n let out = []\n let i = 0\n while (i < len(nodes)) {\n let one = nodes[i]\n let bd = one.book_data\n if (bd != null) {\n let j = 0\n while (j < len(bd)) {\n out = push(out, bd[j])\n j = j + 1\n }\n }\n let inner = one.cell_data\n if (inner != null) {\n let deep = fqdigbooks(inner, depth + 1)\n let k = 0\n while (k < len(deep)) {\n out = push(out, deep[k])\n k = k + 1\n }\n }\n i = i + 1\n }\n return out\n}\nfn fqcatgroup(mode, chan) {\n if (str(mode) == '听书') {\n return 'audio_category'\n }\n if (str(chan) == '女频') {\n return 'girl_category'\n }\n if (str(chan) == '出版') {\n return 'publish_category'\n }\n return 'boy_category'\n}\nfn fqqof(u) {\n let s = str(u)\n let i = indexOf(s, '?')\n if (i < 0) {\n return ''\n }\n return substring(s, i + 1)\n}\n",
+ "let": {
+  "dv": "= fqdevq(vars.devid, vars.devtype, vars.osver, vars.vcode, vars.vname)",
+  "kh": "= floor(now() / 1000)",
+  "ts": "= now()",
+  "tab": "= fqtab('漫画')",
+  "kind": "= fqkind('漫画')",
+  "fqv": "= false"
+ },
+ "search": {
+  "url": "= fqsearchurl(dv, key, page, tab)",
+  "headers": {
+   "user-agent": "= fqua()",
+   "accept": "application/json; charset=utf-8,application/x-protobuf",
+   "x-khronos": "{{kh}}",
+   "x-ss-req-ticket": "{{ts}}",
+   "x-argus": "= fqargus((fqsearchq(dv, key, page, tab)) + '&', kh, fqrnd(ts), 1967, '')",
+   "x-ladon": "= fqls(kh, fqrand(kh, 4), 1967)",
+   "x-helios": "= fqls(kh, fqrand(kh, 6), 1967)"
+  },
+  "retry": 2,
+  "list": "= fqsearchtab2(data, tab)",
+  "fields": {
+   "name": "= fqbd(item).book_name",
+   "author": "= fqbd(item).author",
+   "coverUrl": "= fqbd(item).thumb_url",
+   "intro": "= fqbd(item).abstract",
+   "kind": "= fqbd(item).category",
+   "wordCount": "= fqnum(fqbd(item).word_number)",
+   "lastChapter": "= fqbd(item).last_chapter_title",
+   "status": "= fqstatus(fqbd(item).creation_status)",
+   "bookUrl": "= fqbookurl(fqbd(item).book_id, tab)",
+   "type": "= fqtype2('漫画', tab, false)"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "🍅 番茄官方书城 · 官方接口直连",
+    "when": "= true"
+   },
+   {
+    "title": "🖼 漫画书城",
+    "when": "= true"
+   }
+  ],
+  "dynamicMenus": {
+   "url": "= fqbybookmall('漫画') ? fqvtabsurlg(dv, fqchanneltab('漫画'), fqgenderid('男频')) : ('https://novel.snssdk.com/api/novel/channel/homepage/new_category/page/data/v1/?aid=13&tab_type=' + tab)",
+   "headers": {
+    "user-agent": "= fqua()",
+    "accept": "application/json; charset=utf-8,application/x-protobuf",
+    "x-khronos": "= fqbybookmall('漫画') ? str(kh) : ''",
+    "x-ss-req-ticket": "= fqbybookmall('漫画') ? str(ts) : ''",
+    "x-argus": "= fqbybookmall('漫画') ? fqargus(fqvtabsq(dv, fqchanneltab('漫画')) + '&gender=' + fqgenderid('男频') + '&', kh, fqrnd(ts), 1967, '') : ''",
+    "x-ladon": "= fqbybookmall('漫画') ? fqls(kh, fqrand(kh, 4), 1967) : ''",
+    "x-helios": "= fqbybookmall('漫画') ? fqls(kh, fqrand(kh, 6), 1967) : ''"
+   },
+   "retry": 2,
+   "list": "= fqmenus(data, '漫画', '男频')",
+   "title": "= fqmenutitle(item, '漫画')",
+   "target": "= fqmenutarget(dv, item, '漫画', '男频', page, tab)"
+  },
+  "headers": {
+   "user-agent": "= fqua()",
+   "accept": "application/json; charset=utf-8,application/x-protobuf",
+   "x-khronos": "= contains(str(__url), 'bookmall') ? str(kh) : ''",
+   "x-ss-req-ticket": "= contains(str(__url), 'bookmall') ? str(ts) : ''",
+   "x-argus": "= contains(str(__url), 'bookmall') ? fqargus(fqqof(__url) + '&', kh, fqrnd(ts), 1967, '') : ''",
+   "x-ladon": "= contains(str(__url), 'bookmall') ? fqls(kh, fqrand(kh, 4), 1967) : ''",
+   "x-helios": "= contains(str(__url), 'bookmall') ? fqls(kh, fqrand(kh, 6), 1967) : ''"
+  },
+  "retry": 2,
+  "list": "= fqreel(data)",
+  "fields": {
+   "name": "= item.book_name",
+   "author": "= item.author",
+   "coverUrl": "= item.thumb_url",
+   "intro": "= item.abstract",
+   "kind": "= join(compact([item.category, item.tags]), \" · \")",
+   "wordCount": "= fqnum(item.word_number)",
+   "status": "= fqstatus(item.creation_status)",
+   "bookUrl": "= fqbookurl(item.book_id, tab)",
+   "type": "= fqtype2('漫画', tab, false)"
+  }
+ },
+ "detail": {
+  "url": "= fqdetailurl(dv, fqbid(book.bookUrl), fqutab(book.bookUrl))",
+  "headers": {
+   "user-agent": "= fqua()",
+   "accept": "application/json; charset=utf-8,application/x-protobuf",
+   "x-khronos": "{{kh}}",
+   "x-ss-req-ticket": "{{ts}}",
+   "x-argus": "= fqargus((fqdetailq(dv, fqbid(book.bookUrl), fqutab(book.bookUrl))) + '&', kh, fqrnd(ts), 1967, '')",
+   "x-ladon": "= fqls(kh, fqrand(kh, 4), 1967)",
+   "x-helios": "= fqls(kh, fqrand(kh, 6), 1967)"
+  },
+  "retry": 2,
+  "let": {
+   "d": "= fqfirst(data.data ?? data)"
+  },
+  "fields": {
+   "name": "= d.book_name",
+   "author": "= d.author",
+   "coverUrl": "= d.thumb_url",
+   "intro": "= default(d.abstract, d.book_abstract_v2, \"暂无简介\")",
+   "kind": "= join(compact([d.category, d.tags]), \" · \")",
+   "status": "= fqstatus(d.creation_status)",
+   "wordCount": "= fqnum(d.word_number)",
+   "lastChapter": "= d.last_chapter_title",
+   "updateTime": "= fqdate(d.last_chapter_update_time)",
+   "tocUrl": "= fqbookurl(d.book_id, fqutab(book.bookUrl))",
+   "type": "= fqtype3(d, '漫画', fqutab(book.bookUrl), false)"
+  },
+  "keep": {
+   "bid": "= fqbid(book.bookUrl)",
+   "tab": "= fqutab(book.bookUrl)",
+   "words": "= num(d.word_number)",
+   "tones": "= str(d.tones)"
+  }
+ },
+ "toc": {
+  "url": "= 'https://fanqienovel.com/api/reader/directory/detail?bookId=' + fqbid(book.bookUrl)",
+  "headers": {
+   "user-agent": "= fqweba()",
+   "accept": "application/json; charset=utf-8",
+   "referer": "= 'https://fanqienovel.com/page/' + fqbid(book.bookUrl)"
+  },
+  "retry": 2,
+  "let": {
+   "d": "= data.data ?? data"
+  },
+  "list": "= fqchapters(d)",
+  "fields": {
+   "title": "= default($.volume, $.title)",
+   "url": "= $.itemId != null ? fqchapurl($.itemId, fqutab(book.bookUrl)) : ''",
+   "isVolume": "= $.itemId == null",
+   "tag": "= fqdate($.firstPassTime)"
+  }
+ },
+ "content": {
+  "url": "= fqweburl(fqitemid(chapter.url))",
+  "retry": 2,
+  "let": {
+   "d": "= fqfirst(data.data ?? data)",
+   "k": "= fqkindof(d, book.bookUrl, '漫画', false, book.type)",
+   "vid": "= fqitemid(chapter.url)"
+  },
+  "text": "= fqv ? ('本集需要「本地桥」才能播：官方流是 CENC 加密，应用自带播放器解不开。\\n请先在电脑上跑 hg-bridge，再把书源设置里的「本地桥地址」填成 http://<电脑局域网IP>:8899。') : (len(fqtext2(d)) > 50 ? fqtext2(d) : '')",
+  "images": "= fqcomicimgs(d.content)",
+  "mediaHeaders": {
+   "User-Agent": "= fqweba()"
+  },
+  "links": [
+   {
+    "label": "🔗 在番茄官网打开本章",
+    "url": "= fqweburl(fqitemid(chapter.url))"
+   }
+  ]
+ },
+ "login": {
+  "url": "https://fanqienovel.com/",
+  "cookies": [
+   "sessionid"
+  ],
+  "check": {
+   "url": "https://fanqienovel.com/api/user/info",
+   "ok": "= data.code == 0",
+   "name": "= default(data.data.name, data.data.nickname, '')"
+  }
+ },
+ "bookSourceUrl": "https://fanqienovel.com/native-comic",
+ "bookSourceName": "番茄漫画"
+}

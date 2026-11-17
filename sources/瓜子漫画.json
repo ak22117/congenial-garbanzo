@@ -1,0 +1,246 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "瓜子漫画",
+ "url": "https://www.guazimanhua.com",
+ "type": "comic",
+ "group": "渡·漫画",
+ "comment": "瓜子漫画 guazimanhua.com。发现页按“分组 → 标签 → 卡片”三层渲染：题材 23 个、地区 5 个、受众 2 个、进度 2 个、排序 4 个，全部来自 /category.php 的筛选矩阵。详情页服务端渲染全部章节，正文取 img.reading-image。列表、目录、正文都用正则或绝对地址处理，避免相对路径导致点击转圈。",
+ "enabled": true,
+ "enabledExplore": true,
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Referer": "https://www.guazimanhua.com/",
+  "Accept-Language": "zh-CN,zh;q=0.9"
+ },
+ "lib": "fn reverseList(v) {\n  let out = []\n  for x, i in v {\n    push(out, v[len(v) - 1 - i])\n  }\n  return out\n}\n\nfn cardsFrom(html, base) {\n  let out = []\n  let hrefs = matchAll(html, '<h3><a href=\"([^\"]+)\"', 1)\n  let names = matchAll(html, '<h3><a href=\"[^\"]+\">([^<]+)</a></h3>', 1)\n  let covers = matchAll(html, 'class=\"cover\"[^>]*src=\"([^\"]+)\"', 1)\n  let metas = matchAll(html, '<div class=\"meta\">([^<]+)</div>', 1)\n  let n = len(hrefs)\n  if len(names) < n {\n    n = len(names)\n  }\n  for h, i in hrefs {\n    if i < n {\n      let u = absUrl(h, base)\n      if contains(u, 'comic.php') {\n        let c = ''\n        if i < len(covers) {\n          c = absUrl(covers[i], base)\n        }\n        let m = ''\n        let a = ''\n        if i < len(metas) {\n          m = metas[i]\n          let parts = split(m, '·')\n          if len(parts) > 0 {\n            a = trim(parts[0])\n            let rest = []\n            for x, i2 in parts {\n              if i2 > 0 { rest = push(rest, trim(x)) }\n            }\n            m = join(rest, ' · ')\n          }\n        }\n        push(out, {name: names[i], bookUrl: u, coverUrl: c, author: a, kind: m})\n      }\n    }\n  }\n  return out\n}\n\nfn chaptersFrom(html, base) {\n  let out = []\n  let block = match(html, 'data-chapter-list([\\s\\S]*?)</div>', 1)\n  if block == '' {\n    return []\n  }\n  let hrefs = matchAll(block, 'href=\"([^\"]+)\"', 1)\n  let names = matchAll(block, '>([^<]+)</a>', 1)\n  let n = len(hrefs)\n  if len(names) < n {\n    n = len(names)\n  }\n  for h, i in hrefs {\n    if i < n {\n      let u = absUrl(h, base)\n      if contains(u, 'chapter.php') {\n        push(out, {name: names[i], url: u})\n      }\n    }\n  }\n  return reverseList(out)\n}\n\nfn pageImages(html, base) {\n  let a = matchAll(html, 'class=\"reading-image[^\"]*\"[^>]*src=\"([^\"]+)\"', 1)\n  let out = []\n  for u in a {\n    push(out, absUrl(u, base))\n  }\n  return out\n}",
+ "search": {
+  "url": "{{source.url}}/category.php?keyword={{urlencode(default(trim(key), '恋爱'))}}&page={{page}}",
+  "list": "= cardsFrom(body, source.url)",
+  "fields": {
+   "name": "$.name",
+   "bookUrl": "$.bookUrl",
+   "coverUrl": "$.coverUrl",
+   "kind": "$.kind",
+   "author": "$.author"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "快捷入口"
+   },
+   {
+    "title": "今日更新",
+    "url": "{{source.url}}/category.php?sort=update&page={{page}}"
+   },
+   {
+    "title": "人气榜",
+    "url": "{{source.url}}/category.php?sort=hits&page={{page}}"
+   },
+   {
+    "title": "高分榜",
+    "url": "{{source.url}}/category.php?sort=score&page={{page}}"
+   },
+   {
+    "title": "完结漫画",
+    "url": "{{source.url}}/category.php?is_end=1&page={{page}}"
+   },
+   {
+    "title": "连载中",
+    "url": "{{source.url}}/category.php?is_end=2&page={{page}}"
+   },
+   {
+    "title": "题材"
+   },
+   {
+    "title": "全部",
+    "url": "{{source.url}}/category.php?page={{page}}"
+   },
+   {
+    "title": "耽美",
+    "url": "{{source.url}}/category.php?cid=41&page={{page}}"
+   },
+   {
+    "title": "恋爱",
+    "url": "{{source.url}}/category.php?cid=9&page={{page}}"
+   },
+   {
+    "title": "校园",
+    "url": "{{source.url}}/category.php?cid=29&page={{page}}"
+   },
+   {
+    "title": "霸总",
+    "url": "{{source.url}}/category.php?cid=5&page={{page}}"
+   },
+   {
+    "title": "都市",
+    "url": "{{source.url}}/category.php?cid=42&page={{page}}"
+   },
+   {
+    "title": "穿越",
+    "url": "{{source.url}}/category.php?cid=8&page={{page}}"
+   },
+   {
+    "title": "古风",
+    "url": "{{source.url}}/category.php?cid=23&page={{page}}"
+   },
+   {
+    "title": "玄幻",
+    "url": "{{source.url}}/category.php?cid=25&page={{page}}"
+   },
+   {
+    "title": "奇幻",
+    "url": "{{source.url}}/category.php?cid=31&page={{page}}"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/category.php?cid=22&page={{page}}"
+   },
+   {
+    "title": "灵异",
+    "url": "{{source.url}}/category.php?cid=21&page={{page}}"
+   },
+   {
+    "title": "动作",
+    "url": "{{source.url}}/category.php?cid=54&page={{page}}"
+   },
+   {
+    "title": "悬疑",
+    "url": "{{source.url}}/category.php?cid=11&page={{page}}"
+   },
+   {
+    "title": "冒险",
+    "url": "{{source.url}}/category.php?cid=30&page={{page}}"
+   },
+   {
+    "title": "搞笑",
+    "url": "{{source.url}}/category.php?cid=15&page={{page}}"
+   },
+   {
+    "title": "热血",
+    "url": "{{source.url}}/category.php?cid=13&page={{page}}"
+   },
+   {
+    "title": "恐怖",
+    "url": "{{source.url}}/category.php?cid=14&page={{page}}"
+   },
+   {
+    "title": "系统",
+    "url": "{{source.url}}/category.php?cid=148&page={{page}}"
+   },
+   {
+    "title": "逆袭",
+    "url": "{{source.url}}/category.php?cid=97&page={{page}}"
+   },
+   {
+    "title": "脑洞",
+    "url": "{{source.url}}/category.php?cid=55&page={{page}}"
+   },
+   {
+    "title": "复仇",
+    "url": "{{source.url}}/category.php?cid=61&page={{page}}"
+   },
+   {
+    "title": "真人",
+    "url": "{{source.url}}/category.php?cid=17&page={{page}}"
+   },
+   {
+    "title": "其它",
+    "url": "{{source.url}}/category.php?cid=27&page={{page}}"
+   },
+   {
+    "title": "地区"
+   },
+   {
+    "title": "大陆",
+    "url": "{{source.url}}/category.php?city=42&page={{page}}"
+   },
+   {
+    "title": "欧美",
+    "url": "{{source.url}}/category.php?city=43&page={{page}}"
+   },
+   {
+    "title": "港台",
+    "url": "{{source.url}}/category.php?city=77&page={{page}}"
+   },
+   {
+    "title": "日韩",
+    "url": "{{source.url}}/category.php?city=78&page={{page}}"
+   },
+   {
+    "title": "国漫",
+    "url": "{{source.url}}/category.php?city=338&page={{page}}"
+   },
+   {
+    "title": "受众"
+   },
+   {
+    "title": "男频",
+    "url": "{{source.url}}/category.php?audience=1&page={{page}}"
+   },
+   {
+    "title": "女频",
+    "url": "{{source.url}}/category.php?audience=2&page={{page}}"
+   },
+   {
+    "title": "进度"
+   },
+   {
+    "title": "连载中",
+    "url": "{{source.url}}/category.php?is_end=2&page={{page}}"
+   },
+   {
+    "title": "已完结",
+    "url": "{{source.url}}/category.php?is_end=1&page={{page}}"
+   },
+   {
+    "title": "排序"
+   },
+   {
+    "title": "今日热门",
+    "url": "{{source.url}}/category.php?sort=daily&page={{page}}"
+   },
+   {
+    "title": "人气",
+    "url": "{{source.url}}/category.php?sort=hits&page={{page}}"
+   },
+   {
+    "title": "更新",
+    "url": "{{source.url}}/category.php?sort=update&page={{page}}"
+   },
+   {
+    "title": "评分",
+    "url": "{{source.url}}/category.php?sort=score&page={{page}}"
+   }
+  ],
+  "list": "= cardsFrom(body, source.url)",
+  "fields": {
+   "name": "$.name",
+   "bookUrl": "$.bookUrl",
+   "coverUrl": "$.coverUrl",
+   "kind": "$.kind",
+   "author": "$.author"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "h1@text",
+   "author": ".cinema-strip div:first-child b@text",
+   "kind": ".meta a.badge@text",
+   "coverUrl": "img.cinema-cover@src",
+   "intro": ".cinema-info p@text",
+   "lastChapter": ".cinema-strip div:nth-child(5) b@text"
+  }
+ },
+ "toc": {
+  "list": "= chaptersFrom(body, book.bookUrl)",
+  "fields": {
+   "title": "$.name",
+   "url": "$.url"
+  }
+ },
+ "content": {
+  "images": "= pageImages(body, chapter.url)"
+ }
+}

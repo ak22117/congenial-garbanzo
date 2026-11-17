@@ -1,0 +1,99 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "直连韩漫",
+ "url": "https://ssmhw.com",
+ "type": "comic",
+ "group": "渡·漫画",
+ "comment": "由 yckceo 图源 id/934（异次元格式）转写为原生格式。列表、目录、正文全部用正则从原始 HTML 抽取，不依赖应用的 CSS 解析，避免模板类名差异导致 0 匹配。18+ 内容，请自行确认所在地区法律与站点条款。",
+ "enabled": true,
+ "enabledExplore": true,
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Referer": "https://ssmhw.com/",
+  "Accept-Language": "zh-CN,zh;q=0.9"
+ },
+ "lib": "fn cardsFrom(html, base) {\n  let out = []\n  let hrefs = matchAll(html, '<a href=\"([^\"]+)\"[^>]*itemprop=\"url\"', 1)\n  let names = matchAll(html, '<h3 itemprop=\"name\">([^<]+)</h3>', 1)\n  let covers = matchAll(html, 'src=\"([^\"]+)\"[^>]*wp-post-image', 1)\n  let authors = matchAll(html, 'chuyen-muc\"[^>]*>[\\s\\S]*?<a>([^<]+)</a>', 1)\n  let n = len(hrefs)\n  if len(names) < n {\n    n = len(names)\n  }\n  for h, i in hrefs {\n    if i < n {\n      let u = absUrl(h, base)\n      if contains(u, '/novel') {\n        let c = ''\n        if i < len(covers) {\n          c = absUrl(covers[i], base)\n        }\n        push(out, {name: names[i], bookUrl: u, coverUrl: c, author: i < len(authors) ? authors[i] : ''})\n      }\n    }\n  }\n  return out\n}\n\nfn chaptersFrom(html, base) {\n  let out = []\n  let block = match(html, 'id=\"list-chapter\"([\\s\\S]*?)id=\"pagination\"', 1)\n  if block == '' {\n    return []\n  }\n  let hrefs = matchAll(block, '<a href=\"([^\"]+)\"', 1)\n  let names = matchAll(block, 'chapter-text\">([^<]*)</span>', 1)\n  for h, i in hrefs {\n    if i < len(names) {\n      let u = absUrl(h, base)\n      if u != '' {\n        push(out, {name: names[i], url: u})\n      }\n    }\n  }\n  return out\n}\n\nfn imagesFrom(html, base) {\n  let out = []\n  let a = matchAll(html, \"data-original='([^']+)'\", 1)\n  if len(a) == 0 {\n    a = matchAll(html, 'data-original=\"([^\"]+)\"', 1)\n  }\n  for u in a {\n    let x = absUrl(u, base)\n    if x != '' {\n      push(out, x)\n    }\n  }\n  return out\n}",
+ "search": {
+  "url": "{{source.url}}/e/search/index.php?keyboard={{urlencode(default(trim(key), '秘密'))}}&show=title,writer,byr&searchget=1",
+  "list": "= cardsFrom(body, source.url)",
+  "fields": {
+   "name": "$.name",
+   "bookUrl": "$.bookUrl",
+   "coverUrl": "$.coverUrl",
+   "author": "$.author"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "韩国漫画",
+    "url": "{{source.url}}/hanman/{{page == 1 ? '' : 'index_' + page + '.html'}}"
+   },
+   {
+    "title": "日本漫画",
+    "url": "{{source.url}}/riman/{{page == 1 ? '' : 'index_' + page + '.html'}}"
+   },
+   {
+    "title": "3D漫画",
+    "url": "{{source.url}}/3d/{{page == 1 ? '' : 'index_' + page + '.html'}}"
+   },
+   {
+    "title": "同人志",
+    "url": "{{source.url}}/tongrenzhi/{{page == 1 ? '' : 'index_' + page + '.html'}}"
+   },
+   {
+    "title": "单行本",
+    "url": "{{source.url}}/single/{{page == 1 ? '' : 'index_' + page + '.html'}}"
+   },
+   {
+    "title": "杂志短篇",
+    "url": "{{source.url}}/short/{{page == 1 ? '' : 'index_' + page + '.html'}}"
+   },
+   {
+    "title": "Cosplay",
+    "url": "{{source.url}}/cosplay/{{page == 1 ? '' : 'index_' + page + '.html'}}"
+   },
+   {
+    "title": "CG漫画",
+    "url": "{{source.url}}/cg/{{page == 1 ? '' : 'index_' + page + '.html'}}"
+   }
+  ],
+  "list": "= cardsFrom(body, source.url)",
+  "fields": {
+   "name": "$.name",
+   "bookUrl": "$.bookUrl",
+   "coverUrl": "$.coverUrl",
+   "author": "$.author"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "= match(body, '<h2 class=\"single_title\">[\\s\\S]*?</span>([^<]+)</h2>', 1)",
+   "author": "= match(body, 'itemprop=\"author\"[^>]*>([^<]+)</a>', 1)",
+   "kind": "= match(body, 'itemprop=\"genre\"[^>]*>([^<]+)</a>', 1)",
+   "coverUrl": "= match(body, 'property=\"og:image\" content=\"([^\"]+)\"', 1)",
+   "intro": "= default(match(match(body, 'name=\"description\" content=\"([^\"]*)\"', 1), ':介绍:([\\s\\S]*)', 1), match(body, 'name=\"description\" content=\"([^\"]*)\"', 1), '')"
+  }
+ },
+ "toc": {
+  "let": {
+   "mp": "= len(matchAll(body, '\\?p=(\\d+)', 1)) == 0 ? 1 : max(map(matchAll(body, '\\?p=(\\d+)', 1), x => int(x, 0)))"
+  },
+  "list": "= chaptersFrom(body, book.bookUrl)",
+  "fields": {
+   "title": "$.name",
+   "url": "$.url"
+  },
+  "nextUrl": "= mp < 2 ? [] : map(range(mp - 1), i => '?p=' + (i + 2))",
+  "batch": 16
+ },
+ "content": {
+  "let": {
+   "mp": "= len(matchAll(body, '\\?p=(\\d+)', 1)) == 0 ? 1 : max(map(matchAll(body, '\\?p=(\\d+)', 1), x => int(x, 0)))"
+  },
+  "images": "= imagesFrom(body, chapter.url)",
+  "nextUrl": "= mp < 2 ? [] : map(range(mp - 1), i => '?p=' + (i + 2))",
+  "batch": 16
+ }
+}

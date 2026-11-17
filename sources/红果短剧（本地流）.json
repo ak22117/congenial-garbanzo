@@ -1,0 +1,69 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "红果短剧（本地流）",
+ "url": "https://hongguoduanju.com",
+ "group": "渡·影视",
+ "type": "video",
+ "rate": "20/1000",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+ },
+ "vars": [
+  {
+   "key": "server",
+   "label": "本地流服务",
+   "default": "http://127.0.0.1:18090"
+  },
+  {
+   "key": "q",
+   "label": "清晰度",
+   "options": [
+    "1080",
+    "720",
+    "540",
+    "480",
+    "360"
+   ],
+   "default": "1080"
+  }
+ ],
+ "js": "\nconst HG = 'https://hongguoduanju.com';\nfunction hgRd(html){\n  const m = String(html||'').match(/_ROUTER_DATA\\s*=\\s*/);\n  if(!m) return null;\n  const start = m.index + m[0].length;\n  let depth=0, inS=false, esc=false;\n  for(let i=start;i<html.length;i++){\n    const c=html[i];\n    if(inS){ if(esc) esc=false; else if(c==='\\\\') esc=true; else if(c==='\"') inS=false; continue; }\n    if(c==='\"'){ inS=true; continue; }\n    if(c==='{') depth++;\n    else if(c==='}'){ depth--; if(depth===0){ return JSON.parse(html.slice(start,i+1)); } }\n  }\n  return null;\n}\nfunction hgNorm(v){\n  const x = v || {};\n  const tags = (x.tags||x.category_list||[]).map(function(t){ return typeof t==='string'? t : (t.name||''); }).filter(Boolean);\n  return {\n    name: x.series_name || x.series_title || x.name || '',\n    coverUrl: x.series_cover || '',\n    intro: x.series_intro || '',\n    kind: tags.slice(0,4).join(','),\n    type: 'video',\n    bookUrl: HG + '/detail?series_id=' + (x.series_id || '')\n  };\n}\nfunction hgSearch(ctx){\n  http.get(HG + '/', {timeout:10000});\n  const r = http.get(HG + '/api/search/result?aid=8662&query=' + encodeURIComponent(ctx.key) + '&page=' + (ctx.page||1), {timeout:15000});\n  if(!r.ok) throw new Error('搜索失败 HTTP ' + r.status);\n  const d = r.json();\n  return (d.searchList||[]).map(function(it){ return hgNorm((it && it.video_data) || it); });\n}\nfunction hgExplore(ctx){\n  const route = String(ctx.url||'real-drama').replace(/^.*?:/,'');\n  const r = http.get(HG + '/category/' + route + '?page=' + (ctx.page||1), {timeout:20000});\n  if(!r.ok) throw new Error('分类页失败 HTTP ' + r.status);\n  const d = hgRd(r.body);\n  const ld = (d && d.loaderData) || {};\n  const keys = Object.keys(ld);\n  let page = null;\n  for(let i=0;i<keys.length;i++){\n    const v = ld[keys[i]];\n    if(keys[i].indexOf('category_')===0 && v && (v.recommendList || v.selectorList)){ page = v; break; }\n  }\n  return ((page && page.recommendList) || []).map(hgNorm);\n}\nfunction hgDetail(ctx){\n  const url = (ctx.book && (ctx.book.bookUrl || ctx.book.url)) || ctx.url || '';\n  const sid = (String(url).match(/series_id=(\\d+)/)||[])[1] || '';\n  if(!sid) throw new Error('缺少 series_id');\n  const r = http.get(HG + '/detail?series_id=' + sid, {timeout:20000});\n  if(!r.ok) throw new Error('详情页失败 HTTP ' + r.status);\n  const d = hgRd(r.body);\n  const sd = ((((d||{}).loaderData||{}).detail_page)||{}).seriesDetail || {};\n  const actors = (sd.celebrities||[]).map(function(c){ return c.nickname; }).filter(Boolean);\n  const acc = sd.accessible_episode_cnt || 0;\n  keep('sid', sid);\n  return {\n    name: sd.series_name || '',\n    author: actors.slice(0,3).join(' / '),\n    intro: sd.series_intro || '',\n    coverUrl: sd.series_cover || '',\n    kind: (sd.tags||[]).slice(0,4).join(','),\n    status: '完结',\n    lastChapter: '全' + (sd.episode_cnt||0) + '集（免费' + acc + '集）',\n    type: 'video',\n    bookUrl: HG + '/detail?series_id=' + sid\n  };\n}\nfunction hgToc(ctx){\n  const sid = (ctx.book && ctx.book.vars && ctx.book.vars.sid) || '';\n  if(!sid) throw new Error('缺少 series_id');\n  const r = http.get(HG + '/detail?series_id=' + sid, {timeout:20000});\n  if(!r.ok) throw new Error('目录失败 HTTP ' + r.status);\n  const d = hgRd(r.body);\n  const sd = ((((d||{}).loaderData||{}).detail_page)||{}).seriesDetail || {};\n  const vids = sd.vid_list || [];\n  const acc = sd.accessible_episode_cnt || 0;\n  return vids.map(function(v,i){ return { title: '第' + (i+1) + '集', url: HG + '/player/' + sid + '/' + v }; });\n}\nfunction hgContent(ctx){\n  const u = String((ctx.chapter && ctx.chapter.url) || '');\n  const vid = (u.split('/').pop()||'').split('?')[0];\n  if(!/^[0-9]+$/.test(vid)) throw new Error('集地址缺少 vid');\n  const q = (ctx.vars && ctx.vars.q) || '1080';\n  const base = (ctx.vars && ctx.vars.server) || 'http://127.0.0.1:18090';\n  try { http.get(base + '/warm?vid=' + vid + '&q=' + q, { timeout: 3000 }); } catch (e) { }\n  return { video: base + '/hg.mp4?vid=' + vid + '&q=' + q };\n}\n",
+ "search": {
+  "script": "hgSearch"
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "真人剧",
+    "url": "real-drama"
+   },
+   {
+    "title": "漫剧",
+    "url": "comic-drama"
+   },
+   {
+    "title": "AI剧",
+    "url": "ai-drama"
+   },
+   {
+    "title": "漫画",
+    "url": "comic"
+   }
+  ],
+  "script": "hgExplore"
+ },
+ "detail": {
+  "script": "hgDetail"
+ },
+ "toc": {
+  "script": "hgToc"
+ },
+ "content": {
+  "script": "hgContent",
+  "videoPage": "= chapter.url",
+  "mediaError": "= '本地流服务没起来：先在 DSHM 里运行 hongguo_service.py'",
+  "video": "$.video"
+ },
+ "comment": "红果短剧 原生视频源（本地流）\n能力：分类/搜索/详情/102 集目录；正文给 127.0.0.1:18090 的 1080p 直链（解密后），原生播放器播放。\n已知限制：① 播放依赖 DSHM 宿主里的 hongguo_service.py（端口 18090），应用重启后要重跑一次；② 原生视频播放页没有弹幕，原 Python 源的弹幕能力不保留；③ 网页回退 videoPage 指向原站播放页，仅前 3 集免费。\n验收范围：沙箱回放（搜索 10 条 / 分类 24 条 / 详情 / 102 章）+ 本地流 Range 206（第1、2、4、50 集，1080p）；真机播放未验。\n维护：2026-11-04"
+}
