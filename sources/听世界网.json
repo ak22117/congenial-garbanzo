@@ -1,0 +1,140 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "听世界网",
+ "url": "https://api.365ting.com",
+ "type": "audio",
+ "group": "渡·听书",
+ "comment": "听世界（api.365ting.com，m 站品牌「听世界网」）挂 275fm（fmfm.tingyou.fm）有声书源：专辑=书、单曲=章节，点开即播。搜索走听世界 /tingyou-app/search（站内与听友 AI 检索合并，两页合并、按 book_id 去重、精确匹配优先，命中不足再用 275fm 搜索兜底），解决旧版只从宿主用户聚合、搜「剑来」只有 3 本的问题。发现页用 275fm 的发现页数据：热门榜、最新上架、有声小说分类、评书分类。详情先用 book_id 回查听世界站内专辑：有站内专辑按 tracks.audio_url 直链播放（快、稳定），没有就走 275fm 的章节与播放接口。封面直接用接口返回的 cover_url（实测 file.tingyou8.vip / xmcdn 均可访问），不再内置离线封面表（2026-10-28 瘦身删除）。",
+ "headers": {
+  "User-Agent": "okhttp/4.9.3",
+  "Accept": "application/json"
+ },
+ "coverHeaders": {
+  "Referer": "https://app.365ting.com/"
+ },
+ "scriptLimits": {
+  "requests": 100
+ },
+ "lib": "fn cleanFullTitle(t) {\n  let s = trim(default(t, ''))\n  let head = trim(replace(s, '^(?:【[^【】]*】)+', '', 'g'))\n  if len(head) >= 2 { s = head }\n  return trim(s)\n}\n\n\nfn albumIntro2(desc, cat, count, statusLabel) {\n  let s = trim(default(desc, ''))\n  if s != '' { return s }\n  let out = []\n  if trim(default(cat, '')) != '' { out = push(out, cat) }\n  if int(str(default(count, 0))) > 0 { out = push(out, '共' + str(count) + '集') }\n  if trim(default(statusLabel, '')) != '' { out = push(out, statusLabel) }\n  return join(out, ' · ')\n}\n",
+ "js": "// 听世界 × 275fm（听友听书）双端书源\n// 搜索：听世界 /tingyou-app/search（站内 + 听友 AI 检索合并，两页合并，按 book_id 去重，精确匹配优先）\n// 发现：275fm /listening-api/rank 与 /listening-api/category\n// 详情：先用 book_id 回查听世界站内专辑；有站内专辑走听世界音轨，没有就走 275fm 章节/播放，无需提取\nconst TY_BASE = 'https://api.365ting.com';\nconst FM_BASE = 'https://fmfm.tingyou.fm';\nconst FM_HEADERS = {\n  'Origin': 'https://fmfm.tingyou.fm',\n  'Referer': 'https://fmfm.tingyou.fm/listening',\n  'x-listening-timezone': 'Asia/Shanghai'\n};\n\nfunction jCleanTitle(t) {\n  let s = String(t == null ? '' : t).trim();\n  s = s.replace(/^(?:【[^【】]*】)+/, '').trim();\n  let main = s.split(/[|丨｜]/)[0].trim();\n  main = main.replace(/[、,，/|\\s]+$/, '').replace(/[-—·:：]+$/, '').trim();\n  if (main.length >= 2) return main;\n  return s;\n}\n\nfunction jFmtDur(sec) {\n  const s = Math.floor(Number(sec) || 0);\n  if (s <= 0) return '';\n  const m = Math.floor(s / 60);\n  const r = s % 60;\n  return m + ':' + (r < 10 ? '0' + r : '' + r);\n}\n\nfunction jIsPromo(t) {\n  const s = String(t == null ? '' : t).toLowerCase();\n  if (!s) return false;\n  return /片花|预告|主题曲|主题歌|主题音乐|pv|宣传|片头曲|片尾曲|以音代序|大咖推荐|发刊词|小剧场|简介|作者的话|邀你来听|提前解锁|免费畅听|听友群|新专辑/.test(s);\n}\n\nfunction jRefDuration(tracks) {\n  let ref = 0;\n  let i;\n  for (i = 0; i < tracks.length && i < 30; i++) {\n    const d = Math.floor(Number(tracks[i].duration) || 0);\n    if (d > ref) ref = d;\n  }\n  if (ref <= 0) {\n    for (i = 0; i < tracks.length && i < 300; i++) {\n      const d = Math.floor(Number(tracks[i].duration) || 0);\n      if (d > ref) ref = d;\n    }\n  }\n  return ref;\n}\n\nfunction jDropPromos(tracks) {\n  if (!Array.isArray(tracks)) return [];\n  const ref = jRefDuration(tracks);\n  const out = [];\n  let i;\n  for (i = 0; i < tracks.length; i++) {\n    const t = tracks[i] || {};\n    const d = Math.floor(Number(t.duration) || 0);\n    const kw = i < 8 && jIsPromo(t.title);\n    const short = ref > 0 && i < 5 && d > 0 && d < 200 && d * 100 < ref * 12;\n    if (!kw && !short) out.push(t);\n  }\n  return out;\n}\n\nfunction jBookId(url) {\n  const s = String(url || '');\n  let m = s.match(/\\/listening\\/album\\/(\\d+)/);\n  if (m) return m[1];\n  m = s.match(/\\/listening-api\\/chapters\\/(\\d+)/);\n  if (m) return m[1];\n  m = s.match(/\\/chapters\\/(\\d+)/);\n  if (m) return m[1];\n  m = s.match(/\\/api\\/albums\\/(\\d+)\\//);\n  if (m) return m[1];\n  return '';\n}\n\nfunction jNormalize(it, label) {\n  const o = it || {};\n  const bid = String(o.book_id || o.id || '');\n  let cat = String(o.cat || o.type || '有声专辑');\n  if (cat === '站内已有' || cat === '可提取' || cat === '需提取') cat = '有声专辑';\n  return {\n    book_id: bid,\n    title: String(o.title || ''),\n    desc: String(o.description || o.intro || o.desc || ''),\n    cover: String(o.cover_url || o.cover || ''),\n    teller: String(o.teller || o.author || ''),\n    author: String(o.author || ''),\n    cat: cat,\n    type: String(o.type || ''),\n    count: Number(o.count || 0),\n    album_id: Number(o.album_id || 0),\n    status: o.status,\n    status_label: label || ''\n  };\n}\n\nfunction searchAlbums(ctx) {\n  const key = String(ctx.key || '').trim();\n  if (!key) return [];\n  const q = encodeURIComponent(key);\n  const reqs = [1, 2].map(function (p) {\n    return {\n      url: TY_BASE + '/tingyou-app/search?keyword=' + q + '&page=' + p,\n      timeout: 12000\n    };\n  });\n  const res = http.all(reqs, { concurrency: 2, timeout: 12000 });\n  const map = {};\n  const order = [];\n  let i, j;\n  for (i = 0; i < res.length; i++) {\n    if (!res[i] || !res[i].ok) continue;\n    let d = null;\n    try { d = res[i].json(); } catch (e) { continue; }\n    const items = d && d.data && Array.isArray(d.data.items) ? d.data.items : [];\n    for (j = 0; j < items.length; j++) {\n      const raw = items[j] || {};\n      const bid = String(raw.book_id || raw.id || '');\n      if (!bid) continue;\n      const local = Number(raw.album_id || 0) > 0;\n      const item = jNormalize(raw, local ? '站内已有' : '在线可播');\n      if (!map[bid]) {\n        map[bid] = item;\n        order.push(bid);\n      } else if (local && map[bid].album_id <= 0) {\n        map[bid] = item;\n      }\n    }\n  }\n  let out = order.map(function (b) { return map[b]; });\n  // 听世界站内只覆盖了一部分专辑；命中太少时用 275fm 的完整检索兜底。\n  if (out.length < 5) {\n    const fmReqs = [1, 2].map(function (p) {\n      return {\n        url: FM_BASE + '/listening-api/search',\n        method: 'POST',\n        body: { keyword: key, page: p },\n        headers: FM_HEADERS,\n        timeout: 15000\n      };\n    });\n    const fr = http.all(fmReqs, { concurrency: 2, timeout: 15000 });\n    for (i = 0; i < fr.length; i++) {\n      if (!fr[i] || !fr[i].ok) continue;\n      let d = null;\n      try { d = fr[i].json(); } catch (e) { continue; }\n      const items = d && Array.isArray(d.results) ? d.results : [];\n      for (j = 0; j < items.length; j++) {\n        const raw = items[j] || {};\n        const bid = String(raw.id || '');\n        if (!bid || map[bid]) continue;\n        map[bid] = jNormalize(raw, raw.status == 1 ? '连载' : '完结');\n        order.push(bid);\n      }\n    }\n    out = order.map(function (b) { return map[b]; });\n  }\n  const keyLower = key.toLowerCase();\n  const score = function (t) {\n    const c = String(t || '').trim().toLowerCase();\n    if (c === keyLower) return 3;\n    if (c.indexOf(keyLower) === 0) return 2;\n    if (c.indexOf(keyLower) >= 0) return 1;\n    return 0;\n  };\n  out.sort(function (a, b) {\n    const sa = score(a.title);\n    const sb = score(b.title);\n    if (sa !== sb) return sb - sa;\n    const la = a.album_id > 0 ? 1 : 0;\n    const lb = b.album_id > 0 ? 1 : 0;\n    if (la !== lb) return lb - la;\n    return (b.count || 0) - (a.count || 0);\n  });\n  return out.slice(0, 30);\n}\n\n\nfunction detailBook(ctx) {\n  const src = ctx.book || {};\n  const out = {};\n  let k;\n  for (k in src) out[k] = src[k];\n  const bid = jBookId(src.bookUrl);\n  if (!bid) return out;\n  const cacheKey = 'bid_' + bid;\n  let local = cache.get(cacheKey);\n  if (local === undefined || local === null || local === '') {\n    local = 0;\n    const r = http.get(TY_BASE + '/tingyou-app/search?keyword=' + bid, { timeout: 12000 });\n    if (r.ok) {\n      try {\n        const d = r.json();\n        const items = d && d.data && Array.isArray(d.data.items) ? d.data.items : [];\n        let i;\n        for (i = 0; i < items.length; i++) {\n          if (String(items[i].book_id) === bid && Number(items[i].album_id) > 0) {\n            local = Number(items[i].album_id);\n            break;\n          }\n        }\n      } catch (e) {}\n    }\n    cache.put(cacheKey, local, 6 * 3600);\n  }\n  out.tocUrl = local > 0\n    ? TY_BASE + '/api/albums/' + local + '/tracks?user_id=-1'\n    : FM_BASE + '/listening-api/chapters/' + bid;\n  return out;\n}\n\nfunction tocBook(ctx) {\n  const book = ctx.book || {};\n  let tocUrl = String(book.tocUrl || '');\n  if (!tocUrl) {\n    const bid = jBookId(book.bookUrl);\n    if (bid) tocUrl = FM_BASE + '/listening-api/chapters/' + bid;\n  }\n  if (tocUrl.indexOf('/api/albums/') >= 0) {\n    const r = http.get(tocUrl, { timeout: 25000 });\n    if (!r.ok) throw new Error('目录加载失败：' + r.status);\n    const d = r.json();\n    const tracks = Array.isArray(d.data) ? d.data : [];\n    const clean = jDropPromos(tracks);\n    return clean.map(function (t) {\n      return {\n        title: jCleanTitle(t.title),\n        url: String(t.audio_url || ''),\n        tag: jFmtDur(t.duration)\n      };\n    });\n  }\n  const r = http.get(tocUrl, { timeout: 30000 });\n  if (!r.ok) throw new Error('目录加载失败：' + r.status);\n  const d = r.json();\n  const chapters = Array.isArray(d.chapters) ? d.chapters : [];\n  const bid = jBookId(tocUrl) || jBookId(book.bookUrl);\n  return chapters.map(function (c) {\n    return {\n      title: jCleanTitle(c.title),\n      url: FM_BASE + '/listening/play/' + bid + '/' + c.index,\n      tag: jFmtDur(c.duration)\n    };\n  });\n}\n\nfunction contentChapter(ctx) {\n  const url = String((ctx.chapter && ctx.chapter.url) || '');\n  if (url.indexOf('/listening/play/') < 0) return { audio: url };\n  const m = url.match(/\\/listening\\/play\\/(\\d+)\\/(\\d+)/);\n  if (!m) throw new Error('未知章节地址');\n  const r = http.post(FM_BASE + '/listening-api/play', {\n    album_id: m[1],\n    chapter_idx: Number(m[2])\n  }, { headers: FM_HEADERS, timeout: 20000 });\n  if (!r.ok) throw new Error('播放地址获取失败：' + r.status);\n  const d = r.json();\n  if (!d || !d.play_url) throw new Error('播放地址为空');\n  return { audio: d.play_url };\n}\n",
+ "search": {
+  "script": "searchAlbums",
+  "list": "= data",
+  "fields": {
+   "name": "= cleanFullTitle($.title)",
+   "author": "= default($.teller, $.author)",
+   "kind": "= default($.cat, '有声专辑')",
+   "status": "= $.status_label",
+   "coverUrl": "= default($.cover, '')",
+   "intro": "= albumIntro2($.desc, $.cat, $.count, $.status_label)",
+   "bookUrl": "= 'https://fmfm.tingyou.fm/listening/album/' + str($.book_id)"
+  }
+ },
+ "explore": {
+  "headers": {
+   "Origin": "https://fmfm.tingyou.fm",
+   "Referer": "https://fmfm.tingyou.fm/listening",
+   "x-listening-timezone": "Asia/Shanghai"
+  },
+  "menus": [
+   {
+    "title": "排行榜"
+   },
+   {
+    "title": "热门榜",
+    "url": "https://fmfm.tingyou.fm/listening-api/rank?section=hot&page={{page}}",
+    "list": "$.items[*]"
+   },
+   {
+    "title": "最新上架",
+    "url": "https://fmfm.tingyou.fm/listening-api/rank?section=new&page={{page}}",
+    "list": "$.items[*]"
+   },
+   {
+    "title": "有声小说"
+   },
+   {
+    "title": "全部有声小说",
+    "url": "https://fmfm.tingyou.fm/listening-api/category?category=2&sort=updated&page={{page}}",
+    "list": "$.data[*]"
+   },
+   {
+    "title": "玄幻奇幻",
+    "url": "https://fmfm.tingyou.fm/listening-api/category?category=2&type=46&sort=updated&page={{page}}",
+    "list": "$.data[*]"
+   },
+   {
+    "title": "武侠小说",
+    "url": "https://fmfm.tingyou.fm/listening-api/category?category=2&type=11&sort=updated&page={{page}}",
+    "list": "$.data[*]"
+   },
+   {
+    "title": "恐怖惊悚",
+    "url": "https://fmfm.tingyou.fm/listening-api/category?category=2&type=14&sort=updated&page={{page}}",
+    "list": "$.data[*]"
+   },
+   {
+    "title": "历史军事",
+    "url": "https://fmfm.tingyou.fm/listening-api/category?category=2&type=15&sort=updated&page={{page}}",
+    "list": "$.data[*]"
+   },
+   {
+    "title": "广播剧",
+    "url": "https://fmfm.tingyou.fm/listening-api/category?category=2&type=36&sort=updated&page={{page}}",
+    "list": "$.data[*]"
+   },
+   {
+    "title": "评书"
+   },
+   {
+    "title": "全部评书",
+    "url": "https://fmfm.tingyou.fm/listening-api/category?category=1&sort=updated&page={{page}}",
+    "list": "$.data[*]"
+   },
+   {
+    "title": "单田芳",
+    "url": "https://fmfm.tingyou.fm/listening-api/category?category=1&type=1&sort=updated&page={{page}}",
+    "list": "$.data[*]"
+   },
+   {
+    "title": "刘兰芳",
+    "url": "https://fmfm.tingyou.fm/listening-api/category?category=1&type=2&sort=updated&page={{page}}",
+    "list": "$.data[*]"
+   },
+   {
+    "title": "田连元",
+    "url": "https://fmfm.tingyou.fm/listening-api/category?category=1&type=3&sort=updated&page={{page}}",
+    "list": "$.data[*]"
+   },
+   {
+    "title": "袁阔成",
+    "url": "https://fmfm.tingyou.fm/listening-api/category?category=1&type=4&sort=updated&page={{page}}",
+    "list": "$.data[*]"
+   }
+  ],
+  "list": "$.data[*]",
+  "fields": {
+   "name": "= cleanFullTitle($.title)",
+   "author": "= default($.teller, $.author)",
+   "kind": "= default($.cat, $.type, '有声专辑')",
+   "status": "= $.status == 1 ? '连载' : '完结'",
+   "coverUrl": "= default($.cover_url, '')",
+   "intro": "= albumIntro2($.intro, default($.cat, $.type, ''), $.count, ($.status == 1 ? '连载' : '完结'))",
+   "bookUrl": "= 'https://fmfm.tingyou.fm/listening/album/' + str($.id)"
+  }
+ },
+ "detail": {
+  "script": "detailBook"
+ },
+ "toc": {
+  "script": "tocBook"
+ },
+ "content": {
+  "script": "contentChapter",
+  "mediaHeaders": {
+   "Referer": "https://fmfm.tingyou.fm/",
+   "User-Agent": "okhttp/4.9.3"
+  }
+ }
+}

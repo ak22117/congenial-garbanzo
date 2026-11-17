@@ -1,0 +1,293 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "云图有声",
+ "url": "http://open-service.yuntuys.com",
+ "group": "渡·听书",
+ "type": "audio",
+ "comment": "云图有声（yuntuys.com）原生版 · 听书。搜索 GET /api/w_ys/book/search/<token>/<关键词>?pageSize=20&pageNum=N（结果在 data.list）；分类 GET /api/w_ys/book/getBookListByType/<token>/<分类id>。列表字段：bookName/authorName/anchorName(演播)/chapters(章数)/summary(简介)/cover，书地址指向章节接口 getChapters/<token>/<bookId>/true/asc。详情阶段改用同一接口的 desc 顺序取首条作「最后一章」（实测 desc 首条=第22章、asc 首条=第1章），目录再由 tocUrl 指回 asc 完整分页；章数用 data.pageQuery.totalRow。正文的音频地址直接来自章节的 audioUrl（实测 https://qiniustorage.yuntuys.com/*.mp3 返回 200 audio/mpeg 可播）。原插件 ruleBookInfo 为空，本源补了最后一章以避免详情页显示「点击查看完整章节列表」。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+  "Referer": "http://yuntuwechat.yuntuys.com/"
+ },
+ "lib": "// 云图有声 · 原生\n// 从详情地址 …/getChapters/<token>/<bookId>/true/asc?… 取回 bookId\nfn ytAid(u) {\n  return str(match(str(u), 'getChapters/[^/]+/([0-9]+)', 1))\n}\n// 目录分页：pageNumber < totalPage 时把地址里的 pageNum 加一\nfn ytNext(bu, cur, total) {\n  let c = int(str(cur), 1)\n  let t = int(str(total), 1)\n  if (t < 1) { t = 1 }\n  if (c >= t) { return '' }\n  return replace(str(bu), 'pageNum=[0-9]+', 'pageNum=' + str(c + 1))\n}",
+ "search": {
+  "url": "{{source.url}}/api/w_ys/book/search/wechat:07955551-706c-4259-9aa0-db4627dfca57/{{urlencode(key)}}?pageSize=20&pageNum={{page}}",
+  "list": "$.data.list[*]",
+  "fields": {
+   "name": "$.bookName",
+   "author": "$.authorName",
+   "kind": "= $.anchorName ? '演播：' + str($.anchorName) : ''",
+   "status": "= $.chapters ? '共' + str($.chapters) + '章' : ''",
+   "intro": "= replace(replace(str($.summary), '\\n', ' ', 'g'), '\\r', ' ', 'g')",
+   "coverUrl": "$.cover",
+   "bookUrl": "{{source.url}}/api/w_ys/book/getChapters/wechat:07955551-706c-4259-9aa0-db4627dfca57/{{$.bookId}}/true/asc?pageSize=200&pageNum=1"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "特色"
+   },
+   {
+    "title": "四史专栏",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/585?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "远读重洋",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/571?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "听见真知",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/124?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "豆瓣高分",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/125?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "广播剧",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/126?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "影视同期",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/127?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "云图学院",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/421?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "经典文学"
+   },
+   {
+    "title": "世界名著",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/131?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "中国文学",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/132?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "国学经典",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/134?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "外国文学",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/133?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "诗词散文",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/135?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "人物传记",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/136?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "畅销小说"
+   },
+   {
+    "title": "国风古韵",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/137?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "青春校园",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/138?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "科学幻想",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/139?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "官场商战",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/140?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "军事谍战",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/141?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "悬疑推理",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/142?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "现代都市",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/143?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "怪奇物语",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/144?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "侠义江湖",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/335?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "职场财经"
+   },
+   {
+    "title": "创业学院",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/148?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "职场指南",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/149?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "商界大咖",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/150?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "金融理财",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/151?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "少儿教育"
+   },
+   {
+    "title": "儿童文学",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/152?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "童话名著",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/153?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "国学启蒙",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/154?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "儿歌故事",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/155?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "百科知识",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/156?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "亲子教育",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/157?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "文化历史"
+   },
+   {
+    "title": "民俗文化",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/161?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "世界之窗",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/163?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "哲学思想",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/164?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "古代历史",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/165?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "近现代史",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/166?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "世界历史",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/167?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "传奇史话",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/168?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "军事"
+   },
+   {
+    "title": "军事纪实",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/173?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "战争烽火",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/174?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "革命先驱",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/176?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "政治领袖",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/177?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "生活"
+   },
+   {
+    "title": "养生保健",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/181?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "养颜减肥",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/182?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "食疗课堂",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/183?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "孕产育儿",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/184?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "心理健康",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/185?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "婚恋家庭",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/186?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "心灵励志",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/187?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "生活百科",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/188?pageNum={{page}}&pageSize=20"
+   },
+   {
+    "title": "娱乐休闲",
+    "url": "http://open-service.yuntuys.com/api/w_ys/book/getBookListByType/wechat:07955551-706c-4259-9aa0-db4627dfca57/189?pageNum={{page}}&pageSize=20"
+   }
+  ],
+  "list": "$.data.list[*]",
+  "fields": {
+   "name": "$.bookName",
+   "author": "$.authorName",
+   "kind": "= $.anchorName ? '演播：' + str($.anchorName) : ''",
+   "status": "= $.chapters ? '共' + str($.chapters) + '章' : ''",
+   "intro": "= replace(replace(str($.summary), '\\n', ' ', 'g'), '\\r', ' ', 'g')",
+   "coverUrl": "$.cover",
+   "bookUrl": "{{source.url}}/api/w_ys/book/getChapters/wechat:07955551-706c-4259-9aa0-db4627dfca57/{{$.bookId}}/true/asc?pageSize=200&pageNum=1"
+  }
+ },
+ "detail": {
+  "url": "{{source.url}}/api/w_ys/book/getChapters/wechat:07955551-706c-4259-9aa0-db4627dfca57/{{ytAid(book.bookUrl)}}/true/desc?pageSize=200&pageNum=1",
+  "tocUrl": "= book.bookUrl",
+  "fields": {
+   "lastChapter": "$.data.pageQuery.list[0].name",
+   "status": "= $.data.pageQuery.totalRow ? '共' + str($.data.pageQuery.totalRow) + '章' : ''"
+  }
+ },
+ "toc": {
+  "list": "$.data.pageQuery.list[*]",
+  "fields": {
+   "title": "$.name",
+   "url": "$.audioUrl"
+  },
+  "nextUrl": "= ytNext(baseUrl, data.data.pageQuery.pageNumber, data.data.pageQuery.totalPage)"
+ },
+ "content": {
+  "url": "= ''",
+  "audio": "= chapter.url"
+ }
+}

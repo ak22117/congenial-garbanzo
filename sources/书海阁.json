@@ -1,0 +1,238 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "书海阁",
+ "url": "https://book.washai.net",
+ "type": "text",
+ "rate": "1/500",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "zh-CN,zh;q=0.9",
+  "Referer": "https://book.washai.net/"
+ },
+ "search": {
+  "url": "https://book.washai.net/book/bookclass.html?k={{urlencode(key)}}&page={{page}}",
+  "list": "#bookList .classBookCard",
+  "fields": {
+   "name": ".classBookTitle a@text",
+   "bookUrl": ".classBookTitle a@href",
+   "author": ".classBookAuthor a@text",
+   "kind": ".classCoverCat@text",
+   "intro": ".classBookDesc@text",
+   "lastChapter": ".classBookChapter a@text",
+   "updateTime": ".classBookTime@text",
+   "coverUrl": ".classBookCoverLink img@src",
+   "status": ".classBookMeta@text##^\\s*([^ ·]+).*##$1",
+   "wordCount": ".classBookMeta@text##^[^·]*· ?(.*)$##$1"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "分类"
+   },
+   {
+    "title": "玄幻奇幻",
+    "url": "= catUrl(1, vars.status, vars.sort, vars.words, vars.recent, page)"
+   },
+   {
+    "title": "武侠仙侠",
+    "url": "= catUrl(2, vars.status, vars.sort, vars.words, vars.recent, page)"
+   },
+   {
+    "title": "都市言情",
+    "url": "= catUrl(3, vars.status, vars.sort, vars.words, vars.recent, page)"
+   },
+   {
+    "title": "历史军事",
+    "url": "= catUrl(4, vars.status, vars.sort, vars.words, vars.recent, page)"
+   },
+   {
+    "title": "科幻灵异",
+    "url": "= catUrl(5, vars.status, vars.sort, vars.words, vars.recent, page)"
+   },
+   {
+    "title": "网游竞技",
+    "url": "= catUrl(6, vars.status, vars.sort, vars.words, vars.recent, page)"
+   },
+   {
+    "title": "女生频道",
+    "url": "= catUrl(7, vars.status, vars.sort, vars.words, vars.recent, page)"
+   },
+   {
+    "title": "次元同人",
+    "url": "= catUrl(8, vars.status, vars.sort, vars.words, vars.recent, page)"
+   },
+   {
+    "title": "排行"
+   },
+   {
+    "title": "人气榜",
+    "url": "https://book.washai.net/book/book_ranking.html?type=0",
+    "list": "#bookRankList .rankCard",
+    "fields": {
+     "name": ".rankCardTitle a@text",
+     "bookUrl": ".rankCardTitle a@href",
+     "author": ".rankCardAuthor a@text",
+     "kind": ".rankCoverCat@text",
+     "intro": ".rankCardDesc@text",
+     "updateTime": ".rankCardTime@text",
+     "coverUrl": ".rankCardCoverLink img@src",
+     "status": ".rankCardMeta@text##^\\s*([^ ·]+).*##$1",
+     "wordCount": ".rankCardMeta@text##^[^·]*· ?(.*)$##$1"
+    }
+   },
+   {
+    "title": "新书榜",
+    "url": "https://book.washai.net/book/book_ranking.html?type=1",
+    "list": "#bookRankList .rankCard",
+    "fields": {
+     "name": ".rankCardTitle a@text",
+     "bookUrl": ".rankCardTitle a@href",
+     "author": ".rankCardAuthor a@text",
+     "kind": ".rankCoverCat@text",
+     "intro": ".rankCardDesc@text",
+     "updateTime": ".rankCardTime@text",
+     "coverUrl": ".rankCardCoverLink img@src",
+     "status": ".rankCardMeta@text##^\\s*([^ ·]+).*##$1",
+     "wordCount": ".rankCardMeta@text##^[^·]*· ?(.*)$##$1"
+    }
+   },
+   {
+    "title": "更新榜",
+    "url": "https://book.washai.net/book/book_ranking.html?type=2",
+    "list": "#bookRankList .rankCard",
+    "fields": {
+     "name": ".rankCardTitle a@text",
+     "bookUrl": ".rankCardTitle a@href",
+     "author": ".rankCardAuthor a@text",
+     "kind": ".rankCoverCat@text",
+     "intro": ".rankCardDesc@text",
+     "updateTime": ".rankCardTime@text",
+     "coverUrl": ".rankCardCoverLink img@src",
+     "status": ".rankCardMeta@text##^\\s*([^ ·]+).*##$1",
+     "wordCount": ".rankCardMeta@text##^[^·]*· ?(.*)$##$1"
+    }
+   },
+   {
+    "title": "评论榜",
+    "url": "https://book.washai.net/book/book_ranking.html?type=3",
+    "list": "#bookRankList .rankCard",
+    "fields": {
+     "name": ".rankCardTitle a@text",
+     "bookUrl": ".rankCardTitle a@href",
+     "author": ".rankCardAuthor a@text",
+     "kind": ".rankCoverCat@text",
+     "intro": ".rankCardDesc@text",
+     "updateTime": ".rankCardTime@text",
+     "coverUrl": ".rankCardCoverLink img@src",
+     "status": ".rankCardMeta@text##^\\s*([^ ·]+).*##$1",
+     "wordCount": ".rankCardMeta@text##^[^·]*· ?(.*)$##$1"
+    }
+   }
+  ],
+  "list": "#bookList .classBookCard",
+  "fields": {
+   "name": ".classBookTitle a@text",
+   "bookUrl": ".classBookTitle a@href",
+   "author": ".classBookAuthor a@text",
+   "kind": ".classCoverCat@text",
+   "intro": ".classBookDesc@text",
+   "lastChapter": ".classBookChapter a@text",
+   "updateTime": ".classBookTime@text",
+   "coverUrl": ".classBookCoverLink img@src",
+   "status": ".classBookMeta@text##^\\s*([^ ·]+).*##$1",
+   "wordCount": ".classBookMeta@text##^[^·]*· ?(.*)$##$1"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "#bookName@text",
+   "author": "#bookAuthor@text",
+   "kind": "#bookCatBadge@text",
+   "coverUrl": "#bookCoverImg@src",
+   "intro": "script[type='application/ld+json'].0@text##^[\\s\\S]*?\"description\":\"(.*?)\",\"image\"[\\s\\S]*$##$1",
+   "status": "#bookStatus@text",
+   "wordCount": "#bookWordCount@text",
+   "updateTime": "#bookLastUpdateTime@text",
+   "lastChapter": "#lastIndexLink@text",
+   "tocUrl": "#allIndexLink@href"
+  }
+ },
+ "toc": {
+  "url": "= book.tocUrl ? book.tocUrl : replace(book.bookUrl, '/book/([0-9]+)\\\\.html', '/book/indexList-$1.html')",
+  "list": "#bookIndexList > li",
+  "fields": {
+   "title": "a@text##\\s*\\[(免费|VIP|收费)\\]\\s*$##",
+   "url": "a@href",
+   "isVip": "= false"
+  },
+  "nextUrl": "#indexPager a.pgBtn:contains(下一页)@href",
+  "batch": 4
+ },
+ "content": {
+  "text": "#showReading p@text",
+  "replace": [
+   {
+    "pattern": "^\\s*$",
+    "with": "",
+    "flags": "gm"
+   }
+  ]
+ },
+ "js": "function catUrl(c, st, so, wd, up, pg) {\n  var u = '/book/bookclass.html?c=' + c + '&page=' + pg;\n  if (st === '连载') u += '&bookStatus=0';\n  else if (st === '完结') u += '&bookStatus=1';\n  if (wd === '30万以下') u += '&wordCountMax=300000';\n  else if (wd === '30-50万') u += '&wordCountMin=300000&wordCountMax=500000';\n  else if (wd === '50-100万') u += '&wordCountMin=500000&wordCountMax=1000000';\n  else if (wd === '100万以上') u += '&wordCountMin=1000000&wordCountMax=999999999';\n  if (up === '三日内') u += '&updatePeriod=3';\n  else if (up === '七日内') u += '&updatePeriod=7';\n  else if (up === '半月内') u += '&updatePeriod=15';\n  else if (up === '一月内') u += '&updatePeriod=30';\n  if (so === '人气') u += '&sort=visit_count';\n  else if (so === '字数') u += '&sort=word_count';\n  else if (so === '更新') u += '&sort=last_index_update_time';\n  return 'https://book.washai.net' + u;\n}",
+ "vars": [
+  {
+   "key": "status",
+   "label": "状态",
+   "options": [
+    "不限",
+    "连载",
+    "完结"
+   ],
+   "default": "不限",
+   "filter": true
+  },
+  {
+   "key": "sort",
+   "label": "排序",
+   "options": [
+    "默认",
+    "人气",
+    "字数",
+    "更新"
+   ],
+   "default": "默认",
+   "filter": true
+  },
+  {
+   "key": "words",
+   "label": "字数",
+   "options": [
+    "不限",
+    "30万以下",
+    "30-50万",
+    "50-100万",
+    "100万以上"
+   ],
+   "default": "不限",
+   "filter": true
+  },
+  {
+   "key": "recent",
+   "label": "更新",
+   "options": [
+    "不限",
+    "三日内",
+    "七日内",
+    "半月内",
+    "一月内"
+   ],
+   "default": "不限",
+   "filter": true
+  }
+ ],
+ "comment": "已知限制：搜索只给前 8 本，无翻页；排行不支持状态/字数筛选（站点只有榜单类型），在排行切换顶部筛选会由宿主重载回分类，属宿主行为。验收范围：回放（引擎端到端，分类/排行/字段全对）；真机未验。维护日期：2026-11-08。",
+ "group": "渡"
+}

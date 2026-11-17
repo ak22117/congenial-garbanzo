@@ -1,0 +1,122 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "主播视频",
+ "url": "https://api.nmlfm5mav.xyz",
+ "group": "渡·影视",
+ "type": "video",
+ "rate": "20/60000",
+ "comment": "已知限制：加密网关 AES-128-ECB 十密钥轮换，首次自动注册设备账号；封面需 XOR 解码（首字节为 key）。站点域名失效时在设置里切换。验收范围：回放（封面解码已用真机站点真实字节验证：338551 字节解出 1220×686 JPEG；菜单图标已清）。真机未验。维护日期：2026-11-08。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 14; AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
+  "Origin": "= 'https://' + (vars.site || 'c3c111pd51.xyz')",
+  "Referer": "= 'https://' + (vars.site || 'c3c111pd51.xyz') + '/'"
+ },
+ "coverHeaders": {
+  "Referer": "",
+  "Origin": "",
+  "User-Agent": "Mozilla/5.0 (Linux; Android 14; AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+ },
+ "coverDecode": {
+  "script": "decodeCover"
+ },
+ "vars": [
+  {
+   "key": "server",
+   "label": "接口域名（列表打不开时先点「检测可用站点域名」）",
+   "default": "https://api.nmlfm5mav.xyz"
+  },
+  {
+   "key": "site",
+   "label": "站点域名（网页播放/检测用）",
+   "options": [
+    "c3c111pd51.xyz",
+    "ri33hepf9l.xyz",
+    "2ltkv38vf.xyz",
+    "xw5keiq1qj.xyz"
+   ],
+   "default": "c3c111pd51.xyz"
+  },
+  {
+   "key": "accessToken",
+   "label": "账号令牌（留空=自动注册）",
+   "default": ""
+  },
+  {
+   "key": "lineName",
+   "label": "播放线路",
+   "options": [
+    "国线1",
+    "国线2",
+    "国线3",
+    "国线4",
+    "海线1",
+    "海线2"
+   ],
+   "default": "国线1",
+   "filter": true
+  }
+ ],
+ "actions": [
+  {
+   "label": "打开站点首页",
+   "open": "https://{{vars.site}}/home"
+  },
+  {
+   "label": "检测可用站点域名",
+   "script": "zbCheckSite"
+  }
+ ],
+ "js": "// 封面解码：站点图片是「首字节当 XOR key，其余字节逐字节异或，丢弃首字节」\n// 签名（开发者 2026-11-06 回复）：coverDecode.script 在仅图片的沙箱里运行，入参为下载到的字节，返回图片字节\nfunction decodeCover(bytes) {\n  if (!bytes || bytes.length < 2) return bytes;\n  var key = bytes[0];\n  var out = new Uint8Array(bytes.length - 1);\n  for (var i = 1; i < bytes.length; i++) out[i - 1] = bytes[i] ^ key;\n  return out;\n}\n\n// zb 网关：AES-128-ECB(10 密钥轮换) + 设备免注册\nvar ZB_KEYS = ['6eIZ4cxM5pqzUXcF','84UZNK33cSVylz6Y','jeSWRcTwHyAKwJDB','i1hvJx9vuRt5zEBS',\n  '1Yy1KOa75R7cnmkg','4MVTQQAJlMpUIAiL','T0RVp7KIPamrtQ33','8HbPxhX6fjhhhwok',\n  'ugvseZc5Kkj8ecmV','G7i3OPcfNhBnAYpc'];\n\n// 日期格式化：纯 JS，不依赖宿主内置函数\nfunction zbDate(v) {\n  if (!v) return '';\n  var ms = Number(v);\n  if (isNaN(ms)) return String(v);\n  if (ms < 100000000000) ms = ms * 1000;\n  var d = new Date(ms);\n  if (isNaN(d.getTime())) return String(v);\n  var p = function (n) { return n < 10 ? '0' + n : '' + n; };\n  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());\n}\n\n// 32 位随机（注册 sign）：优先宿主 uuid，失败退回 Math.random\nfunction zbRand32() {\n  var s = '';\n  try { s = String(uuid()).replace(/-/g, ''); } catch (e) { s = ''; }\n  if (s.length >= 32) return s.slice(0, 32);\n  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';\n  s = '';\n  var seed = Date.now();\n  for (var i = 0; i < 32; i++) {\n    seed = (seed * 1103515245 + 12345) % 2147483647;\n    s += chars.charAt(Math.abs(seed + Math.floor(Math.random() * 64)) % 64);\n  }\n  return s;\n}\n\nfunction zbBase(ctx) {\n  var b = (ctx.vars.server || 'https://api.nmlfm5mav.xyz');\n  while (b.length && b.charAt(b.length - 1) === '/') b = b.slice(0, b.length - 1);\n  return b;\n}\nfunction zbSite(ctx) { return (ctx.vars.site || 'c3c111pd51.xyz'); }\n\n// keyName: 'body' | 'params'（不同接口用不同键，错了报 BSC10003）\nfunction zbRaw(ctx, uri, payload, method, jwt, keyName, cookie, accessToken) {\n  var t = Date.now();\n  var key = ZB_KEYS[t % 10];\n  var inner = { method: (method === 1 ? 1 : 2), uri: uri };\n  if (payload !== null && payload !== undefined) {\n    if (keyName === 'body') inner.body = payload; else inner.params = payload;\n  } else {\n    if (keyName === 'body') inner.body = null; else inner.params = null;\n  }\n  var cipher = native.encrypt('AES/ECB/PKCS5Padding', JSON.stringify(inner), key);\n  var data = native.bytesBase64(cipher);\n  var headers = { 'Content-Type': 'application/json', 'Origin': 'https://' + zbSite(ctx) };\n  if (jwt) headers['jwtToken'] = jwt;\n  if (accessToken) headers['accessToken'] = accessToken;\n  if (cookie) headers['Cookie'] = cookie;\n  var r = http.post(zbBase(ctx) + '/fast-endecode/main/request',\n    { data: data, time: t }, { headers: headers, timeout: 20000 });\n  if (!r || !r.ok) { log('zbRaw http fail: ' + uri + ' ' + (r ? r.status : 'null')); return null; }\n  var j = null;\n  try { j = r.json(); } catch (e) { j = null; }\n  if (!j || !j.data || j.time === undefined) { log('zbRaw bad body: ' + uri); return null; }\n  var plain = null;\n  try {\n    var bytes = native.decrypt('AES/ECB/PKCS5Padding', native.base64Bytes(j.data), ZB_KEYS[Number(j.time) % 10]);\n    plain = JSON.parse(native.fromBytes(bytes));\n  } catch (e2) { log('zbRaw decrypt fail: ' + uri + ' ' + e2); return null; }\n  return plain;\n}\n\n// 会话：设备免注册 → accessToken；再换 JWT；两者都缓存\nfunction zbSession(ctx) {\n  var st = { jwt: cache.get('zbJwt') || '', at: (ctx.vars.accessToken || '') || (vars.get('zbAccessToken') || '') };\n  if (st.jwt) return st;\n\n  var g = zbRaw(ctx, 'app/jwt-token', null, 1, null, 'params', '', '');\n  var gjwt = g && g.result ? g.result : '';\n\n  if (!st.at) {\n    var sign = vars.get('zbSign') || '';\n    if (!sign) { sign = zbRand32(); }\n    var reg = zbRaw(ctx, 'user/register/free', {\n      channelCode: '', key: '', osType: 'h5', sign: sign, machineCode: 'chrome',\n      version: zbSite(ctx), domain: '', verifyCode: '', uuid: ''\n    }, 2, gjwt, 'body', 'sign=' + sign, '');\n    if (reg && reg.code === '0000' && reg.result && reg.result.accessToken) {\n      st.at = reg.result.accessToken;\n      vars.set('zbSign', sign);\n      vars.set('zbAccessToken', st.at);\n    } else {\n      var why = reg ? (reg.code + ' ' + (reg.message || '')) : '接口无响应';\n      log('zb 注册失败：' + why);\n      cache.put('zbRegErr', why, 600);\n    }\n  }\n\n  if (st.at) {\n    var u = zbRaw(ctx, 'app/jwt-token', null, 1, st.at, 'params', 'accessToken=' + st.at, '');\n    if (u && u.result) st.jwt = u.result;\n  }\n  if (!st.jwt) st.jwt = gjwt;\n  if (st.jwt) cache.put('zbJwt', st.jwt, 6 * 3600);\n  return st;\n}\n\n// 业务请求：1032/1033 时先刷 JWT，再失效则重注册\nfunction zbApi(ctx, uri, payload, method, keyName) {\n  var st = zbSession(ctx);\n  var ck = st.at ? ('accessToken=' + st.at) : '';\n  var r = zbRaw(ctx, uri, payload, method, st.jwt, keyName || 'params', ck, st.at);\n  if (r && (r.code === '1032' || r.code === '1033' || r.code === '1034')) {\n    // 第一次：只刷 JWT\n    cache.put('zbJwt', '', 1);\n    st = zbSession(ctx);\n    ck = st.at ? ('accessToken=' + st.at) : '';\n    r = zbRaw(ctx, uri, payload, method, st.jwt, keyName || 'params', ck, st.at);\n    if (r && (r.code === '1032' || r.code === '1033')) {\n      // 第二次：账号令牌已失效 → 丢弃并重新注册设备账号\n      log('zb 令牌失效，重新注册：' + r.code);\n      vars.set('zbAccessToken', '');\n      cache.put('zbJwt', '', 1);\n      st = zbSession(ctx);\n      ck = st.at ? ('accessToken=' + st.at) : '';\n      r = zbRaw(ctx, uri, payload, method, st.jwt, keyName || 'params', ck, st.at);\n    }\n  }\n  return r;\n}\n\nfunction zbCfg(ctx) {\n  var c = cache.get('zbCfg');\n  if (c) return c;\n  var r = zbApi(ctx, 'config/query', {\n    groupKey: 'APP',\n    key: 'picBaseUrl,newPicBaseUrl,playLines,h5_play_line,pc_play_line,mp4Domain,registerVerify'\n  }, 1);\n  c = (r && r.result) ? r.result : {};\n  cache.put('zbCfg', c, 86400);\n  return c;\n}\nfunction zbPicBase(ctx) {\n  var c = zbCfg(ctx);\n  return c.picBaseUrl || c.newPicBaseUrl || 'https://qv1tx2.shoupingxz.com';\n}\nfunction zbPlayHost(ctx) {\n  var c = zbCfg(ctx);\n  var want = ctx.vars.lineName || '国线1';\n  var groups = [c.h5_play_line, c.pc_play_line, c.playLines];\n  for (var i = 0; i < groups.length; i++) {\n    var arr = null;\n    try { arr = JSON.parse(groups[i] || '[]'); } catch (e) { arr = null; }\n    if (!arr || !arr.length) continue;\n    for (var k = 0; k < arr.length; k++) {\n      if (arr[k] && arr[k].name === want && arr[k].line) return arr[k].line;\n    }\n    for (var m = 0; m < arr.length; m++) {\n      if (arr[m] && arr[m].line) return arr[m].line;\n    }\n  }\n  return 'https://rr.rxjhwl.com';\n}\n\nfunction zbImg(ctx, p) {\n  if (!p) return '';\n  if (String(p).indexOf('http') === 0) return p;\n  var base = zbPicBase(ctx);\n  return String(p).charAt(0) === '/' ? (base + p) : (base + '/' + p);\n}\n\n// 列表项 → 书籍\nfunction zbBook(ctx, v) {\n  var id = v.id || v.vodId || '';\n  var kind = '';\n  var tags = v.tags || [];\n  if (tags && tags.length) kind = tags.slice(0, 5).join(',');\n  if (v.vodDuration) kind = (kind ? kind + ' · ' : '') + Math.round(Number(v.vodDuration) / 60) + '分钟';\n  if (v.readNumber) kind += ' · 👀' + v.readNumber;\n  var author = '';\n  if (v.authors && v.authors.nickName) author = v.authors.nickName;\n  else if (v.authorName) author = v.authorName;\n  var introParts = [];\n  if (author) introParts.push('作者：' + author);\n  if (v.group_names) introParts.push('分类：' + (v.group_names.length > 30 ? v.group_names.slice(0, 30) : v.group_names));\n  if (kind) introParts.push(kind);\n  if (v.vodVersion) introParts.push('清晰度：' + v.vodVersion);\n  if (v.comments) introParts.push('评论 ' + v.comments);\n  return {\n    name: v.title || ('视频 ' + id),\n    bookUrl: zbBase(ctx) + '/cms/vod/detail/' + id,\n    coverUrl: zbImg(ctx, v.vodPic || v.vodPicInfo || v.gif || ''),\n    kind: kind,\n    intro: v.description || introParts.join(' · '),\n    author: author,\n    lastChapter: (v.createTime || v.vodTime) ? zbDate(v.createTime || v.vodTime) : '',\n    type: 'video'\n  };\n}\n\nfunction zbBooks(ctx, r) {\n  var out = [];\n  if (!r || !r.data) return out;\n  var arr = r.data;\n  for (var i = 0; i < arr.length; i++) {\n    var b = zbBook(ctx, arr[i] || {});\n    if (b.name && b.bookUrl) out.push(b);\n  }\n  return out;\n}\n\nfunction zbId(url) {\n  var m = String(url || '').match(/(\\d+)\\s*$/);\n  return m ? m[1] : '';\n}\n\n// ---------- 阶段函数 ----------\n// 标签（采样 Top，标签即关键词，命中 20 万+）\nvar ZB_TAGS = ['诱惑', '挑逗', '骚货', '骚逼', '丝袜', '学生', '自拍', '口交', '后入', '巨乳', '素人', '制服'];\n\nfunction zbClip(t, n) {\n  t = String(t || '');\n  return t.length > n ? t.slice(0, n) + '…' : t;\n}\n\nfunction zbMenus(ctx) {\n  var out = [\n    { title: '热门' },\n    { title: '推荐', url: 'rec' },\n    { title: '最新', url: 'new' },\n    { title: '排行榜', url: 'rank' }\n  ];\n\n  // 五大分类组全部展开（国产/日韩/欧美/其他），每组一个可折叠分组\n  var packs = cache.get('zbPacks');\n  if (!packs || !packs.length) {\n    var r = zbApi(ctx, 'cms/group-in-packages', null, 1);\n    packs = (r && r.data) ? r.data : [];\n    if (packs.length) cache.put('zbPacks', packs, 86400);\n  }\n    for (var i = 0; i < packs.length; i++) {\n    var p = packs[i] || {};\n    var gs = p.groups || [];\n    if (!gs.length) continue;\n    out.push({ title: (p.name || '分类') });\n    for (var k = 0; k < gs.length; k++) {\n      var g = gs[k] || {};\n      if (!g.id) continue;\n      out.push({ title: g.groupName || ('分类' + g.id), url: 'g:' + g.id });\n    }\n  }\n\n  // 专题（站点 theme/all，29 个）\n  var themes = cache.get('zbThemes');\n  if (!themes) {\n    var tr = zbApi(ctx, 'theme/all', null, 2);\n    themes = (tr && tr.data) ? tr.data : [];\n    if (themes.length) cache.put('zbThemes', themes, 86400);\n  }\n  if (themes.length) {\n    out.push({ title: '专题' });\n    var tmax = themes.length > 16 ? 16 : themes.length;\n    for (var t = 0; t < tmax; t++) {\n      var th = themes[t] || {};\n      if (!th.id) continue;\n      out.push({ title: zbClip(th.title, 10), url: 'th:' + th.id });\n    }\n  }\n\n  // 标签\n  out.push({ title: '标签' });\n  for (var g2 = 0; g2 < ZB_TAGS.length; g2++) {\n    out.push({ title: ZB_TAGS[g2], url: 't:' + ZB_TAGS[g2] });\n  }\n  return out;\n}\n\nfunction zbExplore(ctx) {\n  var u = ctx.url || '';\n  var page = ctx.page || 1;\n  var SIZE = 24;\n  var params;\n  if (u === 'rank') {\n    // 按播放量排序（排行榜）\n    params = { page: page, pageSize: SIZE, sortType: 3 };\n  } else if (u === 'new') {\n    // 最新池\n    params = { page: page, pageSize: SIZE, sortType: 2, explore: true };\n  } else if (u.indexOf('g:') === 0) {\n    params = { page: page, pageSize: SIZE, groupIds: Number(u.slice(2)) };\n  } else if (u.indexOf('th:') === 0) {\n    // 专题（theme/all 的 id）\n    params = { page: page, pageSize: SIZE, themeIds: Number(u.slice(3)) };\n  } else if (u.indexOf('s:') === 0 || u.indexOf('t:') === 0) {\n    params = { page: page, pageSize: SIZE, keyword: u.slice(2) };\n  } else {\n    // rec / 默认：推荐流\n    params = { page: page, pageSize: SIZE, sortType: 2, explore: false };\n  }\n  return zbBooks(ctx, zbApi(ctx, 'cms/vod/search', params, 2));\n}\n\nfunction zbSearch(ctx) {\n  var r = zbApi(ctx, 'cms/vod/search', { page: ctx.page, pageSize: 24, keyword: ctx.key }, 2);\n  return zbBooks(ctx, r);\n}\n\nfunction zbDetailData(ctx, id) {\n  return zbApi(ctx, 'cms/vod/detail/' + id, { needCdnAuth: true }, 1);\n}\n\nfunction zbDetail(ctx) {\n  var id = zbId(ctx.book.bookUrl);\n  var r = zbDetailData(ctx, id);\n  var vod = (r && r.result && r.result.vod) ? r.result.vod : null;\n  if (!vod) return { name: ctx.book.name, mediaErrorBase: '详情接口没有返回数据' };\n  var play = (vod.vodFullPlayUrl && vod.vodFullPlayUrl[0]) ? vod.vodFullPlayUrl[0] : {};\n  var host = zbPlayHost(ctx);\n  var full = (play.addr ? (host + play.addr) : '');\n  if (full) keep('zbPlayUrl', full);\n  keep('zbVodId', String(vod.id || id));\n  var b = zbBook(ctx, vod);\n  b.name = vod.title || ctx.book.name;\n  b.intro = vod.description || (b.intro || '');\n  b.kind = (vod.tags || []).join(',');\n  b.coverUrl = zbImg(ctx, vod.vodPic || vod.gif || '');\n  return b;\n}\n\nfunction zbToc(ctx) {\n  var id = zbId(ctx.book.bookUrl);\n  var name = ctx.book.name || '正片';\n  return [{ title: (name.length > 30 ? name.slice(0, 30) + '…' : name), url: ctx.book.bookUrl }];\n}\n\nfunction zbContent(ctx) {\n  var id = zbId(ctx.chapter.url) || zbId(ctx.book.bookUrl);\n  var cached = (ctx.book && ctx.book.vars && ctx.book.vars.zbPlayUrl) ? ctx.book.vars.zbPlayUrl : '';\n  var r = zbDetailData(ctx, id);\n  var vod = (r && r.result && r.result.vod) ? r.result.vod : null;\n  var addr = '';\n  if (vod && vod.vodFullPlayUrl && vod.vodFullPlayUrl[0]) addr = vod.vodFullPlayUrl[0].addr || '';\n  var host = zbPlayHost(ctx);\n  var url = addr ? (host + addr) : cached;\n  if (!url) {\n    var regErr = cache.get('zbRegErr') || '';\n    var why = r && r.code && r.code !== '0000' ? ('接口返回 ' + r.code + ' ' + (r.message || '')) : '没有取到播放地址';\n    if (r && (r.code === '1032' || r.code === '1033' || r.code === '1034')) {\n      why += '（需要账号令牌：自动注册失败' + (regErr ? '，' + regErr : '') + '；可在书源设置里填 accessToken）';\n    }\n    return { mediaError: why };\n  }\n  var site = zbSite(ctx);\n  var vid = (vod && vod.id) ? vod.id : id;\n  return { video: url, videoPage: 'https://' + site + '/vod/' + vid, mediaError: '' };\n}\n\nfunction zbCheckSite(ctx) {\n  var list = ['c3c111pd51.xyz', 'ri33hepf9l.xyz', '2ltkv38vf.xyz', 'xw5keiq1qj.xyz', ctx.vars.site || ''];\n  var ok = [];\n  for (var i = 0; i < list.length; i++) {\n    var d = list[i];\n    if (!d || ok.indexOf(d) > -1) continue;\n    try {\n      var r = http.get('https://' + d + '/home', { timeout: 8000 });\n      if (r && r.ok && String(r.body || '').indexOf('<div id=\"app\">') > -1) ok.push(d);\n    } catch (e) { log('检测失败 ' + d + '：' + e); }\n  }\n  if (!ok.length) return '候选域名都不可用；请从推广页 config/down 拿新域名后填进「站点域名」';\n  return '可用站点：' + ok.join(' / ') + '（默认优先用第一个，可在设置里切换）';\n}\n\n",
+ "search": {
+  "script": "zbSearch",
+  "fields": {
+   "name": "$.name",
+   "bookUrl": "$.bookUrl",
+   "coverUrl": "$.coverUrl",
+   "intro": "$.intro",
+   "kind": "$.kind",
+   "author": "$.author",
+   "lastChapter": "$.lastChapter",
+   "updateTime": "$.updateTime",
+   "type": "$.type"
+  }
+ },
+ "explore": {
+  "dynamicMenus": {
+   "script": "zbMenus"
+  },
+  "script": "zbExplore",
+  "fields": {
+   "name": "$.name",
+   "bookUrl": "$.bookUrl",
+   "coverUrl": "$.coverUrl",
+   "intro": "$.intro",
+   "kind": "$.kind",
+   "author": "$.author",
+   "lastChapter": "$.lastChapter",
+   "updateTime": "$.updateTime",
+   "type": "$.type"
+  }
+ },
+ "detail": {
+  "script": "zbDetail",
+  "fields": {
+   "name": "$.name",
+   "bookUrl": "$.bookUrl",
+   "coverUrl": "$.coverUrl",
+   "intro": "$.intro",
+   "kind": "$.kind",
+   "author": "$.author",
+   "lastChapter": "$.lastChapter",
+   "updateTime": "$.updateTime",
+   "type": "$.type"
+  }
+ },
+ "toc": {
+  "script": "zbToc"
+ },
+ "content": {
+  "script": "zbContent"
+ }
+}

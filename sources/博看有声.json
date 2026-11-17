@@ -1,0 +1,130 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "博看有声",
+ "url": "https://voicewk.bookan.com.cn",
+ "group": "渡·听书",
+ "type": "audio",
+ "comment": "博看有声（bookan.com.cn）原生版 · 听书（图书馆数字资源）。搜索走 es.bookan.com.cn/api/v3/voice/book（instanceId=25304）；发现页保留「图书」分组 17 个菜单（实测各 24 条）。专辑分组（/voice/album/list?category_id=4..19）实测恒为 0 条，换主机与参数均已试过，属站点侧该实例无数据，已移除。详情走 api.bookan.com.cn/voice/album/units?album_id=&page=1&num=1&order=2（order=2 倒序，首条即最后一章，用于 lastChapter），目录再由 tocUrl 指回 order=1 的完整分页地址；之所以不用 /voice/album/info（它带 extra.author 与 tag），是因为原生详情阶段只能发一个请求，二者不可兼得。目录走 /voice/album/units?album_id=&page=&num=&order=1（章节名 title、音频地址 file，实测 http audio.bookan.com.cn/*.m4a 返回 200 可播），分页用 current_page/last_page。章节数只在 info 与 units 接口里有值，搜索接口的 total 恒为 0，故「共N章」以详情为准。简介多数书籍站点未提供（实测发现页 0/24、搜索 5/20 有值），非规则问题。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+  "Referer": "https://voicewk.bookan.com.cn/"
+ },
+ "lib": "// 博看有声 · 原生\n// 从详情地址 https://api.bookan.com.cn/voice/album/units?album_id=<id>&... 取回专辑 id\nfn bkAid(u) {\n  return str(match(str(u), 'album_id=([0-9]+)', 1))\n}\n// 目录分页：current_page < last_page 时把地址里的 page 加一\nfn bkNext(bu, cur, last) {\n  let c = int(str(cur), 1)\n  let t = int(str(last), 1)\n  if (c >= t) { return '' }\n  return replace(str(bu), 'page=[0-9]+', 'page=' + str(c + 1))\n}",
+ "search": {
+  "url": "https://es.bookan.com.cn/api/v3/voice/book?instanceId=25304&keyword={{urlencode(key)}}&pageNum={{page}}&limitNum=20",
+  "list": "$.data.list[*]",
+  "fields": {
+   "name": "$.name",
+   "author": "$.extra.author",
+   "coverUrl": "$.cover",
+   "intro": "$.intro",
+   "status": "= $.total ? '共' + str($.total) + '章' : ''",
+   "bookUrl": "https://api.bookan.com.cn/voice/album/units?album_id={{$.id}}&page=1&num=20&order=1"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "图书"
+   },
+   {
+    "title": "经典必读",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1314&num=24"
+   },
+   {
+    "title": "国学经典",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1320&num=24"
+   },
+   {
+    "title": "文学文艺",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1306&num=24"
+   },
+   {
+    "title": "少年读物",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1305&num=24"
+   },
+   {
+    "title": "儿童文学",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1304&num=24"
+   },
+   {
+    "title": "心理哲学",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1310&num=24"
+   },
+   {
+    "title": "育儿心经",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1309&num=24"
+   },
+   {
+    "title": "家庭健康",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1311&num=24"
+   },
+   {
+    "title": "青春励志",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1307&num=24"
+   },
+   {
+    "title": "历史小说",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1312&num=24"
+   },
+   {
+    "title": "商业财经",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1315&num=24"
+   },
+   {
+    "title": "科技科普",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1313&num=24"
+   },
+   {
+    "title": "故事会",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1303&num=24"
+   },
+   {
+    "title": "红色岁月",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1316&num=24"
+   },
+   {
+    "title": "社会观察",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1318&num=24"
+   },
+   {
+    "title": "音乐戏曲",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1317&num=24"
+   },
+   {
+    "title": "相声评书",
+    "url": "https://api.bookan.com.cn/voice/book/list?instance_id=25304&page={{page}}&category_id=1319&num=24"
+   }
+  ],
+  "list": "$.data.list[*]",
+  "fields": {
+   "name": "$.name",
+   "author": "$.extra.author",
+   "coverUrl": "$.cover",
+   "intro": "$.intro",
+   "status": "= $.total ? '共' + str($.total) + '章' : ''",
+   "bookUrl": "https://api.bookan.com.cn/voice/album/units?album_id={{$.id}}&page=1&num=20&order=1"
+  }
+ },
+ "toc": {
+  "list": "$.data.list[*]",
+  "fields": {
+   "title": "$.title",
+   "url": "$.file"
+  },
+  "nextUrl": "= bkNext(baseUrl, data.data.current_page, data.data.last_page)"
+ },
+ "content": {
+  "url": "= ''",
+  "audio": "= chapter.url"
+ },
+ "detail": {
+  "url": "https://api.bookan.com.cn/voice/album/units?album_id={{bkAid(book.bookUrl)}}&page=1&num=1&order=2",
+  "tocUrl": "= book.bookUrl",
+  "fields": {
+   "lastChapter": "$.data.list[0].title",
+   "status": "= $.data.total ? '共' + str($.data.total) + '章' : ''"
+  }
+ }
+}

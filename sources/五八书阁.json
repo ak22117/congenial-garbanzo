@@ -1,0 +1,150 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "五八书阁",
+ "url": "http://m.5859ycdh.com",
+ "group": "渡",
+ "comment": "2026-10-17 由 Legado 兼容书源改写为原生书源。2026-10-17 二次校对：content.text 加 htmlDecode 解码实体（原文本带 &#x8F6C;&#x7801; 这类实体），replace 四条全部补 flags:g，并加一条清章末「如果被…」残句。只做结构改写，未在轻页真机验证。发现分类翻页依赖站点 ?page= 参数，实测该站分页存在随机化（同页两次返回不同条目、越界页码不返回空页），翻到列表耗尽前可能出现重复项。",
+ "type": "text",
+ "vars": [
+  {
+   "key": "mobile",
+   "label": "移动端域名",
+   "default": "http://m.5859ycdh.com"
+  }
+ ],
+ "explore": {
+  "menus": [
+   {
+    "title": "书库"
+   },
+   {
+    "title": "完本",
+    "url": "{{vars.mobile}}/full.php?page={{page}}"
+   },
+   {
+    "title": "书库",
+    "url": "{{vars.mobile}}/all/index.php?page={{page}}"
+   },
+   {
+    "title": "分类"
+   },
+   {
+    "title": "玄幻奇幻",
+    "url": "{{vars.mobile}}/wuba139/?page={{page}}"
+   },
+   {
+    "title": "仙侠武侠",
+    "url": "{{vars.mobile}}/wuba131/?page={{page}}"
+   },
+   {
+    "title": "灵异悬疑",
+    "url": "{{vars.mobile}}/wuba132/?page={{page}}"
+   },
+   {
+    "title": "历史军事",
+    "url": "{{vars.mobile}}/wuba133/?page={{page}}"
+   },
+   {
+    "title": "女生言情",
+    "url": "{{vars.mobile}}/wuba134/?page={{page}}"
+   },
+   {
+    "title": "游戏竞技",
+    "url": "{{vars.mobile}}/wuba135/?page={{page}}"
+   },
+   {
+    "title": "都市重生",
+    "url": "{{vars.mobile}}/wuba136/?page={{page}}"
+   },
+   {
+    "title": "科幻未来",
+    "url": "{{vars.mobile}}/wuba137/?page={{page}}"
+   },
+   {
+    "title": "二次元",
+    "url": "{{vars.mobile}}/wuba138/?page={{page}}"
+   }
+  ],
+  "list": "dl.B",
+  "fields": {
+   "name": "dt a@text",
+   "author": "dd:eq(1) span:eq(0)@text##^作者：",
+   "coverUrl": "dd.imgB img@data-src||dd.imgB img@src",
+   "intro": "dd.d2@text##^简介：\\s*",
+   "lastChapter": "dd:eq(3) a@text",
+   "updateTime": "dd:eq(1) span.ml@text##^更新时间：",
+   "bookUrl": "dt a@href"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "h1@text",
+   "author": "dl.B dd:eq(1) span:eq(0)@text##^作者：",
+   "coverUrl": "dl.B dd.imgB img@src||dl.B dd.imgB img@data-src",
+   "intro": "p.e@text##^简介：\\s*",
+   "kind": "dl.B dd:eq(2) span:eq(0)@text##^类别：",
+   "status": "dl.B dd:eq(2) span.ml@text##^状态：",
+   "updateTime": "dl.B span.c@text##^更新时间：",
+   "lastChapter": "dl.B dd:eq(4) a@text",
+   "tocUrl": "a[href*='list.html']@href"
+  }
+ },
+ "toc": {
+  "list": "ul.MLlist li a",
+  "fields": {
+   "title": "@text",
+   "url": "@href"
+  }
+ },
+ "content": {
+  "text": "= htmlDecode(join(selAll('.TxtContent p@text'), '\\n'))",
+  "replace": [
+   {
+    "pattern": "^\\s*\\d{6,}\\.\\.\\s*$",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "本章[^\\n]*?继续阅读[！!]?如果被[^\\n]*$",
+    "with": "",
+    "flags": "gm"
+   },
+   {
+    "pattern": "温馨提示：亲爱的读者[\\s\\S]*$",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "五八书阁|m\\.5859ycdh\\.com",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "^.*(如果被|请退出|更换浏).*$",
+    "with": "",
+    "flags": "gm"
+   }
+  ],
+  "nextUrl": "#PageSet a:contains(下一页)@href"
+ },
+ "search": {
+  "url": "{{source.url}}/search/",
+  "method": "post",
+  "headers": {
+   "Referer": "{{source.url}}/",
+   "Content-Type": "application/x-www-form-urlencoded"
+  },
+  "body": "q={{urlencode(key)}}",
+  "list": "dl.B",
+  "fields": {
+   "name": "dt a@text",
+   "author": "dd:eq(1) span:eq(0)@text##^作者：",
+   "coverUrl": "dd.imgB img@data-src||dd.imgB img@src",
+   "intro": "dd.d2@text##^简介：\\s*",
+   "lastChapter": "dd:eq(3) a@text",
+   "updateTime": "dd:eq(1) span.ml@text##^更新时间：",
+   "bookUrl": "dt a@href"
+  }
+ }
+}

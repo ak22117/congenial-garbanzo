@@ -1,0 +1,96 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "八一中文",
+ "url": "http://www.wangshuwx.com",
+ "group": "渡",
+ "type": "text",
+ "enabled": true,
+ "enabledExplore": true,
+ "comment": "八一中文（www.wangshuwx.com，杰奇 CMS）。发现 7 分类（完本 /wanben/1_{page} 无 .html）。搜索 POST /modules/article/search.php，必须显式声明 Content-Type: application/x-www-form-urlencoded；结果行 tr#nr 共 6 列。详情分类取面包屑最后一个 a（.con_top a:eq(-1)）。列表页不给封面，tyCover 按站方路径规律推导。简介原文带 <br/>，经 @text 会变 \\n，用 tyIntro 换回 <br>（字段里不能留 \\n，否则应用会丢弃整批搜索结果）。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Referer": "http://www.wangshuwx.com/"
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "完本",
+    "url": "{{source.url}}/wanben/1_{{page}}"
+   },
+   {
+    "title": "玄幻",
+    "url": "{{source.url}}/xuanhuanxiaoshuo/1_{{page}}.html"
+   },
+   {
+    "title": "修真",
+    "url": "{{source.url}}/xiuzhenxiaoshuo/2_{{page}}.html"
+   },
+   {
+    "title": "都市",
+    "url": "{{source.url}}/dushixiaoshuo/3_{{page}}.html"
+   },
+   {
+    "title": "穿越",
+    "url": "{{source.url}}/chuanyuexiaoshuo/4_{{page}}.html"
+   },
+   {
+    "title": "网游",
+    "url": "{{source.url}}/wangyouxiaoshuo/5_{{page}}.html"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/kehuanxiaoshuo/6_{{page}}.html"
+   }
+  ],
+  "list": ".l li",
+  "fields": {
+   "name": ".s2 a@text",
+   "author": ".s5@text",
+   "lastChapter": "a:eq(1)@text",
+   "bookUrl": ".s2 a@href",
+   "coverUrl": "= tyCover(sel('.s2 a@href'))",
+   "updateTime": ".s3@text##.+\\(|\\)"
+  }
+ },
+ "search": {
+  "url": "{{source.url}}/modules/article/search.php",
+  "headers": {
+   "Content-Type": "application/x-www-form-urlencoded"
+  },
+  "body": "searchkey={{urlencode(key)}}&searchtype=articlename",
+  "list": "tr#nr",
+  "fields": {
+   "name": "td:eq(0) a@text",
+   "bookUrl": "td:eq(0) a@href",
+   "lastChapter": "td:eq(1) a@text",
+   "author": "td:eq(2)@text",
+   "wordCount": "td:eq(3)@text",
+   "updateTime": "td:eq(4)@text",
+   "status": "td:eq(5)@text",
+   "coverUrl": "= tyCover(sel('td:eq(0) a@href'))"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "#info h1@text##（.*|\\(.*|免费阅读|全文.*阅读|最新章节|笔趣阁|小说",
+   "author": "#info p:eq(0)@text##.*：",
+   "updateTime": "#info p:eq(2)@text##.+：",
+   "kind": ".con_top a:eq(-1)@text##小说",
+   "lastChapter": "#list a:eq(-1)@text",
+   "coverUrl": "#fmimg img@src",
+   "intro": "= tyIntro(sel('#intro p@text'))"
+  }
+ },
+ "toc": {
+  "list": "#list dd a",
+  "fields": {
+   "title": "text",
+   "url": "href"
+  }
+ },
+ "content": {
+  "text": "#content@html"
+ },
+ "lib": "fn tyCover(u) {\n  let s = str(u)\n  let id = match(s, '([0-9]+)/?$', 1)\n  if (id == '') { return '' }\n  let host = match(s, '^(https?://[^/]+)', 1)\n  return host + '/files/article/image/' + replace(id, '[0-9]{3}$', '') + '/' + id + '/' + id + 's.jpg'\n}\n\nfn tyIntro(t) {\n  return replace(str(t), '[\\\\r\\\\n]+', '<br>')\n}\n"
+}

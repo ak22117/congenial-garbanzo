@@ -1,0 +1,177 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "八叉书库",
+ "url": "https://bacsk.com",
+ "group": "渡",
+ "type": "text",
+ "enabled": true,
+ "enabledExplore": true,
+ "comment": "八叉书库 原生（2026-10-16 转写 + 逐阶段实测）\n· 线路：vars.site 在 bacsk.com / bacsk.cc 间切（bcshuku.net 已 522、bcsk8.xyz 连不上，已删）。\n· 正文：章节页不含正文，要从页内联参数（url/mobile/isk/novel/chapter/t/n/sign）现场取参后\n  POST /conapi.php；参数每次刷新都变 → 一章一取，用 content.fetch（实测 success:1）。\n· 目录：详情页即目录，50 章/页（?p=N）。nextUrl 用\"剩余全部目录页\"写法：从分页条 Last 链接\n  读末页号 → map(range(末页-1), i => '/novel<id>/?p=' + (i+2))，引擎每批 4 页并发（长目录约快 3 倍）。\n  ⚠ range(n) 只接一个参数，没有 range(a,b)；单页书（无 Last 链接）返回空串正常停止。\n· 搜索：只走第 1 页（站点分页依赖服务端 searchid，无法复算）。\n· 封面：站点图片全挂 img.8xsk.top，该域已死 → tyCover 把主机换成当前线路（老图能救回，新图站点侧已丢）。\n· 【第0章 2026-11-04】站点在章节列表里埋了隐藏诱饵 li（style 里 left:-99999px + overflow:hidden，带 aria-hidden=\"true\"、rel=\"nofollow\"、tabindex=\"-1\"），文字与 title 都是「第0章」，解析器不读 CSS 会当成正常章节 → toc.list 加 :not([aria-hidden]) 过滤。若目录变空说明 :not 不被支持，回退成 #list-chapter ul.list-chapter li。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "zh-CN,zh;q=0.9"
+ },
+ "vars": [
+  {
+   "key": "site",
+   "label": "线路（bacsk.com 已失效，默认走 bacsk.cc）",
+   "filter": false,
+   "default": "https://bacsk.cc",
+   "options": [
+    "https://bacsk.cc",
+    "https://bacsk.com"
+   ]
+  }
+ ],
+ "explore": {
+  "menus": [
+   {
+    "title": "八叉书库 · 官方线路"
+   },
+   {
+    "title": "最新更新",
+    "url": "{{vars.site}}/latest/{{page == 1 ? \"\" : \"index_\" + page + \".html\"}}"
+   },
+   {
+    "title": "最新入库",
+    "url": "{{vars.site}}/release/{{page == 1 ? \"\" : \"index_\" + page + \".html\"}}"
+   },
+   {
+    "title": "热门榜单",
+    "url": "{{vars.site}}/popular/{{page == 1 ? \"\" : \"index_\" + page + \".html\"}}"
+   },
+   {
+    "title": "完结全本",
+    "url": "{{vars.site}}/completed/{{page == 1 ? \"\" : \"index_\" + page + \".html\"}}"
+   },
+   {
+    "title": "长篇",
+    "url": "{{vars.site}}/booklist1/{{page - 1}}.html"
+   },
+   {
+    "title": "综合",
+    "url": "{{vars.site}}/booklist2/{{page - 1}}.html"
+   },
+   {
+    "title": "武侠",
+    "url": "{{vars.site}}/booklist3/{{page - 1}}.html"
+   },
+   {
+    "title": "历史",
+    "url": "{{vars.site}}/booklist4/{{page - 1}}.html"
+   },
+   {
+    "title": "都市",
+    "url": "{{vars.site}}/booklist5/{{page - 1}}.html"
+   },
+   {
+    "title": "玄幻",
+    "url": "{{vars.site}}/booklist6/{{page - 1}}.html"
+   },
+   {
+    "title": "女生",
+    "url": "{{vars.site}}/booklist7/{{page - 1}}.html"
+   },
+   {
+    "title": "其他",
+    "url": "{{vars.site}}/booklist8/{{page - 1}}.html"
+   },
+   {
+    "title": "现代",
+    "url": "{{vars.site}}/booklist9/{{page - 1}}.html"
+   }
+  ],
+  "list": ".home-truyendecu",
+  "fields": {
+   "name": "h3@text##^\\s*(New|Hot|推荐|置顶|连载|完结)\\s*",
+   "author": ".chuyen-muc@text##^\\d{4}-\\d{2}-\\d{2}.*",
+   "bookUrl": "a[itemprop=url]@href",
+   "coverUrl": "= tyCover(sel('img.attachment-image2@src'), vars.site)",
+   "lastChapter": ".tt-status@text##^\\s*(连载|完结)\\s*",
+   "updateTime": ".chuyen-muc@text##^(?!\\d{4}-\\d{2}-\\d{2}).*",
+   "status": ".hoan-thanh-mau@text"
+  }
+ },
+ "search": {
+  "url": "{{vars.site}}/e/search/index.php?keyboard={{urlencode(key)}}&show=title,writer,byr&searchget=1",
+  "list": ".home-truyendecu",
+  "fields": {
+   "name": "h3@text##^\\s*(New|Hot|推荐|置顶|连载|完结)\\s*",
+   "bookUrl": "a[itemprop=url]@href",
+   "coverUrl": "= tyCover(sel('img.attachment-image2@src'), vars.site)",
+   "lastChapter": ".tt-status@text##^\\s*(连载|完结)\\s*",
+   "updateTime": ".chuyen-muc@text",
+   "status": ".hoan-thanh-mau@text"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "h3.title@text",
+   "author": "[itemprop=author]@text",
+   "kind": "[itemprop=genre]@text",
+   "intro": "[itemprop=description]@text##小说介绍",
+   "coverUrl": "= tyCover(sel('meta[property=og:image]@content'), vars.site)",
+   "updateTime": "meta[property=og:novel:update_time]@content",
+   "lastChapter": "#new-chapter a:eq(0)@text"
+  }
+ },
+ "toc": {
+  "list": "#list-chapter ul.list-chapter li:not([aria-hidden])",
+  "fields": {
+   "title": ".chapter-text@text",
+   "url": "a@href"
+  },
+  "nextUrl": "= match(body, 'p=(\\\\d+)\"[^>]*>Last</a>', 1) == '' ? '' : map(range(int(match(body, 'p=(\\\\d+)\"[^>]*>Last</a>', 1)) - 1), i => '/novel' + match(body, '/novel(\\\\d+)/', 1) + '/?p=' + (i + 2))"
+ },
+ "content": {
+  "url": "{{chapter.url}}",
+  "let": {
+   "pUrl": "= match(body, '\"url\"\\s*:\\s*\"([^\"]*)\"', 1)",
+   "pMobile": "= default(match(body, '\"mobile\"\\s*:\\s*\"?([0-9]+)\"?', 1), '1')",
+   "pIsk": "= default(match(body, '\"isk\"\\s*:\\s*\"?([0-9]+)\"?', 1), '0')",
+   "pNovel": "= match(body, '\"novel\"\\s*:\\s*\"?([0-9]+)\"?', 1)",
+   "pChapter": "= match(body, '\"chapter\"\\s*:\\s*\"?([0-9]+)\"?', 1)",
+   "pT": "= match(body, '\"t\"\\s*:\\s*\"?([0-9]+)\"?', 1)",
+   "pN": "= match(body, '\"n\"\\s*:\\s*\"([^\"]*)\"', 1)",
+   "pSign": "= match(body, '\"sign\"\\s*:\\s*\"([^\"]*)\"', 1)",
+   "host": "= match(chapter.url, '^(https?://[^/]+)', 1)"
+  },
+  "fetch": {
+   "con": {
+    "when": "= pUrl != ''",
+    "url": "= host + '/conapi.php'",
+    "method": "POST",
+    "body": "= 'url=' + urlencode(pUrl) + '&mobile=' + pMobile + '&isk=' + pIsk + '&novel=' + pNovel + '&chapter=' + pChapter + '&t=' + pT + '&n=' + pN + '&sign=' + pSign",
+    "headers": {
+     "X-Requested-With": "XMLHttpRequest",
+     "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+     "Referer": "{{chapter.url}}"
+    }
+   }
+  },
+  "text": "= con.content ?? ''",
+  "replace": [
+   {
+    "pattern": "(?:请记住本站|请收藏本站|最新网址是|永久域名是|备用域名是|发布页是|最新章节请|本章未完，请点击)[^\\n]{0,40}",
+    "with": "",
+    "flags": "g"
+   }
+  ]
+ },
+ "actions": [
+  {
+   "label": "🧪 自检正文接口（示例章）",
+   "url": "https://bacsk.com/novel52748/chapter105.html",
+   "headers": {},
+   "message": "= '页面已取到，参数长度 url=' + str(len(str(match(body, '\"url\"\\s*:\\s*\"([^\"]*)\"', 1)))) + ' · sign=' + str(len(str(match(body, '\"sign\"\\s*:\\s*\"([^\"]*)\"', 1))))"
+  },
+  {
+   "label": "📖 打开当前线路首页",
+   "open": "{{vars.site}}/"
+  }
+ ],
+ "rate": "100/10000",
+ "lib": "// 封面主机归一化：站点把全部图片放在 img.8xsk.top，而该域已死（DNS/连接直接失败，实测 300ms 内 ERR）。\n// 实测部分图片在主域同路径下仍然可用（bacsk.com / bacsk.cc / 8xsk.top 都是 200），\n// 故把 img.8xsk.top 换成当前线路的主机 —— 能救回一部分；较新的图各主机均 404（站点侧已丢，无法恢复）。\nfn tyCover(u, site) {\n  let s = trim(str(u))\n  if (s == '') { return '' }\n  if (!contains(s, 'img.8xsk.top')) { return s }\n  let b = trim(str(site))\n  if (b == '' || b == 'null') { b = 'https://bacsk.cc' }\n  return replaceText(s, 'img.8xsk.top', replace(b, '^https?://', ''))\n}\n"
+}

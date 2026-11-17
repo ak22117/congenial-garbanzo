@@ -1,0 +1,114 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "七步阁",
+ "url": "https://www.qibuge.com",
+ "type": "text",
+ "group": "渡",
+ "comment": "由阅读书源「七步阁 V2」转换：搜索 POST + charset=gbk；站点限制两次搜索间隔 120 秒，命中时用 fail 提示；目录脚本取 #list 全部 dd，按最后出现排序去重。",
+ "enabled": true,
+ "enabledExplore": true,
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept-Language": "zh-CN,zh;q=0.9",
+  "Referer": "https://www.qibuge.com/"
+ },
+ "vars": [
+  {
+   "key": "base",
+   "label": "站点地址",
+   "default": "https://www.qibuge.com"
+  }
+ ],
+ "js": "function qbgToc(ctx) {\n  var r = http.get(ctx.book.tocUrl);\n  if (!r.ok) throw new Error('目录请求失败：' + (r.error || r.status));\n  var h = r.body;\n  var ts = native.selAll('@css:#list dd a@text', h);\n  var hs = native.selAll('@css:#list dd a@href', h);\n  var last = {}, map = {};\n  for (var i = 0; i < hs.length; i++) {\n    var u = hs[i];\n    if (!u) continue;\n    last[u] = i;\n    map[u] = { title: ts[i] || ('第' + (i + 1) + '章'), url: (u.indexOf('http') === 0 ? u : ('https://www.qibuge.com' + u)) };\n  }\n  var keys = Object.keys(last);\n  if (!keys.length) throw new Error('没有解析到目录');\n  keys.sort(function (a, b) { return last[a] - last[b]; });\n  var out = [];\n  for (var j = 0; j < keys.length; j++) out.push(map[keys[j]]);\n  return out;\n}",
+ "search": {
+  "url": "{{vars.base}}/search/",
+  "method": "POST",
+  "charset": "gbk",
+  "headers": {
+   "Content-Type": "application/x-www-form-urlencoded",
+   "Referer": "{{vars.base}}/",
+   "User-Agent": "Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+  },
+  "body": "searchkey={{key}}",
+  "list": ".novelslist2 li",
+  "fields": {
+   "name": ".s2 a@text",
+   "author": ".s4@text",
+   "kind": ".s1@text",
+   "lastChapter": ".s3 a@text",
+   "bookUrl": ".s2 a@href",
+   "type": "text"
+  },
+  "fail": "= contains(body, '搜索间隔') ? '站点限制：两次搜索需间隔 120 秒，请稍后再试' : (contains(body, '关键字不能少于') ? '关键字太短，请至少输入两个字' : '')"
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "同人",
+    "url": "{{vars.base}}/tongren/{{page}}.html"
+   },
+   {
+    "title": "玄幻奇幻",
+    "url": "{{vars.base}}/xuanhuan/{{page}}.html"
+   },
+   {
+    "title": "武侠仙侠",
+    "url": "{{vars.base}}/wuxia/{{page}}.html"
+   },
+   {
+    "title": "都市言情",
+    "url": "{{vars.base}}/dushi/{{page}}.html"
+   },
+   {
+    "title": "军事历史",
+    "url": "{{vars.base}}/junshi/{{page}}.html"
+   },
+   {
+    "title": "科幻网游",
+    "url": "{{vars.base}}/kehuan/{{page}}.html"
+   },
+   {
+    "title": "青春校园",
+    "url": "{{vars.base}}/xiaoyuan/{{page}}.html"
+   },
+   {
+    "title": "轻小说",
+    "url": "{{vars.base}}/qingxs/{{page}}.html"
+   },
+   {
+    "title": "女生",
+    "url": "{{vars.base}}/nvsheng/{{page}}.html"
+   }
+  ],
+  "list": "div.item",
+  "fields": {
+   "name": "dt > a@text",
+   "author": "dt > span > a@text",
+   "bookUrl": "dt > a@href",
+   "coverUrl": "div.image img@src",
+   "type": "text"
+  },
+  "charset": "gbk"
+ },
+ "detail": {
+  "fields": {
+   "name": "#info h1@text",
+   "author": "= trim(match(body, 'og:novel:author\" content=\"([^\"]*)\"', 1))",
+   "intro": "#intro@text",
+   "coverUrl": "#fmimg img@src",
+   "tocUrl": "= book.bookUrl",
+   "type": "text",
+   "kind": "= trim(match(body, 'og:novel:category\" content=\"([^\"]*)\"', 1))",
+   "status": "= trim(match(body, 'og:novel:status\" content=\"([^\"]*)\"', 1))",
+   "updateTime": "= trim(match(body, 'og:novel:update_time\" content=\"([^\"]*)\"', 1))",
+   "lastChapter": "= trim(match(body, 'og:novel:lastest_chapter_name\" content=\"([^\"]*)\"', 1))"
+  }
+ },
+ "toc": {
+  "script": "qbgToc"
+ },
+ "content": {
+  "text": "#content p@text"
+ }
+}

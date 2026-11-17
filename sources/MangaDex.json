@@ -1,0 +1,256 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "MangaDex",
+ "url": "https://api.mangadex.org",
+ "type": "comic",
+ "rate": "220",
+ "headers": {
+  "User-Agent": "Qingye-MangaDex-Source/1.0"
+ },
+ "vars": [
+  {
+   "key": "language",
+   "label": "章节语言（zh 简中优先 / zh-hk 繁中 / 无中文回退英文）",
+   "options": [
+    "zh",
+    "zh-hk",
+    "en",
+    "ja",
+    "ko",
+    "fr",
+    "es",
+    "pt-br"
+   ],
+   "default": "zh",
+   "filter": true
+  }
+ ],
+ "search": {
+  "script": "search"
+ },
+ "detail": {
+  "script": "detail"
+ },
+ "toc": {
+  "script": "toc"
+ },
+ "content": {
+  "script": "content"
+ },
+ "js": "var MD_TAGS = {\"391b0423-d847-456f-aff0-8b0cfc03066b\":\"动作\",\"87cc87cd-a395-47af-b27a-93258283bbc6\":\"冒险\",\"4d32cc48-9f00-4cca-9b5a-a839f0764984\":\"喜剧\",\"423e2eae-a7a2-4a8b-ac03-a8351462d71d\":\"爱情\",\"cdc58593-87dd-415e-bbc0-2ec27bf404cc\":\"奇幻\",\"ace04997-f6bd-436e-b261-779182193d3d\":\"异世界\",\"256c8bd9-4904-4360-bf4f-508a76d67183\":\"科幻\",\"ee968100-4191-4968-93d3-f82d72be7e46\":\"悬疑\",\"cdad7e68-1419-41dd-bdce-27753074a640\":\"恐怖\",\"07251805-a27e-4d59-b488-f0bfbec15168\":\"惊悚\",\"b9af3a63-f058-46de-a9a0-e0c13906197a\":\"剧情\",\"e5301a23-ebd9-49dd-a0cb-2add944c7fe9\":\"日常\",\"33771934-028e-4cb3-8744-691e866a923e\":\"历史\",\"69964a64-2f90-4d33-beeb-f3ed2875eb4c\":\"运动\",\"5ca48985-9a9d-4bd8-be29-80dc0303db72\":\"犯罪\",\"3b60b75c-a2d7-4860-ab56-05f391bb889c\":\"心理\",\"acc803a4-c95a-4c22-86fc-eb6b582d82a2\":\"武侠\",\"50880a9d-5440-4732-9afb-8f457127e836\":\"机甲\",\"f8f62932-27da-4fe4-8ee1-6779a8c5edba\":\"悲剧\",\"5920b825-4181-4a17-beeb-9918b0ff7a30\":\"耽美\",\"a3c67850-4684-404e-9b7f-c69850ee5da6\":\"百合\",\"0bc90acb-ccc1-44ca-a34a-b9f3a73259d0\":\"转生\",\"292e862b-2d17-4062-90a2-0356caa4ae27\":\"时间旅行\",\"caaa44eb-cd40-4177-b930-79d3ef2afe87\":\"校园\",\"a1f53773-c69a-4ce5-8cab-fffcd90b1565\":\"魔法\",\"799c202e-7daa-44eb-9cf7-8a3c0441531e\":\"武术\",\"eabc5b4c-6aff-42f3-b657-3e90cbd00b75\":\"超自然\",\"39730448-9a5f-48a2-85b0-a70db87b1233\":\"恶魔\",\"36fd93ea-e8b8-445e-b836-358f02b3d33d\":\"怪物\",\"d7d1730f-6eb0-4ba6-9437-602cac38664c\":\"吸血鬼\",\"631ef465-9aba-4afb-b0fc-ea10efe274a8\":\"丧尸\",\"5fff9cde-849c-4d78-aab0-0d52b2ee1d25\":\"生存\",\"9438db5a-7e2a-4ac0-b39e-e0d95a34b8a8\":\"电子游戏\",\"ea2bc92d-1c26-4930-9b7c-d5c0dc1b6869\":\"料理\",\"f42fbf9e-188a-447b-9fdc-f19dc1e4d685\":\"音乐\",\"92d6d951-ca5e-429c-ac78-451071cbf064\":\"职场\",\"d14322ac-4d6f-4e9b-afd9-629d5f4d8a41\":\"反派千金\",\"0234a31e-a729-4e28-9d6a-3f87c4966b9e\":\"短篇\",\"3e2b8dae-350e-4ab8-a8ce-016e844b9f0d\":\"长条漫画\",\"f5ba408b-0e7a-484d-8d49-4e9125ac96de\":\"全彩\",\"e197df38-d0e7-43b5-9b09-2842d0c326dd\":\"网络漫画\",\"b11fda93-8f1d-4bef-b2ed-8803d3733170\":\"四格\",\"f4122d1c-3b44-44d0-9936-ff7502c39ad3\":\"改编\",\"b13b2a48-c720-44a9-9c77-39c9979373fb\":\"同人志\",\"0a39b5a1-b235-4886-a747-1d05d216532d\":\"获奖\",\"2bd2e8d0-f146-434a-9b51-fc9ff2c5fe6a\":\"性转\",\"2d1f5d56-a1e5-4d0d-a961-2193588b08ec\":\"萝莉\",\"31932a7e-5b8e-49a6-9f12-2afa39dc544c\":\"传统游戏\",\"320831a8-4026-470b-94f6-8353740e6f04\":\"官方全彩\",\"3bb26d85-09d5-4d2e-880c-c34b974339e9\":\"幽灵\",\"3de8c75d-8ee3-48ff-98ee-e20a65c86451\":\"动物\",\"489dd859-9b61-4c37-af75-5b18e88daafc\":\"忍者\",\"51d83883-4103-437c-b4b1-731cb73d786c\":\"短篇集\",\"5bd0e105-4481-44ca-b6e7-7544da56b1a3\":\"乱伦\",\"65761a2a-415e-47f3-bef2-a9dababba7a6\":\"逆后宫\",\"7064a261-a137-4d3a-8848-2d385de3a99c\":\"超级英雄\",\"7b2ce280-79ef-4c09-9b58-12b7c23a9b78\":\"粉丝上色\",\"81183756-1453-4c81-aa9e-f6e1b63be016\":\"武士\",\"81c836c9-914a-4eca-981a-560dad663e73\":\"魔法少女\",\"85daba54-a71c-4554-8a28-9901a8b0afad\":\"黑帮\",\"891cf039-b895-47f0-9229-bef4c96eccd4\":\"自出版\",\"8c86611e-fab7-4986-9dec-d1a2f44acdd5\":\"虚拟现实\",\"9467335a-1b83-4497-9231-765337a00b96\":\"末世\",\"97893a4c-12af-4dac-b6be-0dffb353568e\":\"性暴力\",\"9ab53f92-3eed-4e9b-903a-917c86035ee3\":\"变装\",\"aafb99c1-7f60-43fa-b75f-fc9502ce29c7\":\"后宫\",\"ac72833b-c4e9-4878-b9db-6c8a4a99444a\":\"军事\",\"b1e97889-25b4-4258-b28b-cd7f4d28ea9b\":\"哲学\",\"b29d6a3d-1569-4e7a-8caf-7557bc92cd5d\":\"血腥\",\"c8cbe35b-1b2b-4a3f-9c37-db84c4514856\":\"医疗\",\"cb562697-929f-4d28-9d66-6d3995bf2592\":\"麻将\",\"da2d50ca-3018-4cc0-ac7a-6b7d472a29ea\":\"不良少年\",\"dd1f77c5-dea9-4e2b-97ae-224af09caf99\":\"怪物娘\",\"ddefd648-5140-4e5f-ba18-4eca4071d19b\":\"正太\",\"df33b754-73a3-4c54-80e6-1a74a8058539\":\"警察\",\"e64f6742-c834-471d-8d72-dd51fc02b835\":\"外星人\",\"fad12b5e-68ba-460e-b933-9ae8318f5b65\":\"辣妹\"};\nfunction mdRequest(url) { var last=null; for(var attempt=0; attempt<3; attempt++){ var r=http.get(url); if(r.ok){ try { return r.json(); } catch(e) { throw new Error('MangaDex 返回非 JSON 数据，可能遇到验证页面或网络问题'); } } last=r; if(r.status>=400 && r.status<500 && r.status!==429) break; } throw new Error('MangaDex 请求失败: HTTP '+(last?last.status:'?')+' '+(last?last.error:'')); }\nfunction mdPick(o) { if(!o) return ''; return o.zh || o['zh-hk'] || o.en || o.ja || o['ja-ro'] || Object.values(o)[0] || ''; }\nfunction mdTitle(m) { var a=m.attributes||{}, t=a.title||{}; if(t.zh) return t.zh; if(t['zh-hk']) return t['zh-hk']; var alts=a.altTitles||[]; for(var i=0;i<alts.length;i++){ var v=alts[i]||{}; if(v.zh) return v.zh; if(v['zh-hk']) return v['zh-hk']; } return mdPick(t); }\nfunction mdStatus(s) { var m={ongoing:'连载中',completed:'已完结',hiatus:'休刊中',cancelled:'已取消'}; return m[s] || s || ''; }\nfunction mdBook(m) { var a=m.attributes, rel=m.relationships||[], cover=rel.find(function(x){return x.type==='cover_art'}), authors=rel.filter(function(x){return x.type==='author'||x.type==='artist'}).map(function(x){return x.attributes && x.attributes.name}).filter(Boolean); return {name:mdTitle(m),author:authors.join(', '),intro:mdPick(a.description),status:mdStatus(a.status),kind:(a.tags||[]).map(function(t){return MD_TAGS[t.id] || mdPick(t.attributes.name)}).join(', '),coverUrl:cover && cover.attributes ? 'https://uploads.mangadex.org/covers/'+m.id+'/'+cover.attributes.fileName+'.512.jpg':'',bookUrl:'https://api.mangadex.org/manga/'+m.id,tocUrl:'https://api.mangadex.org/manga/'+m.id}; }\nfunction mdLangChain(ctx) { var want=String(ctx.vars.language||'zh'), out=[want]; if(want.indexOf('zh')===0){ if(out.indexOf('zh')<0) out.push('zh'); if(out.indexOf('zh-hk')<0) out.push('zh-hk'); } if(out.indexOf('en')<0) out.push('en'); return out; }\nfunction mdLangQuery(ctx) { return mdLangChain(ctx).map(function(l){return '&availableTranslatedLanguage[]='+encodeURIComponent(l)}).join(''); }\nfunction search(ctx) { var p=Math.max(1,Number(ctx.page)||1); var d=mdRequest('/manga?limit=20&offset='+((p-1)*20)+'&title='+encodeURIComponent(ctx.key)+'&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica'); return mdReadable(d.data, ctx).map(function(m) { var b=mdBook(m), key=String(ctx.key||'').toLowerCase(), names=[m.attributes.title].concat(m.attributes.altTitles||[]); for (var i=0;i<names.length;i++) { var values=Object.values(names[i]||{}); for (var k=0;k<values.length;k++) { if (key && typeof values[k]==='string' && values[k].toLowerCase().indexOf(key)>=0) { b.name=values[k]; return b; } } } return b; }); }\nfunction detail(ctx) { return mdBook(mdRequest(ctx.book.bookUrl+'?includes[]=cover_art&includes[]=author&includes[]=artist').data); }\nfunction mdFeed(base, lang, acc) { var offset=0; while(true) { var d=mdRequest(base+'/feed?limit=500&offset='+offset+'&translatedLanguage[]='+encodeURIComponent(lang)+'&order[chapter]=asc&order[volume]=asc&includes[]=scanlation_group&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica'); d.data.forEach(function(c){ var a=c.attributes; if(a.externalUrl || !a.pages) return; var n=(a.chapter==null||a.chapter==='')?null:Number(a.chapter); var chapNum=(n!=null && isFinite(n))?n:null; var ck=chapNum==null?('c:'+(a.volume||'')+'|'+String(a.chapter||'')+'|'+c.id):('n:'+String(a.chapter)); if(acc[ck]) return; acc[ck]={num:chapNum,seq:mdFeed.seq=(mdFeed.seq||0)+1,title:(a.volume?'卷'+a.volume+' ':'')+(a.chapter?'第'+a.chapter+'话 ':'')+(a.title||'')||'章节',url:'https://api.mangadex.org/at-home/server/'+c.id}; }); offset+=d.data.length; if(!d.data.length || offset>=d.total) break; if(offset>=10000) throw new Error('目录超过 API 分页上限，请缩小语言范围'); } }\nfunction toc(ctx) { var base=ctx.book.tocUrl||ctx.book.bookUrl, chain=mdLangChain(ctx), acc={}; for(var i=0;i<chain.length;i++){ mdFeed(base, chain[i], acc); if(Object.keys(acc).length>0 && chain[i]!=='zh') break; } var arr=Object.keys(acc).map(function(k){return acc[k]}); arr.sort(function(a,b){ if(a.num==null&&b.num==null) return a.seq-b.seq; if(a.num==null) return 1; if(b.num==null) return -1; if(a.num!==b.num) return a.num-b.num; return a.seq-b.seq; }); if(!arr.length) throw new Error('当前语言没有可直接阅读的章节；可能无对应翻译或仅有外链，请尝试切换章节语言'); return arr.map(function(x){return {title:x.title,url:x.url}}); }\nfunction content(ctx) { var d=mdRequest(ctx.chapter.url), c=d.chapter; return {images:c.data.map(function(f){return d.baseUrl+'/data/'+c.hash+'/'+encodeURIComponent(f)})}; }\nfunction mdExplore(ctx) { var p=Math.max(1,Number(ctx.page)||1); var u=ctx.url; return mdReadable(mdRequest(u+'&limit=20&offset='+((p-1)*20)+'&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica').data, ctx).map(mdBook); }\nfunction mdReadable(items, ctx) { if(!items.length) return []; var q=mdLangChain(ctx).map(function(l){return '&translatedLanguage[]='+encodeURIComponent(l)}).join(''); var urls=items.map(function(m){return '/manga/'+m.id+'/feed?limit=1'+q+'&includeExternalUrl=0&includeEmptyPages=0&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica';}); var ok=function(r){ try { var d=r.json(); return Array.isArray(d.data) && d.data.some(function(c){return c.attributes && !c.attributes.externalUrl && c.attributes.pages>0;}); } catch(e) { return false; } }; var first=http.all(urls,{concurrency:6,failOnPartial:false}); var good=items.map(function(){return false}); items.forEach(function(m,i){ if(ok(first[i])) good[i]=true; }); return items.filter(function(m,i){return good[i]}); }",
+ "explore": {
+  "menus": [
+   {
+    "title": "排行榜"
+   },
+   {
+    "title": "最多关注",
+    "url": "https://api.mangadex.org/manga?order[followedCount]=desc"
+   },
+   {
+    "title": "最新上架",
+    "url": "https://api.mangadex.org/manga?order[createdAt]=desc"
+   },
+   {
+    "title": "最近更新",
+    "url": "https://api.mangadex.org/manga?order[latestUploadedChapter]=desc"
+   },
+   {
+    "title": "评分最高",
+    "url": "https://api.mangadex.org/manga?order[rating]=desc"
+   },
+   {
+    "title": "题材"
+   },
+   {
+    "title": "动作",
+    "url": "https://api.mangadex.org/manga?includedTags[]=391b0423-d847-456f-aff0-8b0cfc03066b&order[followedCount]=desc"
+   },
+   {
+    "title": "冒险",
+    "url": "https://api.mangadex.org/manga?includedTags[]=87cc87cd-a395-47af-b27a-93258283bbc6&order[followedCount]=desc"
+   },
+   {
+    "title": "喜剧",
+    "url": "https://api.mangadex.org/manga?includedTags[]=4d32cc48-9f00-4cca-9b5a-a839f0764984&order[followedCount]=desc"
+   },
+   {
+    "title": "爱情",
+    "url": "https://api.mangadex.org/manga?includedTags[]=423e2eae-a7a2-4a8b-ac03-a8351462d71d&order[followedCount]=desc"
+   },
+   {
+    "title": "奇幻",
+    "url": "https://api.mangadex.org/manga?includedTags[]=cdc58593-87dd-415e-bbc0-2ec27bf404cc&order[followedCount]=desc"
+   },
+   {
+    "title": "异世界",
+    "url": "https://api.mangadex.org/manga?includedTags[]=ace04997-f6bd-436e-b261-779182193d3d&order[followedCount]=desc"
+   },
+   {
+    "title": "科幻",
+    "url": "https://api.mangadex.org/manga?includedTags[]=256c8bd9-4904-4360-bf4f-508a76d67183&order[followedCount]=desc"
+   },
+   {
+    "title": "悬疑",
+    "url": "https://api.mangadex.org/manga?includedTags[]=ee968100-4191-4968-93d3-f82d72be7e46&order[followedCount]=desc"
+   },
+   {
+    "title": "恐怖",
+    "url": "https://api.mangadex.org/manga?includedTags[]=cdad7e68-1419-41dd-bdce-27753074a640&order[followedCount]=desc"
+   },
+   {
+    "title": "惊悚",
+    "url": "https://api.mangadex.org/manga?includedTags[]=07251805-a27e-4d59-b488-f0bfbec15168&order[followedCount]=desc"
+   },
+   {
+    "title": "剧情",
+    "url": "https://api.mangadex.org/manga?includedTags[]=b9af3a63-f058-46de-a9a0-e0c13906197a&order[followedCount]=desc"
+   },
+   {
+    "title": "日常",
+    "url": "https://api.mangadex.org/manga?includedTags[]=e5301a23-ebd9-49dd-a0cb-2add944c7fe9&order[followedCount]=desc"
+   },
+   {
+    "title": "历史",
+    "url": "https://api.mangadex.org/manga?includedTags[]=33771934-028e-4cb3-8744-691e866a923e&order[followedCount]=desc"
+   },
+   {
+    "title": "运动",
+    "url": "https://api.mangadex.org/manga?includedTags[]=69964a64-2f90-4d33-beeb-f3ed2875eb4c&order[followedCount]=desc"
+   },
+   {
+    "title": "犯罪",
+    "url": "https://api.mangadex.org/manga?includedTags[]=5ca48985-9a9d-4bd8-be29-80dc0303db72&order[followedCount]=desc"
+   },
+   {
+    "title": "心理",
+    "url": "https://api.mangadex.org/manga?includedTags[]=3b60b75c-a2d7-4860-ab56-05f391bb889c&order[followedCount]=desc"
+   },
+   {
+    "title": "武侠",
+    "url": "https://api.mangadex.org/manga?includedTags[]=acc803a4-c95a-4c22-86fc-eb6b582d82a2&order[followedCount]=desc"
+   },
+   {
+    "title": "机甲",
+    "url": "https://api.mangadex.org/manga?includedTags[]=50880a9d-5440-4732-9afb-8f457127e836&order[followedCount]=desc"
+   },
+   {
+    "title": "悲剧",
+    "url": "https://api.mangadex.org/manga?includedTags[]=f8f62932-27da-4fe4-8ee1-6779a8c5edba&order[followedCount]=desc"
+   },
+   {
+    "title": "耽美",
+    "url": "https://api.mangadex.org/manga?includedTags[]=5920b825-4181-4a17-beeb-9918b0ff7a30&order[followedCount]=desc"
+   },
+   {
+    "title": "百合",
+    "url": "https://api.mangadex.org/manga?includedTags[]=a3c67850-4684-404e-9b7f-c69850ee5da6&order[followedCount]=desc"
+   },
+   {
+    "title": "主题"
+   },
+   {
+    "title": "转生",
+    "url": "https://api.mangadex.org/manga?includedTags[]=0bc90acb-ccc1-44ca-a34a-b9f3a73259d0&order[followedCount]=desc"
+   },
+   {
+    "title": "时间旅行",
+    "url": "https://api.mangadex.org/manga?includedTags[]=292e862b-2d17-4062-90a2-0356caa4ae27&order[followedCount]=desc"
+   },
+   {
+    "title": "校园",
+    "url": "https://api.mangadex.org/manga?includedTags[]=caaa44eb-cd40-4177-b930-79d3ef2afe87&order[followedCount]=desc"
+   },
+   {
+    "title": "魔法",
+    "url": "https://api.mangadex.org/manga?includedTags[]=a1f53773-c69a-4ce5-8cab-fffcd90b1565&order[followedCount]=desc"
+   },
+   {
+    "title": "武术",
+    "url": "https://api.mangadex.org/manga?includedTags[]=799c202e-7daa-44eb-9cf7-8a3c0441531e&order[followedCount]=desc"
+   },
+   {
+    "title": "超自然",
+    "url": "https://api.mangadex.org/manga?includedTags[]=eabc5b4c-6aff-42f3-b657-3e90cbd00b75&order[followedCount]=desc"
+   },
+   {
+    "title": "恶魔",
+    "url": "https://api.mangadex.org/manga?includedTags[]=39730448-9a5f-48a2-85b0-a70db87b1233&order[followedCount]=desc"
+   },
+   {
+    "title": "怪物",
+    "url": "https://api.mangadex.org/manga?includedTags[]=36fd93ea-e8b8-445e-b836-358f02b3d33d&order[followedCount]=desc"
+   },
+   {
+    "title": "吸血鬼",
+    "url": "https://api.mangadex.org/manga?includedTags[]=d7d1730f-6eb0-4ba6-9437-602cac38664c&order[followedCount]=desc"
+   },
+   {
+    "title": "丧尸",
+    "url": "https://api.mangadex.org/manga?includedTags[]=631ef465-9aba-4afb-b0fc-ea10efe274a8&order[followedCount]=desc"
+   },
+   {
+    "title": "生存",
+    "url": "https://api.mangadex.org/manga?includedTags[]=5fff9cde-849c-4d78-aab0-0d52b2ee1d25&order[followedCount]=desc"
+   },
+   {
+    "title": "电子游戏",
+    "url": "https://api.mangadex.org/manga?includedTags[]=9438db5a-7e2a-4ac0-b39e-e0d95a34b8a8&order[followedCount]=desc"
+   },
+   {
+    "title": "料理",
+    "url": "https://api.mangadex.org/manga?includedTags[]=ea2bc92d-1c26-4930-9b7c-d5c0dc1b6869&order[followedCount]=desc"
+   },
+   {
+    "title": "音乐",
+    "url": "https://api.mangadex.org/manga?includedTags[]=f42fbf9e-188a-447b-9fdc-f19dc1e4d685&order[followedCount]=desc"
+   },
+   {
+    "title": "职场",
+    "url": "https://api.mangadex.org/manga?includedTags[]=92d6d951-ca5e-429c-ac78-451071cbf064&order[followedCount]=desc"
+   },
+   {
+    "title": "反派千金",
+    "url": "https://api.mangadex.org/manga?includedTags[]=d14322ac-4d6f-4e9b-afd9-629d5f4d8a41&order[followedCount]=desc"
+   },
+   {
+    "title": "形式"
+   },
+   {
+    "title": "短篇",
+    "url": "https://api.mangadex.org/manga?includedTags[]=0234a31e-a729-4e28-9d6a-3f87c4966b9e&order[followedCount]=desc"
+   },
+   {
+    "title": "长条漫画",
+    "url": "https://api.mangadex.org/manga?includedTags[]=3e2b8dae-350e-4ab8-a8ce-016e844b9f0d&order[followedCount]=desc"
+   },
+   {
+    "title": "全彩",
+    "url": "https://api.mangadex.org/manga?includedTags[]=f5ba408b-0e7a-484d-8d49-4e9125ac96de&order[followedCount]=desc"
+   },
+   {
+    "title": "网络漫画",
+    "url": "https://api.mangadex.org/manga?includedTags[]=e197df38-d0e7-43b5-9b09-2842d0c326dd&order[followedCount]=desc"
+   },
+   {
+    "title": "四格",
+    "url": "https://api.mangadex.org/manga?includedTags[]=b11fda93-8f1d-4bef-b2ed-8803d3733170&order[followedCount]=desc"
+   },
+   {
+    "title": "改编",
+    "url": "https://api.mangadex.org/manga?includedTags[]=f4122d1c-3b44-44d0-9936-ff7502c39ad3&order[followedCount]=desc"
+   },
+   {
+    "title": "同人志",
+    "url": "https://api.mangadex.org/manga?includedTags[]=b13b2a48-c720-44a9-9c77-39c9979373fb&order[followedCount]=desc"
+   }
+  ],
+  "script": "mdExplore"
+ },
+ "scriptLimits": {
+  "requests": 40
+ },
+ "group": "渡·漫画",
+ "comment": "MangaDex 官方 API，漫画源。语言 vars 只影响「章节」和「书名优先」，搜索不带服务端语言过滤。已知限制：搜索/发现不带 availableTranslatedLanguage（实测带 filter 会 0 条，因多数作品无中文译本），改为逐本查 feed 确认有可读章节，故每页 20 本要 20 次请求，已设 scriptLimits.requests=40。中文书名来自 attributes.altTitles（title 里通常只有原文/罗马字）。验收范围：回放（真实接口：搜索「史莱姆」4 本全带中文名，validate 无错）。真机未验。维护日期：2026-11-10。"
+}
