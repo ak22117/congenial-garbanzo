@@ -1,0 +1,86 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "蘑菇影视",
+ "url": "https://moguvodw.com",
+ "group": "渡·影视",
+ "comment": "由 TVBox 爬虫「蘑菇影视」移植的原生视频源。站点为苹果CMS conch 模板：分类 /vodtype/{id}.html，搜索 /vodsearch/-------------.html?wd=，详情 /voddetail/{id}.html，选集与详情同页（目录阶段未指定 tocUrl，默认请求详情地址）。播放页 player_aaaa 的地址按 encrypt 处理：2 = base64+URL 解码，1 = URL 解码，0 = 原文。目录只取第一条线路的选集（#hl-plays-list）；站点通常有多条线路，若首条线路播不出，可在站点上换线路后重新搜索。线路地址由第三方 CDN 提供，失效时换其他条目即可。",
+ "type": "video",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml",
+  "Accept-Language": "zh-CN,zh;q=0.9"
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "电影",
+    "url": "= page > 1 ? source.url + '/vodtype/1-' + page + '.html' : source.url + '/vodtype/1.html'"
+   },
+   {
+    "title": "电视剧",
+    "url": "= page > 1 ? source.url + '/vodtype/2-' + page + '.html' : source.url + '/vodtype/2.html'"
+   },
+   {
+    "title": "综艺",
+    "url": "= page > 1 ? source.url + '/vodtype/3-' + page + '.html' : source.url + '/vodtype/3.html'"
+   },
+   {
+    "title": "动漫",
+    "url": "= page > 1 ? source.url + '/vodtype/4-' + page + '.html' : source.url + '/vodtype/4.html'"
+   },
+   {
+    "title": "短剧",
+    "url": "= page > 1 ? source.url + '/vodtype/21-' + page + '.html' : source.url + '/vodtype/21.html'"
+   },
+   {
+    "title": "记录片",
+    "url": "= page > 1 ? source.url + '/vodtype/23-' + page + '.html' : source.url + '/vodtype/23.html'"
+   }
+  ],
+  "list": "a.hl-item-thumb",
+  "fields": {
+   "name": "@title",
+   "bookUrl": "@href",
+   "coverUrl": "@data-original",
+   "status": ".remarks@text",
+   "type": "video"
+  }
+ },
+ "search": {
+  "url": "{{source.url}}/vodsearch/-------------.html?wd={{urlencode(key)}}&page={{page}}",
+  "list": "a.hl-item-thumb",
+  "fields": {
+   "name": "@title",
+   "bookUrl": "@href",
+   "coverUrl": "@data-original",
+   "status": ".remarks@text",
+   "type": "video"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": ".hl-dc-title@text",
+   "coverUrl": ".hl-dc-pic .hl-item-thumb@data-original",
+   "intro": "div[class*='blurb']@text",
+   "type": "video"
+  }
+ },
+ "toc": {
+  "list": "#hl-plays-list li a",
+  "fields": {
+   "title": "@text",
+   "url": "@href"
+  }
+ },
+ "content": {
+  "let": {
+   "d": "= json(match(body, 'player_aaaa=(\\{[\\s\\S]*?\\})</script>', 1)) ?? {}",
+   "enc": "= int(get(d, 'encrypt', 0), 0)",
+   "raw": "= get(d, 'url', '')",
+   "u": "= enc == 2 ? urldecode(unbase64(raw)) : (enc == 1 ? urldecode(raw) : raw)"
+  },
+  "video": "= startsWith(u, 'http') ? u : ''",
+  "fail": "= raw == '' ? '播放页未取到 player_aaaa（站点结构可能变化）' : ''"
+ }
+}

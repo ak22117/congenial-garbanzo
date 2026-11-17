@@ -1,0 +1,101 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "顶点小说",
+ "url": "http://www.23uswx.la",
+ "group": "渡",
+ "type": "text",
+ "comment": "顶点小说原生版。站点仅 http；书页与栏目都在镜像域 www.23uswx.la（旧 /list/N_1.html 已失效）。发现页为实测栏目：玄幻/修真/都市/穿越/网游/科幻/完本，取 #newscontent 前 30 本（站点只给前 30 输出最新章节与日期）。状态用三重判据修正站点陈旧数据；封面按书号推导；简介与正文会把站点存成字面量的换行还原。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 10; wv) AppleWebKit/537.36 Chrome/78.0.3904.108 Mobile Safari/537.36",
+  "Referer": "http://www.23uswx.la/"
+ },
+ "lib": "// 顶点小说 · 原生\nfn yxStatus(st, lc, ut) {\n  let s = trim(str(st))\n  if (test(s, '完本|完结')) { return '已完结' }\n  if (test(str(lc), '大结局|全书完|终章|完结')) { return '已完结' }\n  let y = int(substring(trim(str(ut)), 0, 4), 0)\n  let cy = int(substring(formatDate(now(), 'yyyy'), 0, 4), 0)\n  if (y > 2000 && cy - y >= 2) { return '已完结' }\n  if (test(s, '连载')) { return '连载中' }\n  return s\n}\nfn yxCover(h) {\n  let m = match(str(h), '([0-9]+)_([0-9]+)', 2)\n  if (m == null) { return '' }\n  let id = str(m)\n  return '/files/article/image/' + str(floor(int(id, 0) / 1000)) + '/' + id + '/' + id + 's.jpg'\n}\n// 站点把换行存成两个字符（反斜杠+n），用 split/join 全局还原为真换行\nfn yxFixLines(t) {\n  let bs = fromCharCode(92)\n  let nl = fromCharCode(10)\n  t = join(split(t, bs + 'r' + bs + 'n'), nl)\n  t = join(split(t, bs + 'n'), nl)\n  t = join(split(t, bs + 'r'), '')\n  t = join(split(t, fromCharCode(13)), '')\n  return t\n}\nfn yxClean(h) { return trim(yxFixLines(htmlDecode(replace(str(h), '<[^>]*>', '', 'g')))) }\n// 正文：先删 center_tip 广告块（用索引定位，避免正则转义），再解码与还原换行\nfn yxBody(h) {\n  let s = str(h)\n  let a = indexOf(s, '<div id=\"center_tip\">')\n  if (a >= 0) {\n    let b = indexOf(s, '</div>', a)\n    if (b > a) { s = substring(s, 0, a) + substring(s, b + 6, len(s)) }\n  }\n  return yxFixLines(htmlDecode(s))\n}",
+ "search": {
+  "url": "= '/modules/article/search.php?q=' + urlencode(key)",
+  "list": ".grid tr:gt(0)",
+  "fields": {
+   "name": "td:eq(0) a@text",
+   "author": "td:eq(2)@text",
+   "coverUrl": "= yxCover(sel('td:eq(0) a@href'))",
+   "lastChapter": "td:eq(1) a@text",
+   "wordCount": "td:eq(3)@text",
+   "updateTime": "td:eq(4)@text",
+   "status": "td:eq(5)@text##^\\s*完本\\s*$##已完结",
+   "bookUrl": "td:eq(0) a@href"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "玄幻小说",
+    "url": "/xuanhuanxiaoshuo/"
+   },
+   {
+    "title": "修真小说",
+    "url": "/xiuzhenxiaoshuo/"
+   },
+   {
+    "title": "都市小说",
+    "url": "/dushixiaoshuo/"
+   },
+   {
+    "title": "穿越小说",
+    "url": "/chuanyuexiaoshuo/"
+   },
+   {
+    "title": "网游小说",
+    "url": "/wangyouxiaoshuo/"
+   },
+   {
+    "title": "科幻小说",
+    "url": "/kehuanxiaoshuo/"
+   },
+   {
+    "title": "完本小说",
+    "url": "/wanben/"
+   }
+  ],
+  "list": "#newscontent li:lt(30)",
+  "fields": {
+   "name": "span.s2 a@text",
+   "author": "span.s5@text",
+   "bookUrl": "span.s2 a@href",
+   "lastChapter": "span.s3 a@text",
+   "updateTime": "span.s3@text##.*\\(([^)]*)\\)##$1",
+   "coverUrl": "= yxCover(sel('span.s2 a@href'))"
+  }
+ },
+ "detail": {
+  "let": {
+   "st": "meta[property=\"og:novel:status\"]@content",
+   "lc": "meta[property=\"og:novel:latest_chapter_name\"]@content",
+   "ut": "meta[property=\"og:novel:update_time\"]@content",
+   "c": "#fmimg img@src",
+   "raw": "#intro@html"
+  },
+  "fields": {
+   "name": "#info h1@text",
+   "author": "#info p:eq(0)@text##^作者：\\s*##",
+   "coverUrl": "= str(c)",
+   "intro": "= yxClean(raw)",
+   "status": "= yxStatus(st, lc, ut)",
+   "lastChapter": "= trim(str(lc))",
+   "wordCount": "#info@text##^[\\s\\S]*?共([0-9]+)万字[\\s\\S]*$##$1万字",
+   "updateTime": "= str(ut)"
+  }
+ },
+ "toc": {
+  "list": "#list dd",
+  "fields": {
+   "title": "a@text",
+   "url": "a@href"
+  }
+ },
+ "content": {
+  "let": {
+   "raw": "#content@html"
+  },
+  "text": "= yxBody(raw)"
+ }
+}

@@ -1,0 +1,93 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "饿狼小说",
+ "url": "http://www.elkoparts.info",
+ "group": "渡",
+ "type": "text",
+ "enabled": true,
+ "enabledExplore": true,
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+ },
+ "comment": "【站点】杰奇 CMS。原 bookSourceUrl 是 www.elkoparts.net，实测 301 跳到 .info，引擎不跟 301，故直接写 .info。【发现】7 个分类 /ksl/<1-7>/{{page}}.html，列表与搜索同构（.txt-list-row5 li 的 s1 分类/s2 书名/s3 最新章节/s4 作者/s5 时间）。【封面】站点不给列表封面，按路径规律推导验证通过：/kanshu/<a>/<b>/ → /files/article/image/<a>/<b>/<b>s.jpg（实测 4/4 全 200 image/jpeg）。【详情】og 标签没有，走 .info：h1 书名、p:eq(0) 作者、.xs-show:eq(0) 类别、:eq(1) 状态、p:eq(4) 更新、a:eq(-1) 最新章节；简介在 .xdesc（站点本身带「展开»」截断）。【目录】详情页即目录，正文列表是第 2 个 .section-box（第 1 个是只有 10 条的「最新章节」）。【目录翻页】章节多时站点用 <select> 下拉分页（实测一本 4237 章的书有 212 页），首项是书籍地址本身、其余为 index_<N>.html，nextUrl 由当前页号取下一项。【正文】#content@html，剥离 read2() 脚本。",
+ "explore": {
+  "menus": [
+   {
+    "title": "玄幻奇幻",
+    "url": "/ksl/1/{{page}}.html"
+   },
+   {
+    "title": "武侠仙侠",
+    "url": "/ksl/2/{{page}}.html"
+   },
+   {
+    "title": "都市言情",
+    "url": "/ksl/3/{{page}}.html"
+   },
+   {
+    "title": "历史军事",
+    "url": "/ksl/4/{{page}}.html"
+   },
+   {
+    "title": "网游竞技",
+    "url": "/ksl/5/{{page}}.html"
+   },
+   {
+    "title": "科幻灵异",
+    "url": "/ksl/6/{{page}}.html"
+   },
+   {
+    "title": "女生频道",
+    "url": "/ksl/7/{{page}}.html"
+   }
+  ],
+  "list": ".txt-list-row5 li",
+  "fields": {
+   "name": ".s2 a@text",
+   "author": ".s4@text",
+   "bookUrl": ".s2 a@href",
+   "kind": ".s1@text##\\[|\\]|小说",
+   "lastChapter": ".s3 a@text",
+   "updateTime": ".s5@text",
+   "coverUrl": "= tyCover(sel('.s2 a@href'), source.url)"
+  }
+ },
+ "search": {
+  "url": "/search.php?keyWord={{key}}",
+  "list": ".txt-list-row5 li",
+  "fields": {
+   "name": ".s2 a@text",
+   "author": ".s4@text",
+   "bookUrl": ".s2 a@href",
+   "kind": ".s1@text##\\[|\\]|小说",
+   "lastChapter": ".s3 a@text",
+   "updateTime": ".s5@text",
+   "coverUrl": "= tyCover(sel('.s2 a@href'), source.url)"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": ".info h1@text",
+   "author": ".info p:eq(0)@text##.+：",
+   "kind": ".info .xs-show:eq(0)@text##.+：",
+   "status": ".info .xs-show:eq(1)@text##.+：",
+   "coverUrl": "img@src",
+   "intro": ".xdesc@html##简介.",
+   "lastChapter": ".info a:eq(-1)@text",
+   "updateTime": ".info p:eq(4)@text##.+："
+  }
+ },
+ "toc": {
+  "list": ".section-box:eq(1) li a",
+  "fields": {
+   "title": "text",
+   "url": "href"
+  },
+  "nextUrl": "= tyTocPages(body, baseUrl)"
+ },
+ "content": {
+  "text": "#content@html##<script[\\s\\S]*?</script>"
+ },
+ "lib": "// 列表封面推导：/kanshu/<a>/<b>/ → /files/article/image/<a>/<b>/<b>s.jpg\nfn tyCover(u, base) {\n  let a = str(match(str(u), '/(\\\\d+)/(\\\\d+)/', 1))\n  let b = str(match(str(u), '/(\\\\d+)/(\\\\d+)/', 2))\n  if (a == '' || b == '') { return '' }\n  return str(base) + '/files/article/image/' + a + '/' + b + '/' + b + 's.jpg'\n}\n\n// 目录并发：站点用 <select> 把全部目录页列成 option，任何一页都列全；\n// 把整批地址交给引擎 → 每批 4 页并发，引擎自动跳过已抓过的（含当前页）。\n// 单页书只有 1 个 option → 返回空串即停止。option 是相对地址，先转绝对。\nfn tyTocPages(s, u) {\n  let all = matchAll(str(s), '<option[^>]*value=\"([^\"]*)\"', 1)\n  if (len(all) < 2) { return '' }\n  return map(all, x => absUrl(str(x), str(u)))\n}\n"
+}

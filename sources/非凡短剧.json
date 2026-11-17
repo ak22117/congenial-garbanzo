@@ -1,0 +1,114 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "非凡短剧",
+ "url": "https://cj.ffzyapi.com",
+ "type": "video",
+ "group": "渡·影视",
+ "comment": "基于苹果CMS v10 标准采集接口（ac=detail）。分类含「短剧」共约 1.98 万部 / 994 页；vod_play_url 里是可直接播放的 m3u8。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+  "Accept": "application/json,text/plain,*/*;q=0.8"
+ },
+ "js": "const SITE = 'https://cj.ffzyapi.com';\nfunction episodes(d) {\n  const arr = d && d.list ? d.list : [];\n  const it = arr.length ? arr[0] : null;\n  if (!it) return [];\n  const groups = String(it.vod_play_url || '').split('$$$');\n  let best = null;\n  let bestScore = -1;\n  for (let i = 0; i < groups.length; i++) {\n    const parts = groups[i].split('#');\n    const list = [];\n    let hls = 0;\n    for (let j = 0; j < parts.length; j++) {\n      const e = parts[j];\n      const k = e.indexOf('$');\n      if (k <= 0) continue;\n      const name = e.slice(0, k).trim();\n      const url = e.slice(k + 1).trim();\n      if (!name || !url) continue;\n      if (url.indexOf('.m3u8') >= 0) hls += 1;\n      list.push({ title: name, url: url });\n    }\n    if (!list.length) continue;\n    const score = list.length + (hls === list.length ? 100000 : (hls > 0 ? 50000 : 0));\n    if (score > bestScore) { bestScore = score; best = list; }\n  }\n  return best || [];\n}",
+ "search": {
+  "url": "{{source.url}}/api.php/provide/vod/?ac=detail&wd={{urlencode(key)}}&pg={{page}}",
+  "list": "$.list[*]",
+  "fields": {
+   "name": "$.vod_name",
+   "bookUrl": "= 'https://cj.ffzyapi.com/api.php/provide/vod/?ac=detail&ids=' + $.vod_id",
+   "coverUrl": "$.vod_pic",
+   "author": "$.vod_actor",
+   "kind": "$.type_name",
+   "intro": "$.vod_blurb",
+   "lastChapter": "$.vod_remarks",
+   "type": "video"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "短剧",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&t=36&pg={{page}}"
+   },
+   {
+    "title": "最新入库",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&pg={{page}}"
+   },
+   {
+    "title": "电影",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&t=1&pg={{page}}"
+   },
+   {
+    "title": "连续剧",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&t=2&pg={{page}}"
+   },
+   {
+    "title": "综艺",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&t=3&pg={{page}}"
+   },
+   {
+    "title": "动漫",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&t=4&pg={{page}}"
+   },
+   {
+    "title": "国产剧",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&t=13&pg={{page}}"
+   },
+   {
+    "title": "欧美剧",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&t=16&pg={{page}}"
+   },
+   {
+    "title": "韩国剧",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&t=15&pg={{page}}"
+   },
+   {
+    "title": "日本剧",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&t=22&pg={{page}}"
+   },
+   {
+    "title": "大陆综艺",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&t=25&pg={{page}}"
+   },
+   {
+    "title": "国产动漫",
+    "url": "{{source.url}}/api.php/provide/vod/?ac=detail&t=29&pg={{page}}"
+   }
+  ],
+  "list": "$.list[*]",
+  "fields": {
+   "name": "$.vod_name",
+   "bookUrl": "= 'https://cj.ffzyapi.com/api.php/provide/vod/?ac=detail&ids=' + $.vod_id",
+   "coverUrl": "$.vod_pic",
+   "author": "$.vod_actor",
+   "kind": "$.type_name",
+   "intro": "$.vod_blurb",
+   "lastChapter": "$.vod_remarks",
+   "type": "video"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "$.list[0].vod_name",
+   "coverUrl": "$.list[0].vod_pic",
+   "intro": "$.list[0].vod_blurb",
+   "author": "$.list[0].vod_actor",
+   "kind": "$.list[0].type_name",
+   "lastChapter": "$.list[0].vod_remarks",
+   "type": "video"
+  }
+ },
+ "toc": {
+  "list": "= episodes(data)",
+  "fields": {
+   "title": "$.title",
+   "url": "$.url"
+  }
+ },
+ "content": {
+  "url": "= ''",
+  "video": "= chapter.url",
+  "mediaError": "= '这一集没有播放地址'"
+ }
+}

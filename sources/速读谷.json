@@ -1,0 +1,331 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "速读谷",
+ "url": "https://www.suduguu.com",
+ "type": "text",
+ "group": "渡",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+  "Referer": "https://www.suduguu.com/"
+ },
+ "search": {
+  "url": "/i/sor.aspx?key={{urlencode(key)}}&p={{page}}",
+  "list": "div.item",
+  "fields": {
+   "name": "h3 a@text",
+   "author": "p:eq(1) a@text##^作者[:：]\\s*##",
+   "coverUrl": "img@src",
+   "kind": "p:eq(0) span:eq(1)@text",
+   "status": "p:eq(0) span:eq(0)@text",
+   "lastChapter": "ul li:eq(0) a@text",
+   "updateTime": "ul li:eq(0) i@text",
+   "bookUrl": "h3 a@href"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "排行榜",
+    "url": "/paihang/{{page}}.html"
+   },
+   {
+    "title": "完结",
+    "url": "/wanjie/{{page}}.html"
+   },
+   {
+    "title": "最新更新",
+    "url": "/zuixin/{{page}}.html"
+   },
+   {
+    "title": "都市",
+    "url": "/dushi/{{page}}.html"
+   },
+   {
+    "title": "玄幻",
+    "url": "/xuanhuan/{{page}}.html"
+   },
+   {
+    "title": "轻小说",
+    "url": "/qing/{{page}}.html"
+   },
+   {
+    "title": "仙侠",
+    "url": "/xianxia/{{page}}.html"
+   },
+   {
+    "title": "历史",
+    "url": "/lishi/{{page}}.html"
+   },
+   {
+    "title": "言情",
+    "url": "/yanqing/{{page}}.html"
+   },
+   {
+    "title": "科幻",
+    "url": "/kehuan/{{page}}.html"
+   },
+   {
+    "title": "诸天无限",
+    "url": "/zhutianwuxian/{{page}}.html"
+   },
+   {
+    "title": "奇幻",
+    "url": "/qihuan/{{page}}.html"
+   },
+   {
+    "title": "游戏",
+    "url": "/youxi/{{page}}.html"
+   },
+   {
+    "title": "悬疑",
+    "url": "/xuanyi/{{page}}.html"
+   },
+   {
+    "title": "体育",
+    "url": "/tiyu/{{page}}.html"
+   },
+   {
+    "title": "武侠",
+    "url": "/wuxia/{{page}}.html"
+   },
+   {
+    "title": "军事",
+    "url": "/junshi/{{page}}.html"
+   },
+   {
+    "title": "官场",
+    "url": "/guanchang/{{page}}.html"
+   },
+   {
+    "title": "乡村",
+    "url": "/xiangcun/{{page}}.html"
+   },
+   {
+    "title": "现实",
+    "url": "/xianshi/{{page}}.html"
+   }
+  ],
+  "list": "div.item",
+  "fields": {
+   "name": "h3 a@text",
+   "author": "p:eq(1) a@text##^作者[:：]\\s*##",
+   "coverUrl": "img@src",
+   "kind": "p:eq(0) span:eq(1)@text",
+   "status": "p:eq(0) span:eq(0)@text",
+   "lastChapter": "ul li:eq(0) a@text",
+   "bookUrl": "h3 a@href"
+  }
+ },
+ "detail": {
+  "url": "= book.bookUrl",
+  "fields": {
+   "name": "div.item h1 a@text",
+   "author": "div.item p:eq(1) a@text##^作者[:：]\\s*##",
+   "coverUrl": "div.item img@src",
+   "intro": "div.des@text##《[^》]+》无错字精校版[\\s\\S]*$##",
+   "kind": "div.item p:eq(0) span:eq(1)@text",
+   "status": "div.item p:eq(0) span:eq(0)@text",
+   "wordCount": "div.item h1 i@text",
+   "lastChapter": "div.item ul li:eq(0) a@text",
+   "updateTime": "h2#dir span@text##^更新时间[:：]\\s*##",
+   "tocUrl": "= book.bookUrl"
+  },
+  "fail": "= trim(sel('h2#dir@html')) == '' ? '书籍地址无效或已下架（没有目录区块）' : ''"
+ },
+ "toc": {
+  "url": "= book.tocUrl",
+  "list": "div#list li",
+  "fields": {
+   "title": "a@text",
+   "url": "a@href"
+  },
+  "nextUrl": "= len(selAll('div#pages option')) > 1 ? map(range(len(selAll('div#pages option')) - 1), i => absUrl('p-' + (i + 2) + '.html')) : ''",
+  "fail": "= len(selAll('div#list li')) == 0 ? '没取到目录：详情页里的 div#list 为空' : ''"
+ },
+ "content": {
+  "url": "= chapter.url",
+  "text": "= trim(sudBody(sel('div.con@text', body), chapter.title))",
+  "nextUrl": "= sudNext(body, baseUrl)",
+  "fail": "= trim(sel('div.con@text', body)) == '' ? '这一章正文为空，请从目录换一章' : ''",
+  "replace": [
+   {
+    "pattern": "\\r\\n?",
+    "with": "\n",
+    "flags": "g"
+   },
+   {
+    "pattern": "<br\\s*/?>",
+    "with": "\n",
+    "flags": "gi"
+   },
+   {
+    "pattern": "</p\\s*>",
+    "with": "\n",
+    "flags": "gi"
+   },
+   {
+    "pattern": "<[^>]+>",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "&nbsp;|&#160;",
+    "with": " ",
+    "flags": "gi"
+   },
+   {
+    "pattern": "&amp;",
+    "with": "&",
+    "flags": "gi"
+   },
+   {
+    "pattern": "&lt;",
+    "with": "<",
+    "flags": "gi"
+   },
+   {
+    "pattern": "&gt;",
+    "with": ">",
+    "flags": "gi"
+   },
+   {
+    "pattern": "&quot;",
+    "with": "\"",
+    "flags": "gi"
+   },
+   {
+    "pattern": "&#39;",
+    "with": "'",
+    "flags": "gi"
+   },
+   {
+    "pattern": "&#x?[0-9a-f]+;",
+    "with": "",
+    "flags": "gi"
+   },
+   {
+    "pattern": "[\\u200B-\\u200F\\u202A-\\u202E\\u2060\\uFEFF\\u00AD]",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "(?:请收藏本站|记住本站|记住本书|首发域名|最快更新|无弹窗|最新章节请访问|手机版阅读网址|一秒记住|加入书签)[^。！？\\n]{0,40}[。！？]?",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "https?://[^\\s，。！？；）)\\]】]+",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "www\\.[a-z0-9-]+(?:\\.[a-z]{2,6})+",
+    "with": "",
+    "flags": "gi"
+   },
+   {
+    "pattern": "(?:QQ群|书友群|微信公众号|微信号|VX)[:：]?\\s*[0-9A-Za-z_-]{4,20}",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "^(?=[^\\n]{0,60}$)[^\\n]*(?:本章未完|点击下一页继续阅读|求收藏|求推荐票|求月票|求打赏)[^\\n]*$",
+    "with": "",
+    "flags": "gm"
+   },
+   {
+    "pattern": "\\.{3,}",
+    "with": "……",
+    "flags": "g"
+   },
+   {
+    "pattern": "。{3,}",
+    "with": "……",
+    "flags": "g"
+   },
+   {
+    "pattern": "·{3,}",
+    "with": "……",
+    "flags": "g"
+   },
+   {
+    "pattern": "[—－]{2,}",
+    "with": "——",
+    "flags": "g"
+   },
+   {
+    "pattern": "([，。！？；：])\\1{1,}",
+    "with": "$1",
+    "flags": "g"
+   },
+   {
+    "pattern": "([，；：])\\s*([。！？])",
+    "with": "$2",
+    "flags": "g"
+   },
+   {
+    "pattern": "[，；：、]+$",
+    "with": "",
+    "flags": "gm"
+   },
+   {
+    "pattern": "([\\u4e00-\\u9fa5])[ \\t]+(?=[\\u4e00-\\u9fa5])",
+    "with": "$1",
+    "flags": "g"
+   },
+   {
+    "pattern": "[\\u00A0\\u3000]+",
+    "with": " ",
+    "flags": "g"
+   },
+   {
+    "pattern": "[ \\t]+$",
+    "with": "",
+    "flags": "gm"
+   },
+   {
+    "pattern": "^[ \\t]+",
+    "with": "",
+    "flags": "gm"
+   },
+   {
+    "pattern": "\\n{2,}",
+    "with": "\n",
+    "flags": "g"
+   },
+   {
+    "pattern": "^\\n+|\\n+$",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "^(?=[^\n]{0,80}$)[^\n]*(?:菜鸡萌新|求追读|求收藏|求月票|求推荐票)[^\n]*$",
+    "with": "",
+    "flags": "gm"
+   },
+   {
+    "pattern": "^\\(本章完\\)\\s*$",
+    "with": "",
+    "flags": "gm"
+   },
+   {
+    "pattern": "\n{2,}",
+    "with": "\n",
+    "flags": "g"
+   },
+   {
+    "pattern": "^\n+|\n+$",
+    "with": "",
+    "flags": "g"
+   }
+  ]
+ },
+ "lib": "fn sudBody(text, title) {\n  let lines = lines(str(text))\n  let t = trim(str(title))\n  if (len(lines) > 0 && trim(str(lines[0])) == t) { lines = slice(lines, 1) }\n  return join(lines, '\\n')\n}\n\nfn sudNext(html, base) {\n  let u = match(str(html), '<a[^>]+href=\"([^\"]+)\"[^>]*>\\s*下一页\\s*</a>', 1)\n  if (u == null) { return '' }\n  let s = str(u)\n  if (!test(s, '[-_][0-9]+\\.html$')) { return '' }\n  return s\n}",
+ "comment": "速读谷（suduguu.com）。ASP.NET 站，搜索 /i/sor.aspx?key=&p=，20 个分类。字段矩阵：搜索页有 author/coverUrl/status/kind/lastChapter/updateTime，**无 intro**（卡片 class 只有 item/itemtxt，无描述节点）；intro 仅详情页 div.des 提供。已知限制：目录 3 页（p-2/p-3.html）已用 nextUrl 生成；正文 35 条 replace 清洗链实测全部有效。验收范围：回放（真实站点：搜索「凡人」10 条作者 10/10、封面全有、详情简介·字数·时间全对、正文 622→614 字无报错）。真机未验。维护日期：2026-11-10。"
+}

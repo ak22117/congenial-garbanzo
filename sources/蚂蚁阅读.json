@@ -1,0 +1,200 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "蚂蚁阅读",
+ "url": "http://www.mayitxt.info",
+ "type": "text",
+ "enabled": true,
+ "group": "渡",
+ "comment": "Legado 兼容源「蚂蚁阅读」改写为原生。搜索/发现列表补了按书籍编号推导的封面（站点列表页不给图）；搜索单页最多 100 条（站点不支持翻页）；详情、目录、正文均为单页。个别书站点本身没有封面图（如斗破皇城），会回落到占位图。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
+  "Accept-Language": "zh-CN,zh;q=0.9"
+ },
+ "search": {
+  "url": "{{source.url}}/modules/article/search.php?q={{urlencode(key)}}&searchtype=all",
+  "list": "tbody tr",
+  "fields": {
+   "name": "a.red@text",
+   "author": "span@text",
+   "bookUrl": "a.red@href",
+   "kind": "= replaceText(replaceText(sel(\"a[href*='/sort/']@text\"), '[', ''), ']', '')",
+   "lastChapter": "a.chapter@text",
+   "updateTime": "td.4@text",
+   "status": "td.6@text",
+   "coverUrl": "= mayiCover(sel(\"a.red@href\"))"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "榜单"
+   },
+   {
+    "title": "总榜",
+    "url": "{{source.url}}/top/allvisit/{{page}}.html"
+   },
+   {
+    "title": "月榜",
+    "url": "{{source.url}}/top/monthvisit/{{page}}.html"
+   },
+   {
+    "title": "周榜",
+    "url": "{{source.url}}/top/weekvisit/{{page}}.html"
+   },
+   {
+    "title": "总推",
+    "url": "{{source.url}}/top/allvote/{{page}}.html"
+   },
+   {
+    "title": "最新",
+    "url": "{{source.url}}/top/postdate/{{page}}.html"
+   },
+   {
+    "title": "收藏",
+    "url": "{{source.url}}/top/goodnum/{{page}}.html"
+   },
+   {
+    "title": "字数",
+    "url": "{{source.url}}/top/size/{{page}}.html"
+   },
+   {
+    "title": "分类"
+   },
+   {
+    "title": "玄幻",
+    "url": "{{source.url}}/sort/1/{{page}}.html"
+   },
+   {
+    "title": "仙侠",
+    "url": "{{source.url}}/sort/2/{{page}}.html"
+   },
+   {
+    "title": "都市",
+    "url": "{{source.url}}/sort/3/{{page}}.html"
+   },
+   {
+    "title": "历史",
+    "url": "{{source.url}}/sort/4/{{page}}.html"
+   },
+   {
+    "title": "军事",
+    "url": "{{source.url}}/sort/5/{{page}}.html"
+   },
+   {
+    "title": "灵异",
+    "url": "{{source.url}}/sort/6/{{page}}.html"
+   },
+   {
+    "title": "科幻",
+    "url": "{{source.url}}/sort/7/{{page}}.html"
+   },
+   {
+    "title": "游戏",
+    "url": "{{source.url}}/sort/8/{{page}}.html"
+   },
+   {
+    "title": "现言",
+    "url": "{{source.url}}/sort/9/{{page}}.html"
+   },
+   {
+    "title": "古言",
+    "url": "{{source.url}}/sort/10/{{page}}.html"
+   },
+   {
+    "title": "穿越",
+    "url": "{{source.url}}/sort/11/{{page}}.html"
+   },
+   {
+    "title": "青春",
+    "url": "{{source.url}}/sort/12/{{page}}.html"
+   },
+   {
+    "title": "其他",
+    "url": "{{source.url}}/sort/13/{{page}}.html"
+   },
+   {
+    "title": "豪门",
+    "url": "{{source.url}}/sort/14/{{page}}.html"
+   },
+   {
+    "title": "耽美",
+    "url": "{{source.url}}/sort/15/{{page}}.html"
+   }
+  ],
+  "list": "tbody tr",
+  "fields": {
+   "name": "a.red@text",
+   "author": "span@text",
+   "bookUrl": "a.red@href",
+   "kind": "= replaceText(replaceText(sel(\"a[href*='/sort/']@text\"), '[', ''), ']', '')",
+   "lastChapter": "a.chapter@text",
+   "updateTime": "td.4@text",
+   "status": "td.6@text",
+   "coverUrl": "= mayiCover(sel(\"a.red@href\"))"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "#main_title h1@text",
+   "author": ".book_name i span@text",
+   "intro": "= trim(replaceText(sel('p.brief@text'), '简介：', ''))",
+   "coverUrl": "div.book_left img[src*='/files/']@src",
+   "kind": "= match(body, '_([^_]+)_蚂蚁', 1)",
+   "status": "= match(body, '简介（([^）]+)）', 1)",
+   "wordCount": "span:contains(总字数) em@text",
+   "lastChapter": ".list a@text",
+   "updateTime": ".list i@text",
+   "tocUrl": "a[href*='/showclist/']@href"
+  }
+ },
+ "toc": {
+  "list": "ul.float-list li",
+  "fields": {
+   "title": "a.name@text",
+   "url": "a@href",
+   "tag": "@createdate"
+  }
+ },
+ "content": {
+  "text": "#ChapterContents@html",
+  "replace": [
+   {
+    "pattern": "<div id=\"content_tip\">[\\s\\S]*?</div>",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "<br\\s*/?>",
+    "with": "\n",
+    "flags": "g"
+   },
+   {
+    "pattern": "<[^>]+>",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "&nbsp;",
+    "with": " ",
+    "flags": "g"
+   },
+   {
+    "pattern": "[^\\n]*(?:免费小说|请记住|最新网址|天才一秒|一秒记住|无弹窗|正在手打中|正在转码)[^\\n]*",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "[^\\n]*(?:蚂蚁阅读|mayitxt\\.(?:info|com))[^\\n]*",
+    "with": "",
+    "flags": "g"
+   },
+   {
+    "pattern": "\\n{3,}",
+    "with": "\n\n",
+    "flags": "g"
+   }
+  ]
+ },
+ "lib": "fn mayiCover(u) {\n  let id = match(str(u), 'book/(\\d+)\\.html', 1)\n  if (str(id) == '') { return '' }\n  let pre = match(str(id), '(\\d+)\\d{3}', 1)\n  if (str(pre) == '') { return '' }\n  return 'http://www.mayitxt.info/files/article/image/' + str(pre) + '/' + str(id) + '/' + str(id) + 's.jpg'\n}"
+}

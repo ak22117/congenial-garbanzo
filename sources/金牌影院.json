@@ -1,0 +1,105 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "金牌影院",
+ "url": "https://www.lwdys.com",
+ "group": "渡·影视",
+ "comment": "由 TVBox 爬虫「金牌影院(Aidianying)」移植的原生视频源（v2）。接口全部需要签名：sign = SHA1(MD5(参数串 + \"&key=站点公钥&t=毫秒时间戳\"))，时间戳同时放在请求头 t、签名放 sign；本源的 lib.sgn() 即此算法，时间戳取自顶层 let.ts（每阶段只取一次，确保头里的 t 与签名一致）。\n\nv2 修复：① 详情/目录的 id 之前取不到——分类页给出的详情地址是 /detail/{id}（不是 /vod/{id}.html），现统一按 /detail/(\\d+) 提取，搜索侧的 bookUrl 也改为同样的 /detail/{id} 形式；② detail.keep 原来写成 get(data, \"data.vodId\")，原生 get() 不支持点路径（会把 \"data.vodId\" 当成一个键名），改用 JSONPath $.data.vodId；③ 分类页卡片里的图片是站点的占位图/图标（真实海报在页面数据里，位置不稳定，硬取易错位），因此分类列表不显示封面，只显示名称与状态；搜索、详情、播放各阶段不受影响（搜索与详情的封面来自接口，正常显示）。\n\n接口：搜索 video/searchByWord、详情 video/detail（含 episodeList）、取流 v2/video/episode/url?id=&nid=。播放地址带 auth_key 时效签名，每次切集重新请求即可。",
+ "type": "video",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  "Referer": "https://www.lwdys.com/",
+  "Accept": "application/json, text/plain, */*"
+ },
+ "let": {
+  "ts": "= str(now())"
+ },
+ "lib": "fn sgn(qs, ts) {\n  return sha1(md5((qs == '' ? '' : qs + '&') + 'key=cb808529bae6b6be45ecfab29a4889bc&t=' + ts))\n}",
+ "explore": {
+  "menus": [
+   {
+    "title": "电影",
+    "url": "= source.url + '/vod/show/id/1/page/' + page"
+   },
+   {
+    "title": "电视剧",
+    "url": "= source.url + '/vod/show/id/2/page/' + page"
+   },
+   {
+    "title": "综艺",
+    "url": "= source.url + '/vod/show/id/3/page/' + page"
+   },
+   {
+    "title": "动漫",
+    "url": "= source.url + '/vod/show/id/4/page/' + page"
+   },
+   {
+    "title": "短剧",
+    "url": "= source.url + '/vod/show/id/88/page/' + page"
+   }
+  ],
+  "list": "a.content-card",
+  "fields": {
+   "name": "= trim(default(match(item, 'alt=\"([^\"]*)\"', 1), ''))",
+   "bookUrl": "@href",
+   "type": "video"
+  }
+ },
+ "search": {
+  "url": "{{source.url}}/api/mw-movie/anonymous/video/searchByWord?keyword={{urlencode(key)}}&pageNum={{page}}&pageSize=12",
+  "headers": {
+   "t": "{{ts}}",
+   "sign": "{{sgn('keyword=' + key + '&pageNum=' + page + '&pageSize=12', ts)}}"
+  },
+  "list": "$.data.result.list",
+  "fields": {
+   "name": "$.vodName",
+   "coverUrl": "$.vodPic",
+   "status": "$.vodRemarks",
+   "bookUrl": "= source.url + '/detail/' + $.vodId",
+   "type": "video"
+  }
+ },
+ "detail": {
+  "url": "= source.url + '/api/mw-movie/anonymous/video/detail?id=' + match(book.bookUrl, '/detail/([0-9]+)', 1)",
+  "headers": {
+   "t": "{{ts}}",
+   "sign": "{{sgn('id=' + match(book.bookUrl, '/detail/([0-9]+)', 1), ts)}}"
+  },
+  "fields": {
+   "name": "$.data.vodName",
+   "coverUrl": "$.data.vodPic",
+   "intro": "$.data.vodContent",
+   "kind": "$.data.typeName",
+   "status": "$.data.vodRemarks",
+   "type": "video"
+  },
+  "keep": {
+   "vodId": "$.data.vodId"
+  }
+ },
+ "toc": {
+  "url": "= source.url + '/api/mw-movie/anonymous/video/detail?id=' + book.vars.vodId",
+  "headers": {
+   "t": "{{ts}}",
+   "sign": "{{sgn('id=' + book.vars.vodId, ts)}}"
+  },
+  "list": "$.data.episodeList[*]",
+  "fields": {
+   "title": "= default(get(item, 'name', ''), '第' + get(item, 'sort', ''))",
+   "url": "= source.url + '/p/' + book.vars.vodId + '/' + get(item, 'nid', '') + '.html'"
+  }
+ },
+ "content": {
+  "url": "= source.url + '/api/mw-movie/anonymous/v2/video/episode/url?id=' + match(chapter.url, '/p/([0-9]+)/', 1) + '&nid=' + match(chapter.url, '/([0-9]+)\\.html', 1)",
+  "headers": {
+   "t": "{{ts}}",
+   "sign": "{{sgn('id=' + match(chapter.url, '/p/([0-9]+)/', 1) + '&nid=' + match(chapter.url, '/([0-9]+)\\.html', 1), ts)}}"
+  },
+  "let": {
+   "ep": "= get(get(get(data, 'data', {}), 'list', []), 0, {})"
+  },
+  "video": "= startsWith(get(ep, 'url', ''), 'http') ? get(ep, 'url') : ''",
+  "fail": "= get(data, 'code', 0) != 200 ? '接口返回：' + get(data, 'msg', '未知错误') : (startsWith(get(ep, 'url', ''), 'http') ? '' : '该线路未返回可播放地址，请换线路')"
+ }
+}

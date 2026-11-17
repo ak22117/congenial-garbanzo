@@ -1,0 +1,94 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "若雨中文",
+ "url": "http://www.3yt.info",
+ "group": "渡",
+ "type": "text",
+ "rate": "20/60000",
+ "comment": "若雨中文（3yt.info）原生版，2026-10-14 由轻页兼容源 v4 迁移。纯 CSS 选择器、无脚本，能力一致。\n· 发现页 12 个榜单（站点索引页 /Book/ShowBookTop.html 的完整清单：1总点击 2月点击 3周点击 4总推荐 5月推荐 6周推荐 7总收藏 8总字数榜 9原创点击 10新书周榜 11全本回顾榜 12入站时间），各榜 100 本、不分页；榜单 7 列 / 搜索 6 列，列位已实站核对：榜单 分类td1 书名td2 最新章td3 日期td4 作者td5 状态td6；搜索 分类td0 书名td1 最新章td2 日期td3 作者td4 状态td5。\n· 注意：书名/封面必须写 td:eq(n) a@href，写成 td a@href 会取到分类链接导致封面失效。\n· 简介：站点把换行输出成字面量 \\n（按书不同），由 lib:yxIntro 转真换行并保留句末 <br>；\n· 目录地址：详情页取 .w_200 里的 Index.shtml 链接；取不到时由书籍地址反推 /Html/Book/{id去掉末3位}/{id}/Index.shtml（放在目录阶段表达式里算，避免模板与 || / ## 混写）。\n· 正文净化含一条兜底：删除解码失败产生的 U+FFFD（“�”），避免正文出现 ��。",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36"
+ },
+ "search": {
+  "url": "{{source.url}}/book/search.aspx?searchkey={{urlencode(key)}}&SeaButton=",
+  "list": "tbody tr",
+  "fields": {
+   "name": "td:eq(1)@text",
+   "author": "td:eq(4)@text",
+   "kind": "td:eq(0)@text##小说",
+   "coverUrl": "td:eq(1) a@href##/Book/(\\d+)/.*##/DownFiles/Book/BookCover/$1.gif",
+   "lastChapter": "td:eq(2)@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+   "bookUrl": "td:eq(1) a@href",
+   "status": "td:eq(5)@text",
+   "updateTime": "td:eq(3)@text"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "新书周榜",
+    "url": "{{source.url}}/Book/ShowBookTop/10.html"
+   },
+   {
+    "title": "入站时间",
+    "url": "{{source.url}}/Book/ShowBookTop/12.html"
+   },
+   {
+    "title": "总收藏",
+    "url": "{{source.url}}/Book/ShowBookTop/7.html"
+   },
+   {
+    "title": "总点击",
+    "url": "{{source.url}}/Book/ShowBookTop/1.html"
+   }
+  ],
+  "list": "tbody tr",
+  "fields": {
+   "name": "td:eq(2)@text",
+   "author": "td:eq(5)@text",
+   "kind": "td:eq(1)@text##小说",
+   "coverUrl": "td:eq(2) a@href##/Book/(\\d+)/.*##/DownFiles/Book/BookCover/$1.gif",
+   "lastChapter": "td:eq(3)@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+   "bookUrl": "td:eq(2) a@href",
+   "status": "td:eq(6)@text",
+   "updateTime": "td:eq(4)@text"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": ".w_530 em:eq(0)@text##^\\s*|\\s*$",
+   "author": ".w_530 a:eq(0)@text##作品集",
+   "coverUrl": ".img img@src",
+   "kind": ".path a:eq(1)@text##小说",
+   "intro": "= yxIntro(it)",
+   "lastChapter": ".h_260 a:eq(0)@text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+   "wordCount": ".w_200 li:eq(1)@text##.*已完成\\s|\\s字",
+   "updateTime": ".h_260 em:eq(0)@text",
+   "tocUrl": ".w_200 a[href*='Index.shtml']@href"
+  },
+  "let": {
+   "it": ".h_260 p@text"
+  }
+ },
+ "toc": {
+  "list": "#BookText ul li a",
+  "fields": {
+   "title": "text##正文卷.|正文.|VIP卷.|默认卷.|卷_|VIP章节.|免费章节.|章节目录.|最新章节.|[\\(（【].*?[求更票谢乐发订合补加架字修Kk].*?[】）\\)]",
+   "url": "href",
+   "tag": "@title##更新时间:|更新字数.*"
+  },
+  "url": "= yxTocUrl(book.tocUrl, book.bookUrl, source.url)"
+ },
+ "content": {
+  "text": "#BookText@textNodes##(最新网址[:：]\\s*\\S+|\\u00A0+)",
+  "replace": [
+   {
+    "pattern": "�+",
+    "with": "",
+    "flags": "g"
+   }
+  ]
+ },
+ "lib": "\n// 若雨中文：目录地址兜底\n// 详情页给不出 Index.shtml 链接时，由书籍地址反推 /Html/Book/{id前n-3位}/{id}/Index.shtml\nfn yxTocUrl(toc, book, root) {\n  let t = str(toc)\n  if (t != '') { return t }\n  let b = str(book)\n  let a = match(b, '/Book/(\\d+?)(\\d{3})/', 1)\n  let c = match(b, '/Book/(\\d+?)(\\d{3})/', 2)\n  if (a == null || c == null) { return b }\n  return str(root) + '/Html/Book/' + str(a) + '/' + str(a) + str(c) + '/Index.shtml'\n}\n\n// 若雨中文：简介清理\n// 站点把换行输出成了字面量 \\n（反斜杠+n），这里转成真换行；句末仍按原规则插 <br>\nfn yxIntro(s) {\n  let t = replace(str(s), '\\\\\\\\n', '\\n', 'g')\n  t = trim(t)\n  t = replace(t, '(^|[。！？]+[\"」）】]?)', m => m[1] + '<br>', 'g')\n  return t\n}\n"
+}
