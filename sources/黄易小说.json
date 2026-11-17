@@ -1,0 +1,89 @@
+{
+ "sourceFormat": "native",
+ "version": 1,
+ "name": "黄易小说",
+ "url": "http://www.aihytd.com",
+ "group": "渡",
+ "type": "text",
+ "headers": {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36"
+ },
+ "search": {
+  "url": "{{source.url}}/search.html?name={{urlencode(key)}}",
+  "list": ".novelslist2 ul li.1:30",
+  "fields": {
+   "name": ".s2 a@text",
+   "author": ".s4@text",
+   "lastChapter": ".s3 a@text",
+   "updateTime": ".s6@text",
+   "bookUrl": ".s2 a@href",
+   "coverUrl": ".s2 a@href##.+\\D((\\d+)\\d{3})\\D##/files/article/image/$2/$1/$1s.jpg##"
+  }
+ },
+ "explore": {
+  "menus": [
+   {
+    "title": "玄幻",
+    "url": "/xuanhuan/{{page}}.html"
+   },
+   {
+    "title": "仙侠",
+    "url": "/xianxia/{{page}}.html"
+   },
+   {
+    "title": "都市",
+    "url": "/dushi/{{page}}.html"
+   },
+   {
+    "title": "军史",
+    "url": "/junshi/{{page}}.html"
+   },
+   {
+    "title": "网游",
+    "url": "/wangyou/{{page}}.html"
+   },
+   {
+    "title": "科幻",
+    "url": "/kehuan/{{page}}.html"
+   },
+   {
+    "title": "恐怖",
+    "url": "/kongbu/{{page}}.html"
+   },
+   {
+    "title": "其它",
+    "url": "/qita/{{page}}.html"
+   }
+  ],
+  "list": ".l li",
+  "fields": {
+   "name": ".s2 a@text",
+   "author": ".s4@text",
+   "lastChapter": ".s3 a@text",
+   "updateTime": ".s5@text",
+   "bookUrl": ".s2 a@href",
+   "kind": ".s1@text##^\\[|\\]|小说##",
+   "coverUrl": ".s2 a@href##.+\\D((\\d+)\\d{3})\\D##/files/article/image/$2/$1/$1s.jpg##"
+  }
+ },
+ "detail": {
+  "fields": {
+   "name": "h1@text",
+   "author": "= first(matchAll(body, '<title>[^_]*_[^_]*_([^_]*)_黄易天地', 1))",
+   "intro": "= stripHtml(first(matchAll(body, 'property=\"og:description\" content=\"([^\"]*)\"', 1)) || first(matchAll(body, '<div id=\"intro\">([\\s\\S]*?)</div>', 1)))",
+   "coverUrl": "meta[property=\"og:image\"]@content",
+   "lastChapter": "#list dd.0:1 a@text"
+  }
+ },
+ "toc": {
+  "list": "#list dd.12:99999 a",
+  "fields": {
+   "title": "a@text",
+   "url": "@href"
+  }
+ },
+ "content": {
+  "text": "#content@text##天才一秒记住[\\s\\S]*?无广告！|全文字更新.*|最新网址：.*|章节错误.*|报送后维护人员.*|正在手打中.*|《[^》]*》黄易天地##"
+ },
+ "comment": "黄易小说（www.aihytd.com）原生书源版，由同名兼容书源转换，2026-10-17 按站点实测校对。\n· 列表（发现/搜索）：.l li 与 .novelslist2 ul li（跳过表头行）。\n· 详情：书名取 h1；作者取 <title> 第三段（站点已删除 og:author / og:category / og:latest_chapter_name，原规则这几项会取空）；简介与封面仍用 og:description / og:image。\n· 目录：#list dd.12:99999 a —— #list 里 dt「最新章节」区 12 条 dd 是倒序重复，用索引范围 .start:end 跳过它们。上界写 99999 而不是实际条数：不同书章节数差别很大（实测两本分别 330 / 466 条 dd），上界小于真实条数会静默截断、漏章；超出部分由引擎截断即可。\n· 实测于 2026-10-17 全链路（App 内置引擎）：**伪类全废** —— `:eq(0)` 返回全部、`:not(:first-child)` 不排除；**单索引也废** —— `a.0` 同样返回全部；**只有 `.start:end` 双端范围可用**（`dd.12:99999` 实测 454 / 1305 章）。所以取单条一律写 `a.0:1`（= 第 0 个到第 1 个之前），跳过前缀用 `dd.12:99999`。\n· 目录第一条是「第一卷：默认」——它是站点自己的卷标题，点进去是卷首页（无正文，只有“正在手打中”），不是 bug；不要用 ## 去删“第X卷”，否则会切出「：默认」。\n· 正文：text 用 #content@text 取纯文本，再用单条 ## 删掉「天才一秒记住本站地址…无广告！」那行广告。\n  （2026-10-17 实测：content.replace 在 App 内置引擎不生效；## 多段链也不成立——四段链让输出只剩一个字，且 ## 里写 \\n 会被转成字面字母 n。所以只保留一条 ##，多步净化不再放进规则。）"
+}
